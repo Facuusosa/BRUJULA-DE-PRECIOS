@@ -8,10 +8,10 @@ export function CambiosRecientes() {
   return (
     <div className="px-4 mt-6">
       <h3 
-        className="font-body text-[11px] uppercase tracking-wider mb-3"
+        className="font-body text-[11px] uppercase tracking-[0.12em] mb-3"
         style={{ color: '#94a3b8' }}
       >
-        Cambios recientes
+        Movimientos recientes
       </h3>
       
       <div className="flex flex-col gap-2">

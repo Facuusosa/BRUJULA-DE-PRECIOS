@@ -17,45 +17,53 @@ const items: { id: Vista; label: string; icon: typeof Home }[] = [
   { id: 'cuenta', label: 'Cuenta', icon: User },
 ]
 
-// Bottom navigation con efecto glassmorphism
+// Bottom navigation con efecto glassmorphism premium
 export function BottomNav({ vistaActiva, onChange }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-nav safe-area-bottom">
-      <div className="flex items-center justify-around py-2 pb-4">
-        {items.map((item) => {
-          const isActive = vistaActiva === item.id
-          const Icon = item.icon
-          
-          return (
-            <button
-              key={item.id}
-              onClick={() => onChange(item.id)}
-              className="flex flex-col items-center gap-1 px-4 py-2 relative"
-            >
-              {/* Indicador activo */}
-              {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 rounded-xl"
-                  style={{ backgroundColor: '#e8f5ee' }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-fit">
+      {/* Marco / Fondo de contraste */}
+      <div className="p-1 bg-slate-900/5 backdrop-blur-3xl rounded-[2rem] border border-slate-200/40 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+        <nav 
+          className="rounded-[1.6rem] border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.08)] bg-white/95" 
+          style={{ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
+        >
+          <div className="flex items-center gap-1 sm:gap-1.5 py-0.5 px-1 min-w-[320px] sm:min-w-[360px]">
+            {items.map((item) => {
+              const isActive = vistaActiva === item.id
+              const Icon = item.icon
               
-              <Icon 
-                className="w-5 h-5 relative z-10 transition-colors duration-200"
-                style={{ color: isActive ? '#006d38' : '#64748b' }}
-              />
-              <span 
-                className="font-body text-[11px] font-medium relative z-10 transition-colors duration-200"
-                style={{ color: isActive ? '#006d38' : '#64748b' }}
-              >
-                {item.label}
-              </span>
-            </button>
-          )
-        })}
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onChange(item.id)}
+                  className="flex flex-col items-center gap-0.5 px-3 py-1.5 relative flex-1 group"
+                >
+                  {/* Indicador activo con gradiente suave */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabBottom"
+                      className="absolute inset-x-1 inset-y-1 rounded-xl bg-gradient-to-b from-[#e8f5ee] to-[#d4ede0] border border-[#006d38]/10"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  
+                  <Icon 
+                    className="w-[20px] h-[20px] relative z-10 transition-all duration-300 group-hover:scale-110"
+                    strokeWidth={isActive ? 2.5 : 1.5}
+                    style={{ color: isActive ? '#006d38' : '#64748b' }}
+                  />
+                  <span 
+                    className={`font-body text-[10px] tracking-tight relative z-10 transition-colors duration-300 ${isActive ? 'font-black' : 'font-medium'}`}
+                    style={{ color: isActive ? '#006d38' : '#64748b' }}
+                  >
+                    {item.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </nav>
       </div>
-    </nav>
+    </div>
   )
 }

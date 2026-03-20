@@ -1,27 +1,16 @@
 'use client'
 
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
-import { useEffect } from 'react'
+import { motion } from 'framer-motion'
+import Particles from './reactbits/Backgrounds/Particles/Particles'
+import CountUp from './reactbits/TextAnimations/CountUp/CountUp'
 
 interface ImpactCardProps {
   ahorroTotal: number
   cantidadBombas: number
 }
 
-// Card de impacto verde con animación de contador
+// Card de impacto verde con animación de contador y partículas
 export function ImpactCard({ ahorroTotal, cantidadBombas }: ImpactCardProps) {
-  const count = useMotionValue(0)
-  const rounded = useTransform(count, Math.round)
-  
-  useEffect(() => {
-    const animation = animate(count, ahorroTotal, {
-      duration: 1.5,
-      ease: [0.25, 0.46, 0.45, 0.94]
-    })
-    
-    return animation.stop
-  }, [ahorroTotal, count])
-  
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -30,15 +19,22 @@ export function ImpactCard({ ahorroTotal, cantidadBombas }: ImpactCardProps) {
       className="mx-4 mt-4 p-5 rounded-3xl relative overflow-hidden"
       style={{ backgroundColor: '#006d38' }}
     >
-      {/* Patrón decorativo sutil */}
-      <div 
-        className="absolute inset-0 opacity-10"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 100% 0%, rgba(255,255,255,0.3) 0%, transparent 50%)'
-        }}
-      />
+      {/* Patrón decorativo y partículas */}
+      <div className="absolute inset-0 z-0">
+        <Particles
+          particleCount={50}
+          particleColors={['#ffffff', '#ffffff', '#ffffff']}
+          speed={0.2}
+          particleSpread={5}
+          sizeRandomness={1}
+          moveParticlesOnHover={true}
+          particleHoverFactor={2}
+          alphaParticles={true}
+          particleBaseSize={80}
+        />
+      </div>
       
-      <div className="relative flex items-start justify-between">
+      <div className="relative z-10 flex items-start justify-between">
         {/* Contenido izquierdo */}
         <div>
           {/* Label */}
@@ -47,13 +43,16 @@ export function ImpactCard({ ahorroTotal, cantidadBombas }: ImpactCardProps) {
           </span>
           
           {/* Número grande animado */}
-          <motion.div className="mt-1">
-            <span 
+          <motion.div className="mt-1 flex items-center">
+            <CountUp
+              from={0}
+              to={47200}
+              duration={2}
+              separator="."
+              prefix="$"
               className="font-heading font-extrabold text-white"
               style={{ fontSize: 'clamp(2.5rem, 8vw, 3.5rem)' }}
-            >
-              $<motion.span>{rounded}</motion.span>
-            </span>
+            />
           </motion.div>
           
           {/* Subtítulo */}

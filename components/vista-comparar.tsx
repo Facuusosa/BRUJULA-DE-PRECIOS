@@ -1,39 +1,68 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Menu, X } from 'lucide-react'
 import { productos, sectores, Producto, formatearPrecio } from '@/lib/data'
 import { Calculadora } from './calculadora'
+import { ModalProducto } from './modal-producto'
+import { useModalProducto } from '@/hooks/use-modal-producto'
 
 interface VistaCompararProps {
   onGuardarEnLista?: (data: { producto: Producto; mayorista: string; precioCompra: number; margen: number; precioVenta: number; ganancia: number }) => void
+  sectorInicial?: string
 }
 
 // Vista de comparación de precios con sidebar de categorías
-export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
-  const [sectorActivo, setSectorActivo] = useState('Almacén')
+export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaCompararProps) {
+  const [sectorActivo, setSectorActivo] = useState(sectorInicial || 'Almacén')
   const [subcategoriaActiva, setSubcategoriaActiva] = useState<string | null>(null)
+  const [subcategoriasAbiertas, setSubcategoriasAbiertas] = useState(true)
   const [busqueda, setBusqueda] = useState('')
+  const [mayoristaFiltro, setMayoristaFiltro] = useState<'Todos' | 'Maxiconsumo' | 'Yaguar'>('Todos')
   const [menuAbierto, setMenuAbierto] = useState(false)
   
+  const { isOpen, selectedProduct, origen, openModal, closeModal } = useModalProducto()
+
+  // Sincronizar sector cuando el usuario navega desde un chip de vista-inicio
+  useEffect(() => {
+    if (sectorInicial) {
+      setSectorActivo(sectorInicial)
+      setSubcategoriaActiva(null)
+    }
+  }, [sectorInicial])
+
   // Estado para calculadora
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
   const [mayoristaSelecc, setMayoristaSelecc] = useState('')
   const [precioSelecc, setPrecioSelecc] = useState(0)
   
+  // Paginación
+  const [paginaActual, setPaginaActual] = useState(1)
+  const PRODUCTOS_POR_PAGINA = 20
+
+  // Reset a página 1 cuando cambia cualquier filtro
+  useEffect(() => { setPaginaActual(1) }, [sectorActivo, subcategoriaActiva, busqueda, mayoristaFiltro])
+
   // Filtrar productos
   const productosFiltrados = productos.filter(p => {
     const matchSector = p.sector === sectorActivo
     const matchSubcat = !subcategoriaActiva || p.subcategoria === subcategoriaActiva
     const matchBusqueda = !busqueda || p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    return matchSector && matchSubcat && matchBusqueda
+    const matchMayorista = mayoristaFiltro === 'Todos' || p.precios.some(pr => pr.mayorista === mayoristaFiltro)
+    return matchSector && matchSubcat && matchBusqueda && matchMayorista
   })
-  
+
+  // Paginar
+  const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / PRODUCTOS_POR_PAGINA))
+  const inicio = (paginaActual - 1) * PRODUCTOS_POR_PAGINA
+  const productosPagina = productosFiltrados.slice(inicio, inicio + PRODUCTOS_POR_PAGINA)
+
   const sectorActual = sectores.find(s => s.nombre === sectorActivo)
   
   // Abrir calculadora con el producto seleccionado
-  const handleSelectPrecio = (producto: Producto, mayorista: string, precio: number) => {
+  const handleSelectPrecio = (producto: Producto, mayorista: string, precio: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation(); // Evitar disparar el modal al tocar un precio directamente
     setProductoSeleccionado(producto)
     setMayoristaSelecc(mayorista)
     setPrecioSelecc(precio)
@@ -52,50 +81,83 @@ export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
   
   return (
     <div className="flex min-h-screen pb-24">
+      {/* Modal de Producto con efecto burbuja */}
+      <ModalProducto 
+        isOpen={isOpen}
+        onClose={closeModal}
+        product={selectedProduct}
+        origen={origen}
+        onCalcular={(prod, may, price) => {
+          handleSelectPrecio(prod, may, price);
+          closeModal();
+        }}
+      />
+
       {/* Sidebar Desktop */}
       <aside className="hidden md:block w-44 fixed left-0 top-14 bottom-20 overflow-y-auto" style={{ backgroundColor: '#f2f4f6' }}>
         <div className="py-4">
           {sectores.map((sector) => (
             <div key={sector.nombre}>
-              <button
+              <motion.button
                 onClick={() => {
-                  setSectorActivo(sector.nombre)
-                  setSubcategoriaActiva(null)
+                  if (sectorActivo === sector.nombre) {
+                    setSubcategoriasAbiertas(prev => !prev)
+                  } else {
+                    setSectorActivo(sector.nombre)
+                    setSubcategoriaActiva(null)
+                    setSubcategoriasAbiertas(true)
+                  }
                 }}
-                className={`w-full text-left px-4 py-3 transition-all duration-200 flex items-center gap-2 ${
-                  sectorActivo === sector.nombre 
-                    ? 'font-heading font-semibold' 
+                whileHover={sectorActivo !== sector.nombre ? { x: 4, backgroundColor: '#e8f0ee' } : { scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                className={`w-full text-left px-4 py-3 flex items-center gap-2 ${
+                  sectorActivo === sector.nombre
+                    ? 'font-heading font-semibold'
                     : 'font-body'
                 }`}
                 style={{
                   backgroundColor: sectorActivo === sector.nombre ? '#e8f5ee' : 'transparent',
                   borderLeft: sectorActivo === sector.nombre ? '3px solid #006d38' : '3px solid transparent',
                   color: sectorActivo === sector.nombre ? '#006d38' : '#0f172a',
-                  transform: sectorActivo === sector.nombre ? 'scale(1.02)' : 'scale(1)'
                 }}
               >
-                <span>{sector.emoji}</span>
-                <span className="text-sm">{sector.nombre}</span>
-              </button>
+                <motion.span
+                  whileHover={{ rotate: [0, -12, 12, 0], scale: 1.2 }}
+                  transition={{ duration: 0.4 }}
+                  style={{ display: 'inline-block' }}
+                >{sector.emoji}</motion.span>
+                <span className="text-sm flex-1">{sector.nombre}</span>
+                {sectorActivo === sector.nombre && (
+                  <span
+                    className="text-[10px] transition-transform duration-200"
+                    style={{ transform: subcategoriasAbiertas ? 'rotate(0deg)' : 'rotate(-90deg)', opacity: 0.6 }}
+                  >
+                    ▾
+                  </span>
+                )}
+              </motion.button>
               
-              {/* Subcategorías */}
-              {sectorActivo === sector.nombre && (
+              {/* Subcategorías colapsables */}
+              {sectorActivo === sector.nombre && subcategoriasAbiertas && (
                 <div className="pl-4">
                   {sector.subcategorias.map((sub) => (
-                    <button
+                    <motion.button
                       key={sub}
                       onClick={() => setSubcategoriaActiva(subcategoriaActiva === sub ? null : sub)}
-                      className="w-full text-left px-4 py-2 flex items-center gap-2 transition-colors"
-                      style={{
-                        color: subcategoriaActiva === sub ? '#006d38' : '#64748b'
-                      }}
+                      whileHover={{ x: 4, color: '#006d38' }}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                      className="w-full text-left px-4 py-2 flex items-center gap-2"
+                      style={{ color: subcategoriaActiva === sub ? '#006d38' : '#64748b' }}
                     >
-                      <span 
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: subcategoriaActiva === sub ? '#006d38' : '#94a3b8' }}
+                      <motion.span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        animate={{ scale: subcategoriaActiva === sub ? 1.3 : 1 }}
+                        style={{ backgroundColor: subcategoriaActiva === sub ? '#006d38' : '#94a3b8', display: 'inline-block' }}
                       />
                       <span className="font-body text-sm">{sub}</span>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               )}
@@ -171,7 +233,7 @@ export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
       </AnimatePresence>
       
       {/* Contenido principal */}
-      <main className="flex-1 md:ml-44 pt-14 md:pt-4 px-4">
+      <main className="flex-1 min-w-0 md:ml-44 pt-14 md:pt-4 px-4 w-full">
         {/* Buscador */}
         <div className="relative mb-4">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748b]" />
@@ -184,13 +246,33 @@ export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
             style={{ backgroundColor: '#f2f4f6' }}
           />
         </div>
+
+        {/* Filtro de Mayorista */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
+          {(['Todos', 'Maxiconsumo', 'Yaguar'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMayoristaFiltro(m)}
+              className={`px-4 py-2 rounded-full whitespace-nowrap font-heading font-black text-[11px] uppercase tracking-wider transition-all shadow-sm ${
+                mayoristaFiltro === m 
+                  ? 'bg-[#006d38] text-white shadow-[#006d38]/20' 
+                  : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
         
         {/* Chips de subcategorías */}
         {sectorActual && (
           <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-hide">
-            <button
+            <motion.button
               onClick={() => setSubcategoriaActiva(null)}
-              className={`px-3 py-1.5 rounded-full whitespace-nowrap font-body text-sm transition-all ${
+              whileHover={{ scale: 1.06, y: -1 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+              className={`px-3 py-1.5 rounded-full whitespace-nowrap font-body text-sm ${
                 !subcategoriaActiva ? 'font-semibold' : ''
               }`}
               style={{
@@ -199,12 +281,15 @@ export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
               }}
             >
               Todos
-            </button>
+            </motion.button>
             {sectorActual.subcategorias.map((sub) => (
-              <button
+              <motion.button
                 key={sub}
                 onClick={() => setSubcategoriaActiva(subcategoriaActiva === sub ? null : sub)}
-                className={`px-3 py-1.5 rounded-full whitespace-nowrap font-body text-sm transition-all ${
+                whileHover={{ scale: 1.06, y: -1 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+                className={`px-3 py-1.5 rounded-full whitespace-nowrap font-body text-sm ${
                   subcategoriaActiva === sub ? 'font-semibold' : ''
                 }`}
                 style={{
@@ -213,88 +298,112 @@ export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
                 }}
               >
                 {sub}
-              </button>
+              </motion.button>
             ))}
           </div>
         )}
         
-        {/* Lista de productos */}
-        <div className="flex flex-col gap-3">
+        {/* Grilla de productos (cuadraditos) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
           <AnimatePresence mode="popLayout">
-            {productosFiltrados.map((producto, index) => {
-              // Encontrar el mejor precio
-              const precios = producto.precios.map(p => p.precio)
-              const minPrecio = Math.min(...precios)
+            {productosPagina.map((producto, index) => {
+              const preciosFiltrados = mayoristaFiltro === 'Todos' 
+                ? producto.precios 
+                : producto.precios.filter(p => p.mayorista === mayoristaFiltro)
+              
+              const minPrecio = Math.min(...preciosFiltrados.map(p => p.precio))
+              const ganador = preciosFiltrados.find(p => p.precio === minPrecio)
               
               return (
                 <motion.div
                   key={producto.id}
                   layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-2xl p-4"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  whileHover={{ 
+                    y: -12, 
+                    rotateX: 2,
+                    scale: 1.02,
+                    transition: { duration: 0.3, ease: 'easeOut' } 
+                  }}
+                  transition={{ delay: index * 0.03, type: 'spring', stiffness: 300, damping: 25 }}
+                  className="flex flex-col bg-white rounded-[2rem] border border-slate-200/60 shadow-[0_8px_16px_rgba(0,0,0,0.06),0_2px_4px_rgba(0,0,0,0.02)] overflow-hidden group cursor-pointer hover:shadow-[0_32px_64px_rgba(0,0,0,0.14)] transition-all duration-500 relative"
+                  style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
+                  onClick={(e) => openModal(producto, e)}
                 >
-                  {/* Nombre y timestamp */}
-                  <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-heading font-semibold text-[15px] text-[#0f172a]">
-                      {producto.nombre}
-                    </h4>
-                    <span className="font-body text-[11px] text-[#64748b]">
-                      Hace 2h
-                    </span>
+
+                  {/* Base 3D (Efecto de grosor) */}
+                  <div className="absolute inset-0 rounded-[2rem] border-b-[6px] border-slate-200 pointer-events-none z-0" />
+                  <div className="relative flex flex-col h-full bg-white rounded-[2rem] z-10">
+
+
+                  {/* Foto del producto */}
+                  <div className="h-[140px] sm:h-[160px] w-full shrink-0 bg-[#f8f9fb] flex items-center justify-center p-4 relative overflow-hidden">
+                    {ganador?.tipo === 'oferta' && (
+                      <div className="absolute top-3 left-3 bg-[#ff4700] text-white font-black text-[10px] px-2.5 py-1 rounded-full z-10 shadow-sm">
+                        OFERTA
+                      </div>
+                    )}
+                    
+                    {(producto as any).imageUrl ? (
+                      <img
+                        src={(producto as any).imageUrl}
+                        alt={producto.nombre}
+                        className="w-full h-full object-contain transform group-hover:scale-110 transition-transform duration-500"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="text-5xl">{producto.emoji}</div>
+                    )}
                   </div>
-                  
-                  {/* Chips de precios */}
-                  <div className="flex flex-wrap gap-2">
-                    {producto.precios.map((precio) => {
-                      const esGanador = precio.precio === minPrecio
-                      const esOferta = precio.tipo === 'oferta'
+
+                  {/* Info del producto */}
+                  <div className="p-4 flex flex-col flex-1">
+                    <div className="mb-2">
+                      <span className="font-body text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        REF: {producto.id}
+                      </span>
+                      <h4 className="font-heading font-bold text-[13px] sm:text-[14px] text-slate-800 leading-tight line-clamp-2 min-h-[36px] group-hover:text-[#006d38] transition-colors">
+                        {producto.nombre}
+                      </h4>
+                    </div>
+
+                    <div className="mt-auto">
+                      <div className="flex flex-col">
+                        <span className="font-body text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                          {mayoristaFiltro === 'Todos' ? 'Mejor precio en' : 'Precio en'} {ganador?.mayorista}
+                        </span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="font-heading font-black text-2xl text-[#006d38]">
+                            $ {formatearPrecio(minPrecio).replace('$\u00a0', '')}
+                          </span>
+                        </div>
+                      </div>
                       
-                      return (
-                        <button
-                          key={precio.mayorista}
-                          onClick={() => handleSelectPrecio(producto, precio.mayorista, precio.precio)}
-                          className="flex flex-col items-start px-3 py-2 rounded-xl transition-transform active:scale-95"
-                          style={{
-                            backgroundColor: esGanador ? '#e8f5ee' : esOferta ? '#fff8ed' : '#f2f4f6',
-                            border: esOferta ? '1.5px solid #fea619' : 'none'
+                      {/* Botones de acción rápidos (discretos) */}
+                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-50">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectPrecio(producto, ganador?.mayorista || '', minPrecio, e);
                           }}
+                          className="flex-1 py-2.5 bg-[#006d38] text-white rounded-xl font-heading font-black text-[10px] uppercase tracking-wider transition-all hover:bg-[#005a2e] active:scale-95 shadow-md shadow-[#006d38]/10"
                         >
-                          <span 
-                            className={`font-heading text-[11px] ${esGanador || esOferta ? 'font-semibold' : ''}`}
-                            style={{ color: '#64748b' }}
-                          >
-                            {precio.mayorista}
-                          </span>
-                          <span 
-                            className={`font-heading font-bold ${esGanador ? 'text-lg' : 'text-base'}`}
-                            style={{ color: esGanador ? '#006d38' : '#0f172a' }}
-                          >
-                            {formatearPrecio(precio.precio)}
-                          </span>
-                          {esGanador && (
-                            <span className="font-body text-[9px]" style={{ color: '#006d38' }}>
-                              ✓ Mejor precio
-                            </span>
-                          )}
-                          {esOferta && !esGanador && (
-                            <span 
-                              className="font-body font-bold text-[9px]"
-                              style={{ color: '#fea619' }}
-                            >
-                              OFERTA
-                            </span>
-                          )}
+                          Calcular
                         </button>
-                      )
-                    })}
+                      </div>
+                    </div>
                   </div>
-                </motion.div>
+                </div>
+              </motion.div>
+
+
               )
             })}
           </AnimatePresence>
+
+
           
           {productosFiltrados.length === 0 && (
             <div className="text-center py-12">
@@ -304,6 +413,33 @@ export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
             </div>
           )}
         </div>
+
+        {/* Controles de paginación */}
+        {totalPaginas > 1 && (
+          <div className="flex justify-center items-center gap-3 mt-6 pb-8 flex-wrap">
+            <button
+              onClick={() => { setPaginaActual(p => Math.max(1, p - 1)); window.scrollTo(0,0) }}
+              disabled={paginaActual === 1}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-heading font-semibold text-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: '#006d38', color: '#fff' }}
+            >
+              ← Anterior
+            </button>
+
+            <span className="font-body text-[13px] px-3 py-2 rounded-xl bg-white border border-slate-100 text-[#64748b] tabular-nums">
+              {paginaActual} / {totalPaginas}
+            </span>
+
+            <button
+              onClick={() => { setPaginaActual(p => Math.min(totalPaginas, p + 1)); window.scrollTo(0,0) }}
+              disabled={paginaActual === totalPaginas}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-heading font-semibold text-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: '#006d38', color: '#fff' }}
+            >
+              Siguiente →
+            </button>
+          </div>
+        )}
       </main>
       
       {/* Calculadora */}
@@ -318,3 +454,4 @@ export function VistaComparar({ onGuardarEnLista }: VistaCompararProps) {
     </div>
   )
 }
+

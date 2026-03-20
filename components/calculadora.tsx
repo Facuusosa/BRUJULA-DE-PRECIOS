@@ -17,20 +17,25 @@ interface CalculadoraProps {
 
 // Panel calculadora que aparece desde abajo
 export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClose, onGuardar }: CalculadoraProps) {
-  const [precioCompra, setPrecioCompra] = useState(precioInicial)
+  const [precioCompra, setPrecioCompra] = useState<string>(
+    (Math.round(precioInicial * 100) / 100).toString()
+  )
   const [margen, setMargen] = useState(35)
+  const [mayoristaActual, setMayoristaActual] = useState(mayorista)
   
   // Actualizar precio cuando cambia el producto
   useEffect(() => {
-    setPrecioCompra(precioInicial)
-  }, [precioInicial])
+    setPrecioCompra((Math.round(precioInicial * 100) / 100).toString())
+    setMayoristaActual(mayorista)
+  }, [precioInicial, mayorista])
   
   // Calcular precio de venta y ganancia
-  const precioVenta = Math.round(precioCompra * (1 + margen / 100))
-  const ganancia = precioVenta - precioCompra
+  const numPrecioCompra = Number(precioCompra) || 0;
+  const precioVenta = Math.round(numPrecioCompra * (1 + margen / 100))
+  const ganancia = precioVenta - numPrecioCompra
   
   const handleGuardar = () => {
-    onGuardar?.({ precioCompra, margen, precioVenta, ganancia })
+    onGuardar?.({ precioCompra: numPrecioCompra, margen, precioVenta, ganancia })
     onClose()
   }
   
@@ -44,22 +49,17 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/30 z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
           />
           
           {/* Panel */}
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 max-h-[85vh] overflow-auto"
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-[480px] bg-white rounded-[2rem] z-[100] max-h-[90vh] overflow-y-auto shadow-2xl pt-6"
           >
-            {/* Handle pill */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-10 h-1 rounded-full bg-[#d1d5db]" />
-            </div>
-            
             {/* Botón cerrar */}
             <button
               onClick={onClose}
@@ -72,12 +72,46 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
             <div className="px-5 pb-8">
               {/* Info del producto */}
               <div className="mb-6">
-                <h3 className="font-heading font-bold text-lg text-[#0f172a]">
+                <h3 className="font-heading font-bold text-lg text-[#0f172a] pr-8">
                   {producto?.nombre}
                 </h3>
-                <p className="font-body text-sm text-[#64748b] mt-1">
-                  Comprando en {mayorista}
-                </p>
+                
+                {/* Selector de Mayorista */}
+                {producto?.precios && producto.precios.length > 0 ? (
+                  <div className="mt-3">
+                    <span className="font-body text-xs text-[#64748b] block mb-2 font-medium">Comparar precios en:</span>
+                    <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+                      {producto.precios.map(p => {
+                        const isSelected = p.mayorista === mayoristaActual;
+                        return (
+                          <button
+                            key={p.mayorista}
+                            onClick={() => {
+                              setMayoristaActual(p.mayorista);
+                              setPrecioCompra((Math.round(p.precio * 100) / 100).toString());
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap border transition-all ${
+                              isSelected 
+                                ? 'bg-[#006d38] text-white border-[#006d38] shadow-md shadow-[#006d38]/20' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`font-body text-[11px] ${isSelected ? 'font-bold' : 'font-medium'}`}>
+                              {p.mayorista}
+                            </span>
+                            <span className={`font-heading text-[12px] font-black ${isSelected ? 'text-white/90' : 'text-slate-800'}`}>
+                              ${Math.round(p.precio)}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="font-body text-sm text-[#64748b] mt-1">
+                    Comprando en {mayoristaActual}
+                  </p>
+                )}
               </div>
               
               {/* Campo precio de compra */}
@@ -92,7 +126,7 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                   <input
                     type="number"
                     value={precioCompra}
-                    onChange={(e) => setPrecioCompra(Number(e.target.value))}
+                    onChange={(e) => setPrecioCompra(e.target.value)}
                     className="w-full h-14 pl-8 pr-4 rounded-xl font-heading font-bold text-lg text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#006d38]"
                     style={{ backgroundColor: '#f2f4f6' }}
                   />

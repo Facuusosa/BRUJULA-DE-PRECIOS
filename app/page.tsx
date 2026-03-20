@@ -13,8 +13,8 @@ import { ItemLista, Producto } from '@/lib/data'
 export default function BrujulaMayorista() {
   const [vistaActiva, setVistaActiva] = useState<Vista>('inicio')
   const [listaGuardados, setListaGuardados] = useState<ItemLista[]>([])
+  const [sectorInicial, setSectorInicial] = useState<string>('Almacén')
   
-  // Manejar cuando se guarda un producto desde la calculadora
   const handleGuardarEnLista = (data: {
     producto: Producto
     mayorista: string
@@ -34,47 +34,47 @@ export default function BrujulaMayorista() {
     setListaGuardados(prev => [...prev, nuevoItem])
   }
   
-  // Eliminar de la lista
   const handleEliminar = (index: number) => {
     setListaGuardados(prev => prev.filter((_, i) => i !== index))
   }
   
-  // Navegar a comparar desde la lista vacía
-  const handleIrAComparar = () => {
-    setVistaActiva('comparar')
-  }
-  
-  // Cuando se selecciona una bomba, ir a comparar
-  const handleSelectBomba = () => {
+  const handleIrAComparar = () => setVistaActiva('comparar')
+  const handleSelectBomba = () => { /* Abrir modal sin cambiar de vista */ }
+  const handleIrAComporarConSector = (sector: string) => {
+    setSectorInicial(sector)
     setVistaActiva('comparar')
   }
   
   return (
-    <main className="min-h-screen" style={{ backgroundColor: '#f7f9fb' }}>
+    <main className="min-h-screen bg-[#f7f9fb]">
       {/* Header fijo */}
       <Header />
-      
+
       {/* Contenido según vista activa */}
       {vistaActiva === 'inicio' && (
-        <VistaInicio onSelectBomba={handleSelectBomba} />
+        <VistaInicio 
+          onSelectBomba={handleSelectBomba} 
+          onIrAComparарConSector={handleIrAComporarConSector}
+          onGuardarEnLista={handleGuardarEnLista}
+        />
       )}
-      
+
       {vistaActiva === 'comparar' && (
-        <VistaComparar onGuardarEnLista={handleGuardarEnLista} />
+        <VistaComparar onGuardarEnLista={handleGuardarEnLista} sectorInicial={sectorInicial} />
       )}
-      
+
       {vistaActiva === 'lista' && (
-        <VistaLista 
+        <VistaLista
           items={listaGuardados}
           onEliminar={handleEliminar}
           onIrAComparar={handleIrAComparar}
         />
       )}
-      
+
       {vistaActiva === 'cuenta' && (
         <VistaCuenta />
       )}
-      
+
       {/* Navegación inferior */}
       <BottomNav vistaActiva={vistaActiva} onChange={setVistaActiva} />
     </main>
