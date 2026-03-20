@@ -170,7 +170,7 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                     key={precioVenta}
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="font-heading font-extrabold text-3xl"
+                    className="font-heading font-extrabold text-2xl sm:text-3xl text-right"
                     style={{ color: '#006d38' }}
                   >
                     {formatearPrecio(precioVenta)}

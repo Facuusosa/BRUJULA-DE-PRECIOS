@@ -121,7 +121,7 @@ export function ModalProducto({ isOpen, onClose, product, origen, onCalcular }: 
                   <span className="font-body text-[10px] text-slate-400 font-bold tracking-widest uppercase block mb-0.5">
                     SKU: {product.id}
                   </span>
-                  <h2 className="font-heading font-black text-2xl text-slate-900 tracking-tight leading-[1.15]">
+                  <h2 className="font-heading font-black text-xl sm:text-2xl text-slate-900 tracking-tight leading-[1.15]">
                     {product.nombre}
                   </h2>
                 </div>
@@ -178,15 +178,15 @@ export function ModalProducto({ isOpen, onClose, product, origen, onCalcular }: 
               </div>
 
               {/* Botones de acción (fijos abajo) */}
-              <div className="p-5 bg-white border-t border-slate-100 flex gap-3">
+              <div className="p-4 sm:p-5 bg-white border-t border-slate-100 flex gap-2 sm:gap-3">
                 <button 
-                  className="flex-[0.4] bg-[#ff4700] text-white h-12 rounded-2xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#e64000] shadow-lg shadow-[#ff4700]/15 transition-all active:scale-[0.98]"
+                  className="flex-1 bg-[#ff4700] text-white h-11 sm:h-12 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-normal sm:tracking-wider flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-[#e64000] shadow-lg shadow-[#ff4700]/15 transition-all active:scale-[0.98]"
                   onClick={() => onCalcular?.(product, selectedWholesaler, selectedPrice.precio)}
                 >
-                  <span className="text-sm">🔥</span> Calcular
+                  <span className="text-xs sm:text-sm">🔥</span> Calcular
                 </button>
-                <button className="flex-1 bg-[#006d38] text-white h-12 rounded-2xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#005a2e] shadow-lg shadow-[#006d38]/15 transition-all active:scale-[0.98]">
-                  <Plus size={16} strokeWidth={3} /> Agregar a la lista
+                <button className="flex-[1.5] bg-[#006d38] text-white h-11 sm:h-12 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-normal sm:tracking-wider flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-[#005a2e] shadow-lg shadow-[#006d38]/15 transition-all active:scale-[0.98]">
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={3} /> Agregar lista
                 </button>
               </div>
 

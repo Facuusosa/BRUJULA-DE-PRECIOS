@@ -204,27 +204,49 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
                 <X className="w-5 h-5 text-[#64748b]" />
               </button>
               
-              <div className="px-4 pb-8">
-                <h3 className="font-heading font-bold text-lg mb-4">Categorías</h3>
+              <div className="px-4 pb-12 space-y-4 overflow-y-auto max-h-[calc(100vh-100px)] custom-scrollbar">
+                <h3 className="font-heading font-bold text-lg mb-6 sticky top-0 bg-white py-2 z-10">Categorías</h3>
                 {sectores.map((sector) => (
-                  <button
-                    key={sector.nombre}
-                    onClick={() => {
-                      setSectorActivo(sector.nombre)
-                      setSubcategoriaActiva(null)
-                      setMenuAbierto(false)
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded-xl mb-2 flex items-center gap-3 transition-all ${
-                      sectorActivo === sector.nombre ? 'font-heading font-semibold' : 'font-body'
-                    }`}
-                    style={{
-                      backgroundColor: sectorActivo === sector.nombre ? '#e8f5ee' : '#f2f4f6',
-                      color: sectorActivo === sector.nombre ? '#006d38' : '#0f172a'
-                    }}
-                  >
-                    <span className="text-xl">{sector.emoji}</span>
-                    <span>{sector.nombre}</span>
-                  </button>
+                  <div key={sector.nombre} className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setSectorActivo(sector.nombre)
+                        setSubcategoriaActiva(null)
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-all ${
+                        sectorActivo === sector.nombre ? 'font-heading font-semibold shadow-sm' : 'font-body'
+                      }`}
+                      style={{
+                        backgroundColor: sectorActivo === sector.nombre ? '#e8f5ee' : '#f2f4f6',
+                        color: sectorActivo === sector.nombre ? '#006d38' : '#0f172a'
+                      }}
+                    >
+                      <span className="text-xl">{sector.emoji}</span>
+                      <span className="flex-1">{sector.nombre}</span>
+                    </button>
+                    
+                    {/* Subcategorías dentro del menú móvil */}
+                    {sectorActivo === sector.nombre && sector.subcategorias.length > 0 && (
+                      <div className="pl-6 pr-2 py-2 flex flex-col gap-2 border-l-2 border-[#006d38]/10 ml-6 mt-1">
+                        {sector.subcategorias.map((sub) => (
+                          <button
+                            key={sub}
+                            onClick={() => {
+                              setSubcategoriaActiva(sub)
+                              setMenuAbierto(false)
+                            }}
+                            className={`w-full text-left px-4 py-3 rounded-xl text-[13px] transition-all border ${
+                              subcategoriaActiva === sub 
+                                ? 'font-bold bg-[#006d38] text-white border-[#006d38] shadow-sm' 
+                                : 'bg-slate-50 text-slate-500 border-slate-100 active:bg-slate-100'
+                            }`}
+                          >
+                            {sub}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </motion.div>
@@ -364,18 +386,18 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
                       <span className="font-body text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
                         REF: {producto.id}
                       </span>
-                      <h4 className="font-heading font-bold text-[13px] sm:text-[14px] text-slate-800 leading-tight line-clamp-2 min-h-[36px] group-hover:text-[#006d38] transition-colors">
+                      <h4 className="font-heading font-bold text-[12px] sm:text-[14px] text-slate-800 leading-tight line-clamp-2 min-h-[2.4rem] sm:min-h-[2.8rem] group-hover:text-[#006d38] transition-colors">
                         {producto.nombre}
                       </h4>
                     </div>
 
                     <div className="mt-auto">
-                      <div className="flex flex-col">
-                        <span className="font-body text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                      <div className="flex flex-col min-h-[2.8rem] justify-end">
+                        <span className="font-body text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-tighter truncate mb-0.5">
                           {mayoristaFiltro === 'Todos' ? 'Mejor precio en' : 'Precio en'} {ganador?.mayorista}
                         </span>
-                        <div className="flex items-baseline gap-1 mt-0.5">
-                          <span className="font-heading font-black text-2xl text-[#006d38]">
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-heading font-black text-xl sm:text-2xl text-[#006d38]">
                             $ {formatearPrecio(minPrecio).replace('$\u00a0', '')}
                           </span>
                         </div>
@@ -388,9 +410,9 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
                             e.stopPropagation();
                             handleSelectPrecio(producto, ganador?.mayorista || '', minPrecio, e);
                           }}
-                          className="flex-1 py-2.5 bg-[#006d38] text-white rounded-xl font-heading font-black text-[10px] uppercase tracking-wider transition-all hover:bg-[#005a2e] active:scale-95 shadow-md shadow-[#006d38]/10"
+                          className="flex-1 py-2 sm:py-2.5 bg-[#006d38] text-white rounded-xl font-heading font-black text-[9px] sm:text-[11px] uppercase tracking-normal sm:tracking-wider transition-all hover:bg-[#005a2e] active:scale-95 shadow-md shadow-[#006d38]/10 flex items-center justify-center gap-1.5"
                         >
-                          Calcular
+                          <span className="text-[12px] sm:text-[14px]">🔥</span> CALCULAR
                         </button>
                       </div>
                     </div>
