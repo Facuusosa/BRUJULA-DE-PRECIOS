@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Menu, X } from 'lucide-react'
+import { Search, Menu, X, ArrowLeft, ChevronRight } from 'lucide-react'
 import { productos, sectores, Producto, formatearPrecio } from '@/lib/data'
 import { Calculadora } from './calculadora'
 import { ModalProducto } from './modal-producto'
@@ -21,6 +21,7 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
   const [busqueda, setBusqueda] = useState('')
   const [mayoristaFiltro, setMayoristaFiltro] = useState<'Todos' | 'Maxiconsumo' | 'Yaguar'>('Todos')
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [drawerFase, setDrawerFase] = useState<'sectores' | 'subcategorias'>('sectores')
   
   const { isOpen, selectedProduct, origen, openModal, closeModal } = useModalProducto()
 
@@ -191,63 +192,114 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 max-h-[70vh] overflow-auto"
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] z-50 max-h-[85vh] flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.15)]"
             >
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1 rounded-full bg-[#d1d5db]" />
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-12 h-1.5 rounded-full bg-slate-200" />
               </div>
-              <button
-                onClick={() => setMenuAbierto(false)}
-                className="absolute top-4 right-4 p-2"
-              >
-                <X className="w-5 h-5 text-[#64748b]" />
-              </button>
-              
-              <div className="px-4 pb-12 space-y-4 overflow-y-auto max-h-[calc(100vh-100px)] custom-scrollbar">
-                <h3 className="font-heading font-bold text-lg mb-6 sticky top-0 bg-white py-2 z-10">Categorías</h3>
-                {sectores.map((sector) => (
-                  <div key={sector.nombre} className="space-y-1">
-                    <button
-                      onClick={() => {
-                        setSectorActivo(sector.nombre)
-                        setSubcategoriaActiva(null)
-                      }}
-                      className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-all ${
-                        sectorActivo === sector.nombre ? 'font-heading font-semibold shadow-sm' : 'font-body'
-                      }`}
-                      style={{
-                        backgroundColor: sectorActivo === sector.nombre ? '#e8f5ee' : '#f2f4f6',
-                        color: sectorActivo === sector.nombre ? '#006d38' : '#0f172a'
-                      }}
+
+              {/* Header Fijo */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50 sticky top-0 bg-white z-20">
+                <div className="flex items-center gap-2">
+                  {drawerFase === 'subcategorias' && (
+                    <button 
+                      onClick={() => setDrawerFase('sectores')}
+                      className="p-2 -ml-2 hover:bg-slate-100 rounded-xl transition-colors"
                     >
-                      <span className="text-xl">{sector.emoji}</span>
-                      <span className="flex-1">{sector.nombre}</span>
+                      <ArrowLeft className="w-5 h-5 text-slate-800" />
                     </button>
-                    
-                    {/* Subcategorías dentro del menú móvil */}
-                    {sectorActivo === sector.nombre && sector.subcategorias.length > 0 && (
-                      <div className="pl-6 pr-2 py-2 flex flex-col gap-2 border-l-2 border-[#006d38]/10 ml-6 mt-1">
-                        {sector.subcategorias.map((sub) => (
-                          <button
-                            key={sub}
-                            onClick={() => {
-                              setSubcategoriaActiva(sub)
-                              setMenuAbierto(false)
-                            }}
-                            className={`w-full text-left px-4 py-3 rounded-xl text-[13px] transition-all border ${
-                              subcategoriaActiva === sub 
-                                ? 'font-bold bg-[#006d38] text-white border-[#006d38] shadow-sm' 
-                                : 'bg-slate-50 text-slate-500 border-slate-100 active:bg-slate-100'
-                            }`}
-                          >
-                            {sub}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  )}
+                  <h3 className="font-heading font-black text-lg tracking-tight text-slate-900">
+                    {drawerFase === 'sectores' ? 'Categorías' : sectorActivo}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => { setMenuAbierto(false); setDrawerFase('sectores') }}
+                  className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+                >
+                  <X className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 pb-12 custom-scrollbar bg-[#fcfdfe]">
+                <AnimatePresence mode="wait">
+                  {drawerFase === 'sectores' ? (
+                    <motion.div 
+                      key="sectores"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="grid grid-cols-1 gap-3"
+                    >
+                      {sectores.map((sector) => (
+                        <button
+                          key={sector.nombre}
+                          onClick={() => {
+                            setSectorActivo(sector.nombre)
+                            setSubcategoriaActiva(null)
+                            setDrawerFase('subcategorias')
+                          }}
+                          className={`w-full text-left px-5 py-5 rounded-[1.5rem] flex items-center justify-between transition-all border ${
+                            sectorActivo === sector.nombre 
+                              ? 'bg-[#e8f5ee] border-[#006d38]/20 shadow-sm' 
+                              : 'bg-white text-slate-800 border-slate-100 active:scale-[0.98]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <span className="text-3xl">{sector.emoji}</span>
+                            <span className={`text-[15px] ${sectorActivo === sector.nombre ? 'font-black text-[#006d38]' : 'font-bold'}`}>
+                              {sector.nombre}
+                            </span>
+                          </div>
+                          <ChevronRight className={`w-5 h-5 ${sectorActivo === sector.nombre ? 'text-[#006d38]' : 'text-slate-300'}`} />
+                        </button>
+                      ))}
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="subcategorias"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="flex flex-col gap-2.5"
+                    >
+                      <button
+                        onClick={() => {
+                          setSubcategoriaActiva(null)
+                          setMenuAbierto(false)
+                          setDrawerFase('sectores')
+                        }}
+                        className={`w-full text-left px-5 py-5 rounded-[1.5rem] flex items-center gap-3 transition-all border ${
+                          subcategoriaActiva === null 
+                            ? 'bg-[#006d38] text-white border-[#006d38] font-black shadow-lg shadow-[#006d38]/20' 
+                            : 'bg-white text-slate-800 border-slate-100 font-bold'
+                        }`}
+                      >
+                        Ver todo en {sectorActivo}
+                      </button>
+                      
+                      {sectores.find(s => s.nombre === sectorActivo)?.subcategorias.map((sub) => (
+                        <button
+                          key={sub}
+                          onClick={() => {
+                            setSubcategoriaActiva(sub)
+                            setMenuAbierto(false)
+                            setDrawerFase('sectores')
+                          }}
+                          className={`w-full text-left px-5 py-4 rounded-[1.25rem] flex items-center justify-between transition-all border ${
+                            subcategoriaActiva === sub 
+                              ? 'bg-[#006d38] text-white border-[#006d38] font-black shadow-lg shadow-[#006d38]/20' 
+                              : 'bg-white text-slate-700 border-slate-100 font-bold active:bg-slate-50'
+                          }`}
+                        >
+                          <span>{sub}</span>
+                          <div className={`w-1.5 h-1.5 rounded-full ${subcategoriaActiva === sub ? 'bg-white' : 'bg-slate-200'}`} />
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           </>
