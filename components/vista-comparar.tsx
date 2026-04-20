@@ -19,7 +19,7 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
   const [subcategoriaActiva, setSubcategoriaActiva] = useState<string | null>(null)
   const [subcategoriasAbiertas, setSubcategoriasAbiertas] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [mayoristaFiltro, setMayoristaFiltro] = useState<'Todos' | 'Maxiconsumo' | 'Yaguar'>('Todos')
+  const [mayoristaFiltro, setMayoristaFiltro] = useState<'Todos' | 'Maxiconsumo' | 'Yaguar' | 'Maxicarrefour'>('Todos')
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [drawerFase, setDrawerFase] = useState<'sectores' | 'subcategorias'>('sectores')
   
@@ -45,14 +45,23 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
   // Reset a página 1 cuando cambia cualquier filtro
   useEffect(() => { setPaginaActual(1) }, [sectorActivo, subcategoriaActiva, busqueda, mayoristaFiltro])
 
-  // Filtrar productos
-  const productosFiltrados = productos.filter(p => {
-    const matchSector = p.sector === sectorActivo
-    const matchSubcat = !subcategoriaActiva || p.subcategoria === subcategoriaActiva
-    const matchBusqueda = !busqueda || p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    const matchMayorista = mayoristaFiltro === 'Todos' || p.precios.some(pr => pr.mayorista === mayoristaFiltro)
-    return matchSector && matchSubcat && matchBusqueda && matchMayorista
-  })
+  // Filtrar y ordenar productos
+  // Orden: ABC=A con 3 precios → ABC=A con 2 precios → ABC=A con 1 precio → resto
+  const productosFiltrados = productos
+    .filter(p => {
+      const matchSector = p.sector === sectorActivo
+      const matchSubcat = !subcategoriaActiva || p.subcategoria === subcategoriaActiva
+      const matchBusqueda = !busqueda || p.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(busqueda.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
+      const matchMayorista = mayoristaFiltro === 'Todos' || p.precios.some(pr => pr.mayorista.toLowerCase() === mayoristaFiltro.toLowerCase())
+      return matchSector && matchSubcat && matchBusqueda && matchMayorista
+    })
+    .sort((a, b) => {
+      const aFuentes = a.precios.filter(pr => pr.precio > 0).length
+      const bFuentes = b.precios.filter(pr => pr.precio > 0).length
+      const aScore = (a.abc === 'A' ? 10 : 0) + aFuentes
+      const bScore = (b.abc === 'A' ? 10 : 0) + bFuentes
+      return bScore - aScore
+    })
 
   // Paginar
   const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / PRODUCTOS_POR_PAGINA))
@@ -81,7 +90,7 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
   }
   
   return (
-    <div className="flex min-h-screen pb-24">
+    <div className="flex min-h-screen pb-32 sm:pb-40">
       {/* Modal de Producto con efecto burbuja */}
       <ModalProducto 
         isOpen={isOpen}
@@ -323,7 +332,7 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
 
         {/* Filtro de Mayorista */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
-          {(['Todos', 'Maxiconsumo', 'Yaguar'] as const).map((m) => (
+          {(['Todos', 'Maxiconsumo', 'Yaguar', 'Maxicarrefour'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMayoristaFiltro(m)}
@@ -381,11 +390,12 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
           <AnimatePresence mode="popLayout">
             {productosPagina.map((producto, index) => {
+              const preciosValidos = producto.precios.filter(p => p.precio > 0)
               const preciosFiltrados = mayoristaFiltro === 'Todos' 
-                ? producto.precios 
-                : producto.precios.filter(p => p.mayorista === mayoristaFiltro)
+                ? preciosValidos
+                : preciosValidos.filter(p => p.mayorista.toLowerCase() === mayoristaFiltro.toLowerCase())
               
-              const minPrecio = Math.min(...preciosFiltrados.map(p => p.precio))
+              const minPrecio = preciosFiltrados.length > 0 ? Math.min(...preciosFiltrados.map(p => p.precio)) : 0
               const ganador = preciosFiltrados.find(p => p.precio === minPrecio)
               
               return (
@@ -439,7 +449,7 @@ export function VistaComparar({ onGuardarEnLista, sectorInicial }: VistaComparar
                         REF: {producto.id}
                       </span>
                       <h4 className="font-heading font-bold text-[12px] sm:text-[14px] text-slate-800 leading-tight line-clamp-2 min-h-[2.4rem] sm:min-h-[2.8rem] group-hover:text-[#006d38] transition-colors">
-                        {producto.nombre}
+                        {producto.nombre.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                       </h4>
                     </div>
 

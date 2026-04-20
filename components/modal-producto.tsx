@@ -121,8 +121,8 @@ export function ModalProducto({ isOpen, onClose, product, origen, onCalcular }: 
                   <span className="font-body text-[10px] text-slate-400 font-bold tracking-widest uppercase block mb-0.5">
                     SKU: {product.id}
                   </span>
-                  <h2 className="font-heading font-black text-xl sm:text-2xl text-slate-900 tracking-tight leading-[1.15]">
-                    {product.nombre}
+                  <h2 className="font-heading font-black text-2xl sm:text-3xl text-slate-900 leading-[1.1] tracking-tight mb-4">
+                    {product.nombre.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                   </h2>
                 </div>
 

@@ -11,6 +11,7 @@ import { ItemLista, Producto } from '@/lib/data'
 
 // App principal de Brújula Mayorista
 export default function BrujulaMayorista() {
+  console.log('🚀 BrujulaMayorista renderizando')
   const [vistaActiva, setVistaActiva] = useState<Vista>('inicio')
   const [listaGuardados, setListaGuardados] = useState<ItemLista[]>([])
   const [sectorInicial, setSectorInicial] = useState<string>('Almacén')
@@ -39,8 +40,7 @@ export default function BrujulaMayorista() {
   }
   
   const handleIrAComparar = () => setVistaActiva('comparar')
-  const handleSelectBomba = () => { /* Abrir modal sin cambiar de vista */ }
-  const handleIrAComporarConSector = (sector: string) => {
+  const handleIrACompararConSector = (sector: string) => {
     setSectorInicial(sector)
     setVistaActiva('comparar')
   }
@@ -52,9 +52,8 @@ export default function BrujulaMayorista() {
 
       {/* Contenido según vista activa */}
       {vistaActiva === 'inicio' && (
-        <VistaInicio 
-          onSelectBomba={handleSelectBomba} 
-          onIrAComparарConSector={handleIrAComporarConSector}
+        <VistaInicio
+          onIrACompararConSector={handleIrACompararConSector}
           onGuardarEnLista={handleGuardarEnLista}
         />
       )}

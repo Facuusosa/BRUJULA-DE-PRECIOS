@@ -12,12 +12,13 @@ import CountUp from './reactbits/TextAnimations/CountUp/CountUp'
 
 interface VistaInicioProps {
   onSelectBomba?: (bomba: ProductoBomba) => void
-  onIrAComparарConSector?: (sector: string) => void
+  onIrACompararConSector?: (sector: string) => void
   onGuardarEnLista?: (data: any) => void
 }
 
-export function VistaInicio({ onSelectBomba, onIrAComparарConSector, onGuardarEnLista }: VistaInicioProps) {
+export function VistaInicio({ onSelectBomba, onIrACompararConSector, onGuardarEnLista }: VistaInicioProps) {
   const bombas = calcularBombas()
+  console.log('� Bombas cargadas:', bombas.length)
   const { isOpen, selectedProduct, origen, openModal, closeModal } = useModalProducto()
   const [mostrarMasVariaciones, setMostrarMasVariaciones] = useState(false)
   
@@ -39,7 +40,7 @@ export function VistaInicio({ onSelectBomba, onIrAComparарConSector, onGuardar
   }
 
   // Stats globales reales (Usando el catálogo completo de lib/data)
-  const cantidadMayoristas = 2 // Maxiconsumo y Yaguar
+  const cantidadMayoristas = 3 // Maxiconsumo, Yaguar y MaxiCarrefour
   const cantidadProductos = productos.length
   
   // El ahorro máximo lo sacamos de las bombas reales calculadas
@@ -60,8 +61,6 @@ export function VistaInicio({ onSelectBomba, onIrAComparарConSector, onGuardar
   
   const countsBySector = useMemo(() => {
     const counts: Record<string, number> = {}
-    // Usamos el array de productos importado de lib/data
-    const { productos } = require('@/lib/data')
     productos.forEach((p: Producto) => {
       counts[p.sector] = (counts[p.sector] || 0) + 1
     })
@@ -247,15 +246,15 @@ export function VistaInicio({ onSelectBomba, onIrAComparарConSector, onGuardar
               { label: 'Limpieza', sector: 'Limpieza', img: '/categories/limpieza_real.png', color: 'from-blue-50/40 to-indigo-100/40' },
               { label: 'Almacén', sector: 'Almacén', images: ['/categories/almacen_aceite.webp', '/categories/almacen_harina.webp', '/categories/almacen_azucar.webp', '/categories/almacen_mayo.webp'], color: 'from-orange-50/40 to-amber-100/40' },
               { label: 'Frescos', sector: 'Frescos', images: ['/categories/frescos_yogur.webp', '/categories/frescos_queso.webp', '/categories/frescos_manteca.webp'], color: 'from-emerald-50/40 to-teal-100/40' },
-              { label: 'Perfumería', sector: 'Perfumería', img: '/categories/perfumeria_real.png', color: 'from-pink-50/40 to-rose-100/40' },
+              { label: 'Perfumería', sector: 'Cuidado Personal', img: '/categories/perfumeria_real.png', color: 'from-pink-50/40 to-rose-100/40' },
               { label: 'Bebidas', sector: 'Bebidas', img: '/categories/bebidas_real.png', color: 'from-sky-50/40 to-blue-100/40' },
               { label: 'Mascotas', sector: 'Mascotas', img: '/categories/mascotas.png', color: 'from-yellow-50/40 to-amber-100/40' },
-              { label: 'Hogar y Bazar', sector: 'Hogar y Bazar', img: '/categories/hogar.png', color: 'from-green-50/40 to-lime-100/40' },
-              { label: 'Electro', sector: 'Electro', img: '/categories/electro.png', color: 'from-cyan-50/40 to-blue-100/40' },
+              { label: 'Bazar', sector: 'Bazar', img: '/categories/hogar.png', color: 'from-green-50/40 to-lime-100/40' },
+              { label: 'Kiosco', sector: 'Kiosco', img: '/categories/bebidas_real.png', color: 'from-cyan-50/40 to-blue-100/40' },
             ].map(({ label, sector, img, images, color }: any) => (
               <motion.button
                 key={sector}
-                onClick={() => onIrAComparарConSector?.(sector)}
+                onClick={() => onIrACompararConSector?.(sector)}
                 initial={{ opacity: 0, scale: 0.95 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
