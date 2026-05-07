@@ -490,14 +490,12 @@ export const sectores = sectoresRaw.filter(s =>
 
 
 
-// Función para calcular las bombas del día (productos populares y mejor precio)
+// Función para calcular las bombas del día (productos con mayor diferencia de precio entre mayoristas)
 export function calcularBombas(): ProductoBomba[] {
   return productos
-    // Solo productos ABC=A con precios reales de 2+ mayoristas
     .filter(p => {
-      const esA = p.abc === 'A'
       const preciosValidos = p.precios.filter(pr => pr.precio > 0)
-      return esA && preciosValidos.length >= 2
+      return preciosValidos.length >= 2
     })
     .map(p => {
       const preciosValidos = p.precios.filter(pr => pr.precio > 0)
@@ -519,14 +517,19 @@ export function calcularBombas(): ProductoBomba[] {
       }
     })
     .sort((a, b) => {
-      // Prioridad 1: productos comparados en los 3 mayoristas
+      // Prioridad 1: productos ABC=A primero (productos de alto volumen conocidos)
+      const abcOrder: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
+      const aAbc = abcOrder[a.abc ?? ''] ?? 4
+      const bAbc = abcOrder[b.abc ?? ''] ?? 4
+      if (aAbc !== bAbc) return aAbc - bAbc
+      // Prioridad 2: productos con 3 mayoristas
       const a3 = a.precios.filter(pr => pr.precio > 0).length === 3 ? 1 : 0
       const b3 = b.precios.filter(pr => pr.precio > 0).length === 3 ? 1 : 0
       if (a3 !== b3) return b3 - a3
-      // Prioridad 2: mayor ahorro porcentual
+      // Prioridad 3: mayor ahorro porcentual
       return b.ahorroVsMaximo - a.ahorroVsMaximo
     })
-    .slice(0, 20)
+    .slice(0, 50)
 }
 
 // Ahorro máximo que puede lograr eligiendo siempre el mejor precio (solo ABC=A)

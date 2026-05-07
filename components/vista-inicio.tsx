@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { calcularBombas, Producto } from '@/lib/data'
+import { calcularBombas, productos, Producto } from '@/lib/data'
 import { BombaListItem } from '@/components/bomba-list-item'
 import CircularGallery from '@/components/CircularGallery'
 import { LogoLoop } from '@/components/LogoLoop'
@@ -36,7 +36,8 @@ const SECTORES_GALLERY = [
 export function VistaInicio({
   onVerProducto,
 }: VistaInicioProps) {
-  const bombas = useMemo(() => calcularBombas().slice(0, 20), [])
+  const bombas = useMemo(() => calcularBombas().slice(0, 50), [])
+  const comparacionesCount = useMemo(() => productos.filter(p => p.precios.length >= 2).length, [])
   const ahorroMax = useMemo(() => Math.max(0, ...bombas.map(b => b.ahorroEnPlata)), [bombas])
   const [mostrarTodas, setMostrarTodas] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -101,8 +102,8 @@ export function VistaInicio({
             <div className="stat-item">
               <div className="stat-val">
                 {mounted
-                  ? <CountUp from={0} to={3018} duration={1.8} separator="." />
-                  : '3.018'}
+                  ? <CountUp from={0} to={comparacionesCount} duration={1.8} separator="." />
+                  : comparacionesCount.toLocaleString('es-AR')}
               </div>
               <div className="stat-label">comparaciones disponibles</div>
             </div>
@@ -175,7 +176,7 @@ export function VistaInicio({
               marginTop: '8px',
             }}
           >
-            Ver las 20 mejores ofertas
+            Ver las 50 mejores ofertas
           </button>
         )}
 
