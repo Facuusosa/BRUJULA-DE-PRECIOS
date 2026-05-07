@@ -1,0 +1,19 @@
+{
+  "productos_prioritarios": [
+    "aceite", "yerba", "harina", "azucar", 
+    "arroz", "leche", "fideos", "cafe",
+    "mayonesa", "pure", "tomate",
+    "lavandina", "detergente", "jabon",
+    "gaseosa", "agua", "cerveza", "fernet",
+    "papel higienico", "servilleta",
+    "shampoo", "desodorante", "dentifrico"
+  ],
+  "productos_penalizados": [
+    "display", "bulto", "caja x", "pack x",
+    "x 50", "x 60", "x 100", "x 150",
+    "5lt", "5 lt", "10lt", "bazar",
+    "aperitivo", "miscelaneo"
+  ],
+  "multiplicador_prioritario": 10,
+  "multiplicador_penalizado": 0.1
+}

@@ -9,6 +9,7 @@ __v0_jsx-dev-runtime.ts
 next.user-config.*
 
 # Environment variables
+.env
 .env*.local
 
 # Common ignores
@@ -16,3 +17,17 @@ node_modules/
 .next/
 .DS_Store
 .vercel
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Scraper processing outputs (only catalogo_unificado.json belongs in frontend)
+data/processed/auditoria_matches.json
+data/processed/ean_metadata.json
+data/processed/ean_to_sku_mapping.json
+data/processed/master_ean.json
+data/processed/maxiconsumo_con_ean.json
+data/processed/pipeline_report.json
+data/processed/reporte_procesamiento.json
+data/processed/sku_metadata.json
+data/processed/sku_to_ean_mapping.json

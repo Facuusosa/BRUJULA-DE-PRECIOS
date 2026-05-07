@@ -1,20 +1,20 @@
 import type { Metadata, Viewport } from 'next'
-import { Manrope, Inter } from 'next/font/google'
+import { Poppins, Barlow_Condensed } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-// Fuente para títulos y precios
-const manrope = Manrope({ 
-  subsets: ["latin"],
-  variable: '--font-manrope',
-  display: 'swap',
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-poppins',
+  display: 'block',
 })
 
-// Fuente para cuerpo
-const inter = Inter({ 
-  subsets: ["latin"],
-  variable: '--font-inter',
-  display: 'swap',
+const barlowCondensed = Barlow_Condensed({
+  subsets: ['latin'],
+  weight: ['800'],
+  variable: '--font-barlow-condensed',
+  display: 'block',
 })
 
 export const metadata: Metadata = {
@@ -36,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${manrope.variable} ${inter.variable} font-body antialiased`}>
+      <body className={`${poppins.variable} ${barlowCondensed.variable} antialiased`}>
         {children}
         <Analytics />
       </body>

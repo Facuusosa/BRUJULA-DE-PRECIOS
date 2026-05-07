@@ -1,132 +1,131 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { Bell, Store, CreditCard, LogOut, ChevronRight } from 'lucide-react'
+import { Bell, Store, CreditCard, ChevronRight, LogOut } from 'lucide-react'
 
-// Vista de Mi Cuenta con perfil y configuración
 export function VistaCuenta() {
-  // Datos de usuario simulados
   const usuario = {
-    nombre: 'Juan Pérez',
+    nombre: 'Juan Perez',
     email: 'juan@comercio.com',
     iniciales: 'JP',
     plan: 'Pro',
-    activo: true
   }
-  
+
   const menuItems = [
-    { icon: Bell, label: 'Alertas de precio', descripcion: 'Configurá notificaciones' },
-    { icon: Store, label: 'Mis mayoristas', descripcion: 'Gestioná tus favoritos' },
-    { icon: CreditCard, label: 'Suscripción', descripcion: 'Plan Pro activo' },
+    { Icon: Bell,       label: 'Alertas de precio', desc: 'Configura notificaciones' },
+    { Icon: Store,      label: 'Mis mayoristas',     desc: 'Gestiona tus favoritos' },
+    { Icon: CreditCard, label: 'Suscripcion',        desc: 'Plan Pro activo' },
   ]
-  
+
   return (
-    <div className="pb-24 pt-4 px-4">
-      {/* Perfil */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-4 mb-6"
-      >
-        {/* Avatar */}
-        <div 
-          className="w-14 h-14 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: '#e8f5ee' }}
-        >
-          <span 
-            className="font-heading font-bold text-lg"
-            style={{ color: '#006d38' }}
-          >
-            {usuario.iniciales}
-          </span>
+    <div style={{ background: '#f7f7f7', minHeight: '100%', paddingBottom: '40px' }}>
+      <style>{`
+        .cuenta-inner {
+          max-width: 500px;
+          margin: 0 auto;
+          padding: 32px 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        @media (min-width: 768px) {
+          .cuenta-inner {
+            padding: 40px 20px;
+          }
+        }
+      `}</style>
+
+      <div className="cuenta-inner">
+
+        {/* Avatar + Info */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', paddingTop: '8px' }}>
+          <div style={{
+            width: '80px', height: '80px', borderRadius: '50%',
+            background: '#0a0a0a',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: '28px', fontWeight: 700, color: '#d4a574' }}>{usuario.iniciales}</span>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: '#0a0a0a', fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif', textTransform: 'uppercase', letterSpacing: '0.01em' }}>{usuario.nombre}</p>
+            <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#4a5568' }}>{usuario.email}</p>
+          </div>
         </div>
-        
-        {/* Info */}
-        <div>
-          <h2 className="font-heading font-bold text-lg text-[#0f172a]">
-            {usuario.nombre}
-          </h2>
-          <p className="font-body text-sm text-[#64748b]">
-            {usuario.email}
-          </p>
-        </div>
-      </motion.div>
-      
-      {/* Card de plan */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="rounded-2xl p-5 mb-6"
-        style={{ backgroundColor: '#006d38' }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="font-body text-[10px] uppercase tracking-wider text-white/60 block">
-              Tu plan
+
+        {/* Card plan */}
+        <div style={{
+          background: '#0a0a0a',
+          borderRadius: '16px',
+          padding: '20px',
+          color: '#fff',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.7)' }}>
+              TU PLAN
             </span>
-            <span className="font-heading font-extrabold text-2xl text-white">
+            <span style={{
+              background: '#d4a574', color: '#0a0a0a',
+              fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
+            }}>
               {usuario.plan}
             </span>
           </div>
-          
-          <div 
-            className="px-3 py-1.5 rounded-lg"
-            style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
-          >
-            <span className="font-heading font-bold text-sm text-white">
-              Activo
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d4a574' }} />
+            <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)' }}>Activo</span>
           </div>
+          <button style={{
+            background: 'none', border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: '8px', color: '#fff',
+            fontSize: '13px', fontWeight: 600, padding: '8px 16px', cursor: 'pointer',
+          }}>
+            Gestionar suscripcion
+          </button>
         </div>
-      </motion.div>
-      
-      {/* Menú de opciones */}
-      <div className="flex flex-col gap-2 mb-8">
-        {menuItems.map((item, index) => (
-          <motion.button
-            key={item.label}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 + index * 0.05 }}
-            className="w-full flex items-center gap-4 p-4 rounded-xl text-left transition-transform active:scale-98"
-            style={{ backgroundColor: '#f2f4f6' }}
-          >
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: '#e8f5ee' }}
-            >
-              <item.icon className="w-5 h-5" style={{ color: '#006d38' }} />
+
+        {/* Label sección */}
+        <div style={{ fontSize: '11px', fontWeight: 700, color: '#4a5568', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '-8px' }}>
+          MI CUENTA
+        </div>
+
+        {/* Cards menú */}
+        <div style={{ background: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+          {menuItems.map(({ Icon, label, desc }, i) => (
+            <div key={label}>
+              {i > 0 && <div style={{ height: '1px', background: '#f0f0f0', margin: '0 20px' }} />}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '14px',
+                padding: '18px 20px', cursor: 'pointer',
+              }}>
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '10px',
+                  background: '#e8f5e9',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <Icon size={20} color="#0a0a0a" strokeWidth={1.8} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>{label}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>{desc}</p>
+                </div>
+                <ChevronRight size={18} color="#9ca3af" />
+              </div>
             </div>
-            
-            <div className="flex-1">
-              <span className="font-heading font-semibold text-sm text-[#0f172a] block">
-                {item.label}
-              </span>
-              <span className="font-body text-xs text-[#64748b]">
-                {item.descripcion}
-              </span>
-            </div>
-            
-            <ChevronRight className="w-5 h-5 text-[#94a3b8]" />
-          </motion.button>
-        ))}
+          ))}
+        </div>
+
+        {/* Cerrar sesion */}
+        <button style={{
+          width: '100%', background: 'transparent',
+          border: '1.5px solid #ef4444', borderRadius: '10px',
+          color: '#ef4444', fontSize: '14px', fontWeight: 700,
+          padding: '14px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+        }}>
+          <LogOut size={18} />
+          Cerrar sesion
+        </button>
+
       </div>
-      
-      {/* Botón cerrar sesión */}
-      <motion.button
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="w-full flex items-center justify-center gap-2 h-14 rounded-xl font-heading font-semibold transition-colors"
-        style={{ 
-          border: '2px solid #ef4444',
-          color: '#ef4444'
-        }}
-      >
-        <LogOut className="w-5 h-5" />
-        Cerrar sesión
-      </motion.button>
     </div>
   )
 }

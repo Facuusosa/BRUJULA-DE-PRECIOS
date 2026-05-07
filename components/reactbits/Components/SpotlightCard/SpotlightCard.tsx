@@ -1,13 +1,13 @@
 import { useRef, ReactNode, MouseEvent } from 'react';
 import './SpotlightCard.css';
 
-interface SpotlightCardProps {
+interface SpotlightCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   spotlightColor?: string;
 }
 
-const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(255, 255, 255, 0.25)' }: SpotlightCardProps) => {
+const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(255, 255, 255, 0.25)', onMouseMove: externalOnMouseMove, ...rest }: SpotlightCardProps) => {
   const divRef = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
@@ -19,10 +19,11 @@ const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(255, 2
     divRef.current.style.setProperty('--mouse-x', `${x}px`);
     divRef.current.style.setProperty('--mouse-y', `${y}px`);
     divRef.current.style.setProperty('--spotlight-color', spotlightColor);
+    externalOnMouseMove?.(e);
   };
 
   return (
-    <div ref={divRef} onMouseMove={handleMouseMove} className={`card-spotlight ${className}`}>
+    <div ref={divRef} onMouseMove={handleMouseMove} className={`card-spotlight ${className}`} {...rest}>
       {children}
     </div>
   );

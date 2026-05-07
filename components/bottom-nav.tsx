@@ -1,69 +1,85 @@
 'use client'
 
-import { Home, GitCompare, ListChecks, User } from 'lucide-react'
-import { motion } from 'framer-motion'
-
-export type Vista = 'inicio' | 'comparar' | 'lista' | 'cuenta'
+import { Home, LayoutGrid, Briefcase, User } from 'lucide-react'
+import type { Vista } from '@/app/page'
 
 interface BottomNavProps {
   vistaActiva: Vista
   onChange: (vista: Vista) => void
+  listaCount?: number
 }
 
-const items: { id: Vista; label: string; icon: typeof Home }[] = [
-  { id: 'inicio', label: 'Inicio', icon: Home },
-  { id: 'comparar', label: 'Comparar', icon: GitCompare },
-  { id: 'lista', label: 'Mi Lista', icon: ListChecks },
-  { id: 'cuenta', label: 'Cuenta', icon: User },
+const items: { id: Vista; label: string; Icon: typeof Home }[] = [
+  { id: 'inicio',       label: 'Para Ti',   Icon: Home },
+  { id: 'catalogo',     label: 'Catálogo',  Icon: LayoutGrid },
+  { id: 'herramientas', label: 'Mi Lista',  Icon: Briefcase },
+  { id: 'perfil',       label: 'Perfil',    Icon: User },
 ]
 
-// Bottom navigation con efecto glassmorphism premium
-export function BottomNav({ vistaActiva, onChange }: BottomNavProps) {
+const NAV_IDS = items.map(i => i.id)
+
+export function BottomNav({ vistaActiva, onChange, listaCount = 0 }: BottomNavProps) {
+  const activeId = NAV_IDS.includes(vistaActiva) ? vistaActiva : 'inicio'
+
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-fit">
-      {/* Marco / Fondo de contraste */}
-      <div className="p-1 bg-slate-900/5 backdrop-blur-3xl rounded-[2rem] border border-slate-200/40 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
-        <nav 
-          className="rounded-[1.6rem] border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.08)] bg-white/95" 
-          style={{ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
-        >
-          <div className="flex items-center gap-1 sm:gap-1.5 py-0.5 px-1 min-w-[320px] sm:min-w-[360px]">
-            {items.map((item) => {
-              const isActive = vistaActiva === item.id
-              const Icon = item.icon
-              
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onChange(item.id)}
-                  className="flex flex-col items-center gap-0.5 px-3 py-1.5 relative flex-1 group"
-                >
-                  {/* Indicador activo con gradiente suave */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTabBottom"
-                      className="absolute inset-x-1 inset-y-1 rounded-xl bg-gradient-to-b from-[#e8f5ee] to-[#d4ede0] border border-[#006d38]/10"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  
-                  <Icon 
-                    className="w-[20px] h-[20px] relative z-10 transition-all duration-300 group-hover:scale-110"
-                    strokeWidth={isActive ? 2.5 : 1.5}
-                    style={{ color: isActive ? '#006d38' : '#64748b' }}
-                  />
-                  <span 
-                    className={`font-body text-[10px] tracking-tight relative z-10 transition-colors duration-300 ${isActive ? 'font-black' : 'font-medium'}`}
-                    style={{ color: isActive ? '#006d38' : '#64748b' }}
-                  >
-                    {item.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
-      </div>
-    </div>
+    <nav
+      className="flex md:hidden"
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        background: '#ffffff',
+        borderTop: '1px solid #afafaf',
+        paddingTop: '12px',
+        paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+      }}
+    >
+      {items.map(({ id, label, Icon }) => {
+        const isActive = activeId === id
+        return (
+          <button
+            key={id}
+            onClick={() => onChange(id)}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px 4px',
+              minHeight: '48px',
+              color: isActive ? '#0a0a0a' : '#9ca3af',
+              transition: 'color 0.15s ease',
+            }}
+          >
+            <div style={{ position: 'relative', display: 'inline-flex' }}>
+              <Icon size={22} strokeWidth={isActive ? 2.2 : 1.6} />
+              {id === 'herramientas' && listaCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '-6px', right: '-8px',
+                  background: '#16a34a', color: '#fff',
+                  fontSize: '9px', fontWeight: 700,
+                  minWidth: '16px', height: '16px',
+                  borderRadius: '8px', padding: '0 3px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  lineHeight: 1,
+                }}>
+                  {listaCount > 9 ? '9+' : listaCount}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: isActive ? 700 : 400, letterSpacing: '0.01em' }}>
+              {label}
+            </span>
+          </button>
+        )
+      })}
+    </nav>
   )
 }

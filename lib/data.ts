@@ -5,6 +5,7 @@ export interface Precio {
   mayorista: string
   precio: number
   tipo: 'lista' | 'oferta'
+  link?: string
 }
 
 export interface Producto {
@@ -36,6 +37,13 @@ export interface ItemLista {
   margen: number
   precioVenta: number
   ganancia: number
+}
+
+export interface Lista {
+  id: string
+  nombre: string
+  items: ItemLista[]
+  creadaEn: string
 }
 
 // Mapa de query del scraper → sector, subcategoria, emoji, colorSector
@@ -188,13 +196,49 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       .map(([mayorista, precio]) => ({
         mayorista: nombreMayorista[mayorista] ?? (mayorista.charAt(0).toUpperCase() + mayorista.slice(1)),
         precio: precio as number,
-        tipo: 'lista'
+        tipo: 'lista' as const,
+        link: item.fuentes?.[mayorista]?.link || undefined,
       }))
 
 
     // --- LÓGICA DE SECTORES Y SUBCATEGORÍAS ---
-    const sector = (item.sector as string) || 'Almacén'
     const nombreLower = ` ${item.nombre_display.toLowerCase()} `
+    let sector = (item.sector as string) || 'Almacén'
+
+    // Correcciones de sector: el mayorista a veces pone productos en categorías incorrectas
+    if (sector !== 'Cuidado Personal' && (
+      nombreLower.includes('shampoo') || nombreLower.includes('acondicionador') ||
+      nombreLower.includes('desodorante') || nombreLower.includes('antitranspirante') ||
+      nombreLower.includes('gel de ducha') || nombreLower.includes('colonia ') ||
+      nombreLower.includes(' perfume ') || nombreLower.includes('pasta dental') ||
+      nombreLower.includes('crema dental') || nombreLower.includes('cepillo dental') ||
+      nombreLower.includes('enjuague bucal') || nombreLower.includes('depilatori') ||
+      nombreLower.includes('protector solar') || nombreLower.includes('maquina de afeitar')
+    )) { sector = 'Cuidado Personal' }
+
+    if (sector !== 'Limpieza' && (
+      nombreLower.includes('lavandina') || nombreLower.includes('insecticida') ||
+      nombreLower.includes(' raid ') || nombreLower.includes('mata cucaracha') ||
+      nombreLower.includes('jabon en polvo') || nombreLower.includes('skip ') ||
+      nombreLower.includes(' ariel ') || nombreLower.includes('detergente ropa') ||
+      nombreLower.includes('suavizante ropa') || nombreLower.includes('quitamanchas')
+    )) { sector = 'Limpieza' }
+
+    if (sector !== 'Mascotas' && (
+      nombreLower.includes('alimento para perro') || nombreLower.includes('alimento para gato') ||
+      nombreLower.includes('whiskas ') || nombreLower.includes('pedigree ') ||
+      nombreLower.includes('dog chow') || nombreLower.includes('cat chow') ||
+      nombreLower.includes('purina ') || nombreLower.includes('royal canin')
+    )) { sector = 'Mascotas' }
+
+    if (sector !== 'Bebidas' && (
+      nombreLower.includes('gaseosa ') || nombreLower.includes('cerveza ') ||
+      nombreLower.includes('vino ') || nombreLower.includes('vodka ') ||
+      nombreLower.includes('whisky ') || nombreLower.includes('fernet ') ||
+      nombreLower.includes('champagne ') || nombreLower.includes('sidra ') ||
+      (nombreLower.includes('agua') && (nombreLower.includes('villavicencio') || nombreLower.includes('villa del sur') || nombreLower.includes('glaciar') || nombreLower.includes('mineral')))
+    ) && sector === 'Almacén') { sector = 'Bebidas' }
+
     let subcategoria = 'Otros'
 
     if (sector === 'Almacén') {
@@ -506,4 +550,37 @@ export function formatearPrecio(precio: number): string {
     minimumFractionDigits: tieneDecimales ? 2 : 0,
     maximumFractionDigits: 2
   }).format(precio)
+}
+
+// Extrae tamaño del nombre del producto: "X500G", "x1L", "X750ML", "X1KG", etc.
+export function extraerTamano(nombre: string): string | null {
+  const match = nombre.match(/[Xx](\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L)\b/i)
+  if (!match) return null
+  const num = parseFloat(match[1].replace(',', '.'))
+  const unit = match[2].toUpperCase()
+  if (unit === 'G' || unit === 'GR') return `${num}G`
+  if (unit === 'KG') return `${num}KG`
+  if (unit === 'ML') return `${num}ML`
+  if (unit === 'L') return `${num}L`
+  return null
+}
+
+// Calcula precio por unidad: precio=799, tamano="500G" → "$1,60 por 100g"
+export function calcularPrecioPorUnidad(precio: number, tamano: string | null): string | null {
+  if (!tamano) return null
+  const match = tamano.match(/^(\d+(?:\.\d+)?)(G|KG|ML|L)$/)
+  if (!match) return null
+  const num = parseFloat(match[1])
+  const unit = match[2]
+  if (unit === 'G') {
+    const por100 = (precio / num) * 100
+    return `$${por100.toFixed(0)} por 100g`
+  }
+  if (unit === 'KG') return `$${(precio / num).toFixed(0)} por kg`
+  if (unit === 'ML') {
+    const por100 = (precio / num) * 100
+    return `$${por100.toFixed(0)} por 100ml`
+  }
+  if (unit === 'L') return `$${(precio / num).toFixed(0)} por litro`
+  return null
 }
