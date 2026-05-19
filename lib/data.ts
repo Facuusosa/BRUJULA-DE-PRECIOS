@@ -342,6 +342,86 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       subcategoria = sector
     }
 
+    // Normalizar nombres de subcategoría a los canónicos del Maestro
+    const SUBCAT_NORMALIZE: Record<string, string> = {
+      // Bebidas
+      'Aperitivos y Licores': 'Aperitivos',
+      'Aguas Y Sodas': 'Aguas y Sodas',
+      'Energizantes e Isotónicas': 'Energizantes',
+      'Espumantes y Sidras': 'Sidras',
+      'Jugos': 'Jugos De Fruta',
+      'Otras Bebidas': 'Otros',
+      // Almacén
+      'Aceites y Vinagres': 'Aceites',
+      'Pastas': 'Pastas Secas',
+      'Harinas y Polenta': 'Harinas',
+      'Arroz, Legumbres y Cereales': 'Arroz',
+      'Yerba, Café y Té': 'Yerbas',
+      'Azúcar y Edulcorantes': 'Azúcar',
+      'Dulces y Mermeladas': 'Dulces',
+      'Salsas y Aderezos': 'Aderezos',
+      'Caldos y Condimentos': 'Caldos',
+      'Leche': 'Leches',
+      'Postres y Repostería': 'Reposteria',
+      'Almacén General': 'Otros',
+      // Frescos
+      'Lácteos': 'Leches',
+      'Quesos': 'Quesos Blandos',
+      'Grasas y Cremas': 'Cremas Lacteas',
+      'Fiambres y Embutidos': 'Fiambres',
+      'Pastas y Tapas': 'Pastas Frescas',
+      'Postres y Dulces': 'Postres',
+      'Otros Frescos': 'Otros',
+      // Limpieza
+      'Ropa': 'Jabones Para La Ropa',
+      'Limpieza del Hogar': 'Lavandinas Liquidas',
+      'Vajilla y Cocina': 'Lavavajillas',
+      'Papel': 'Papel Higienico',
+      'Bolsas y Film': 'Bolsas',
+      'Aromatizantes': 'Aromatizantes De Ambientes',
+      'Insecticidas': 'Moscas Y Mosquitos',
+      // Cuidado Personal
+      'Capilar': 'Shampoo',
+      'Desodorantes': 'Desodorantes Corporales',
+      'Dental': 'Cremas Dentales',
+      'Jabones y Geles': 'Jabones Y Geles De Ducha',
+      'Bebés': 'Cuidado Del Bebe',
+      'Higiene Femenina': 'Protección Femenina',
+      'Cremas': 'Cremas Corporales',
+      'Depilación y Afeitado': 'Depilación',
+      'Primeros Auxilios': 'Alcoholes',
+      'Cuidado Corporal': 'Cremas Corporales',
+      // Mascotas
+      'Perros': 'Alimento Para Mascotas',
+      'Gatos': 'Alimento Para Mascotas',
+      'Higiene y Cuidado': 'Higiene De Mascotas',
+      // Kiosco
+      'Golosinas': 'Caramelos, Gomitas Y Pastillas',
+      'Varios Kiosco': 'Otros',
+      // Desayuno y Merienda
+      'Dulces y Untables': 'Dulces',
+      'Chocolates y Cacao': 'Cacaos',
+      'Infusiones': 'Yerbas',
+      'Barras y Alfajores': 'Barras De Cereales',
+      'Desayuno General': 'Otros',
+      // Congelados → subcats del Maestro (Frescos)
+      'Hamburguesas': 'Hamburguesas Y Medallones',
+      'Rebozados': 'Rebozados Congelados',
+      'Papas': 'Papas Congeladas',
+      'Vegetales': 'Vegetales Congelados',
+      'Comidas Listas': 'Comidas Congeladas',
+      'Aves y Pescados': 'Pollos',
+      'Congelados General': 'Otros',
+      // Bazar
+      'Vajilla': 'Vasos',
+      'Cocina': 'Utensilos De Cocina',
+      'Descartables': 'Descartables',
+      'Bazar General': 'Otros',
+    }
+    if (SUBCAT_NORMALIZE[subcategoria]) {
+      subcategoria = SUBCAT_NORMALIZE[subcategoria]
+    }
+
     const scMeta = sectorColorMap[sector] ?? { color: '#e8f5e9', emoji: '🛒' }
 
     return {
@@ -481,9 +561,9 @@ const sectoresRaw = [
   }
 ]
 
-// Exportamos solo los sectores que tienen productos catalogados para evitar items vacíos en el menú
-export const sectores = sectoresRaw.filter(s => 
-  productos.some(p => p.sector === s.nombre)
+// Exportamos solo los sectores con suficientes productos (≥50) para evitar sectores huerfanos
+export const sectores = sectoresRaw.filter(s =>
+  productos.filter(p => p.sector === s.nombre).length >= 20
 ).map(s => {
   // Extraemos las subcategorías reales presentes para este sector
   const subcatsReales = Array.from(new Set(
