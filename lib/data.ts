@@ -37,6 +37,7 @@ export interface ItemLista {
   margen: number
   precioVenta: number
   ganancia: number
+  cantidad?: number
 }
 
 export interface Lista {
@@ -205,8 +206,11 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
     const nombreLower = ` ${item.nombre_display.toLowerCase()} `
     let sector = (item.sector as string) || 'Almacén'
 
-    // Correcciones de sector: el mayorista a veces pone productos en categorías incorrectas
-    if (sector !== 'Cuidado Personal' && (
+    // Si el Maestro asignó subcategoría, usarla directamente sin keyword matching
+    const subcategoriaDelMaestro = ((item.subcategoria as string) || '').trim()
+
+    // Correcciones de sector por keywords: solo para productos sin datos del Maestro
+    if (!subcategoriaDelMaestro && sector !== 'Cuidado Personal' && (
       nombreLower.includes('shampoo') || nombreLower.includes('acondicionador') ||
       nombreLower.includes('desodorante') || nombreLower.includes('antitranspirante') ||
       nombreLower.includes('gel de ducha') || nombreLower.includes('colonia ') ||
@@ -216,7 +220,7 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       nombreLower.includes('protector solar') || nombreLower.includes('maquina de afeitar')
     )) { sector = 'Cuidado Personal' }
 
-    if (sector !== 'Limpieza' && (
+    if (!subcategoriaDelMaestro && sector !== 'Limpieza' && (
       nombreLower.includes('lavandina') || nombreLower.includes('insecticida') ||
       nombreLower.includes(' raid ') || nombreLower.includes('mata cucaracha') ||
       nombreLower.includes('jabon en polvo') || nombreLower.includes('skip ') ||
@@ -224,14 +228,14 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       nombreLower.includes('suavizante ropa') || nombreLower.includes('quitamanchas')
     )) { sector = 'Limpieza' }
 
-    if (sector !== 'Mascotas' && (
+    if (!subcategoriaDelMaestro && sector !== 'Mascotas' && (
       nombreLower.includes('alimento para perro') || nombreLower.includes('alimento para gato') ||
       nombreLower.includes('whiskas ') || nombreLower.includes('pedigree ') ||
       nombreLower.includes('dog chow') || nombreLower.includes('cat chow') ||
       nombreLower.includes('purina ') || nombreLower.includes('royal canin')
     )) { sector = 'Mascotas' }
 
-    if (sector !== 'Bebidas' && (
+    if (!subcategoriaDelMaestro && sector !== 'Bebidas' && (
       nombreLower.includes('gaseosa ') || nombreLower.includes('cerveza ') ||
       nombreLower.includes('vino ') || nombreLower.includes('vodka ') ||
       nombreLower.includes('whisky ') || nombreLower.includes('fernet ') ||
@@ -239,9 +243,11 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       (nombreLower.includes('agua') && (nombreLower.includes('villavicencio') || nombreLower.includes('villa del sur') || nombreLower.includes('glaciar') || nombreLower.includes('mineral')))
     ) && sector === 'Almacén') { sector = 'Bebidas' }
 
-    let subcategoria = 'Otros'
-
-    if (sector === 'Almacén') {
+    let subcategoria: string
+    if (subcategoriaDelMaestro) {
+      // El Maestro tiene la categoría verificada — usarla directamente
+      subcategoria = subcategoriaDelMaestro
+    } else if (sector === 'Almacén') {
       if (nombreLower.includes('aceite') || nombreLower.includes('vinagre') || nombreLower.includes('aceto')) subcategoria = 'Aceites y Vinagres'
       else if (nombreLower.includes('fideo') || nombreLower.includes('pasta') || nombreLower.includes('tallar') || nombreLower.includes('canelone') || nombreLower.includes('lasaña')) subcategoria = 'Pastas'
       else if (nombreLower.includes('harina') || nombreLower.includes('polenta') || nombreLower.includes('semola') || nombreLower.includes('premezcla') || nombreLower.includes('rebozador')) subcategoria = 'Harinas y Polenta'

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AppHeader } from '@/components/header'
 import { SidebarNav } from '@/components/sidebar-nav'
 import { DesktopSidebar } from '@/components/desktop-sidebar'
@@ -32,6 +32,11 @@ export default function BrujulaMayorista() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [subcategoriaActiva, setSubcategoriaActiva] = useState<string>('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const mainRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [vistaActiva])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -50,8 +55,25 @@ export default function BrujulaMayorista() {
     if (saved) {
       try {
         const parsed: Lista[] = JSON.parse(saved)
-        setListas(parsed)
-        if (parsed.length > 0) setListaActivaId(parsed[0].id)
+        // Consolidar duplicados legacy: un producto → un item con cantidad sumada
+        const consolidadas = parsed.map(lista => {
+          const vistos: ItemLista[] = []
+          for (const item of lista.items) {
+            const idx = vistos.findIndex(i => i.producto.id === item.producto.id)
+            if (idx >= 0) {
+              vistos[idx] = { ...vistos[idx], cantidad: (vistos[idx].cantidad ?? 1) + (item.cantidad ?? 1) }
+            } else {
+              vistos.push({ ...item, cantidad: item.cantidad ?? 1 })
+            }
+          }
+          return { ...lista, items: vistos }
+        })
+        setListas(consolidadas)
+        if (consolidadas.length > 0) {
+          const savedActivaId = localStorage.getItem('brujula_lista_activa')
+          const idValido = consolidadas.find(l => l.id === savedActivaId)?.id ?? consolidadas[0].id
+          setListaActivaId(idValido)
+        }
       } catch {
         // ignore invalid localStorage data
       }
@@ -61,6 +83,12 @@ export default function BrujulaMayorista() {
   useEffect(() => {
     localStorage.setItem('brujula_listas', JSON.stringify(listas))
   }, [listas])
+
+  useEffect(() => {
+    if (listaActivaId !== null) {
+      localStorage.setItem('brujula_lista_activa', listaActivaId)
+    }
+  }, [listaActivaId])
 
   const listaActiva = listas.find(l => l.id === listaActivaId) ?? null
   const itemsActivos = listaActiva?.items ?? []
@@ -112,9 +140,18 @@ export default function BrujulaMayorista() {
     precioVenta: number
     ganancia: number
   }) => {
-    const item: ItemLista = { ...data }
+    const item: ItemLista = { ...data, cantidad: 1 }
     const agregarALista = (listaId: string) => {
-      setListas(prev => prev.map(l => l.id === listaId ? { ...l, items: [...l.items, item] } : l))
+      setListas(prev => prev.map(l => {
+        if (l.id !== listaId) return l
+        const existe = l.items.findIndex(i => i.producto.id === data.producto.id)
+        if (existe >= 0) {
+          const next = [...l.items]
+          next[existe] = { ...next[existe], cantidad: (next[existe].cantidad ?? 1) + 1 }
+          return { ...l, items: next }
+        }
+        return { ...l, items: [...l.items, item] }
+      }))
       setListaActivaId(listaId)
       navegarA('herramientas', vistaActiva)
     }
@@ -136,10 +173,15 @@ export default function BrujulaMayorista() {
     const preciosValidos = producto.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
     if (preciosValidos.length === 0) return
     const mejor = preciosValidos[0]
-    const item: ItemLista = { producto, mayorista: mejor.mayorista, precioCompra: mejor.precio, margen: 0, precioVenta: 0, ganancia: 0 }
+    const item: ItemLista = { producto, mayorista: mejor.mayorista, precioCompra: mejor.precio, margen: 0, precioVenta: 0, ganancia: 0, cantidad: 1 }
     setListas(prev => prev.map(l => {
       if (l.id !== listaId) return l
-      if (l.items.some(i => i.producto.id === producto.id)) return l
+      const existe = l.items.findIndex(i => i.producto.id === producto.id)
+      if (existe >= 0) {
+        const next = [...l.items]
+        next[existe] = { ...next[existe], cantidad: (next[existe].cantidad ?? 1) + 1 }
+        return { ...l, items: next }
+      }
       return { ...l, items: [...l.items, item] }
     }))
     setListaActivaId(listaId)
@@ -167,6 +209,15 @@ export default function BrujulaMayorista() {
     setListas(prev => prev.map(l => l.id === listaActivaId ? { ...l, items: l.items.filter((_, i) => i !== index) } : l))
   }
 
+  const handleCambiarCantidad = (index: number, cantidad: number) => {
+    setListas(prev => prev.map(l => {
+      if (l.id !== listaActivaId) return l
+      const next = [...l.items]
+      next[index] = { ...next[index], cantidad }
+      return { ...l, items: next }
+    }))
+  }
+
   const handleBuscar = (texto: string) => {
     setTextoBusqueda(texto)
     if (texto.trim()) navegarA('catalogo', vistaActiva)
@@ -182,7 +233,13 @@ export default function BrujulaMayorista() {
         onBuscar={handleBuscar}
         onPerfil={() => navegarA('perfil', vistaActiva)}
         onFavoritos={() => navegarA('catalogo', vistaActiva)}
-        onMenuClick={() => setDrawerOpen(true)}
+        onMenuClick={() => {
+          if (window.innerWidth >= 700) {
+            setSidebarCollapsed(prev => !prev)
+          } else {
+            setDrawerOpen(true)
+          }
+        }}
         onLogoClick={() => navegarA('inicio')}
       />
 
@@ -202,7 +259,7 @@ export default function BrujulaMayorista() {
           />
         )}
         {/* Main content area */}
-        <main style={{
+        <main ref={mainRef} style={{
           flex: 1,
           overflowY: 'auto',
           paddingBottom: isNavVisible ? 'var(--bottom-nav-h)' : '0',
@@ -282,6 +339,7 @@ export default function BrujulaMayorista() {
               onRenombrarLista={handleRenombrarLista}
               onEliminarLista={handleEliminarLista}
               onEliminarItem={handleEliminar}
+              onCambiarCantidad={handleCambiarCantidad}
               onIrAComparar={() => navegarA('catalogo', 'herramientas')}
             />
           )}
@@ -297,46 +355,48 @@ export default function BrujulaMayorista() {
         <BottomNav vistaActiva={vistaActiva} onChange={(v) => navegarA(v)} listaCount={itemsActivos.length} />
       )}
 
-      {/* Drawer nav — hamburger slide-in, todas las vistas */}
-      {/* Backdrop */}
-      <div
-        onClick={() => setDrawerOpen(false)}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.35)',
-          zIndex: 200,
-          opacity: drawerOpen ? 1 : 0,
-          pointerEvents: drawerOpen ? 'auto' : 'none',
-          transition: 'opacity 0.25s ease',
-        }}
-      />
-      {/* Drawer panel */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: '260px',
-          background: '#ffffff',
-          zIndex: 201,
-          transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: drawerOpen ? '4px 0 24px rgba(0,0,0,0.12)' : 'none',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <SidebarNav
-          vistaActiva={vistaActiva}
-          onChange={(v) => navegarA(v)}
-          onClose={() => setDrawerOpen(false)}
-          sectorActivo={sectorActivo}
-          onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva('') }}
-          subcategoriaActiva={subcategoriaActiva}
-          onSubcategoriaChange={setSubcategoriaActiva}
+      {/* Drawer nav — solo mobile (<700px). En desktop el hamburger controla el sidebar. */}
+      <div className="mobile-only-drawer">
+        {/* Backdrop */}
+        <div
+          onClick={() => setDrawerOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.35)',
+            zIndex: 200,
+            opacity: drawerOpen ? 1 : 0,
+            pointerEvents: drawerOpen ? 'auto' : 'none',
+            transition: 'opacity 0.25s ease',
+          }}
         />
+        {/* Drawer panel */}
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: '260px',
+            background: '#ffffff',
+            zIndex: 201,
+            transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: drawerOpen ? '4px 0 24px rgba(0,0,0,0.12)' : 'none',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <SidebarNav
+            vistaActiva={vistaActiva}
+            onChange={(v) => navegarA(v)}
+            onClose={() => setDrawerOpen(false)}
+            sectorActivo={sectorActivo}
+            onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva('') }}
+            subcategoriaActiva={subcategoriaActiva}
+            onSubcategoriaChange={setSubcategoriaActiva}
+          />
+        </div>
       </div>
 
       {/* Selector de lista — aparece cuando hay múltiples listas y el usuario toca + */}
