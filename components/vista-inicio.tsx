@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { calcularBombas, productos, Producto } from '@/lib/data'
 import { BombaListItem } from '@/components/bomba-list-item'
 import CircularGallery from '@/components/CircularGallery'
@@ -8,6 +9,7 @@ import { LogoLoop } from '@/components/LogoLoop'
 import BlurText from '@/components/reactbits/TextAnimations/BlurText/BlurText'
 import CountUp from '@/components/reactbits/TextAnimations/CountUp/CountUp'
 import SpotlightCard from '@/components/reactbits/Components/SpotlightCard/SpotlightCard'
+import { btnHover } from '@/lib/motion-variants'
 
 interface VistaInicioProps {
   onIrACompararConSector: (sector: string) => void
@@ -21,7 +23,7 @@ interface VistaInicioProps {
 const MAYORISTAS_LOOP = [
   { src: '/mayoristas/maxiconsumo.webp', alt: 'Maxiconsumo',   url: 'https://www.maxiconsumo.com' },
   { src: '/mayoristas/yaguar.png',       alt: 'Yaguar',        url: 'https://www.yaguar.com.ar' },
-  { src: '/mayoristas/maxicarrefour.jpg',alt: 'MaxiCarrefour', url: 'https://www.carrefour.com.ar' },
+  { src: '/mayoristas/maxicarrefour.jpg',alt: 'MaxiCarrefour', url: 'https://comerciante.carrefour.com.ar/' },
 ]
 
 const SECTORES_GALLERY = [
@@ -41,34 +43,45 @@ export function VistaInicio({
   const ahorroMax = useMemo(() => Math.max(0, ...bombas.map(b => b.ahorroEnPlata)), [bombas])
   const [mostrarTodas, setMostrarTodas] = useState(false)
   const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const [nombreNegocio, setNombreNegocio] = useState('')
+  useEffect(() => {
+    setMounted(true)
+    const savedPerfil = localStorage.getItem('brujula_perfil')
+    if (savedPerfil) {
+      try { setNombreNegocio(JSON.parse(savedPerfil).nombre ?? '') } catch {}
+    }
+  }, [])
 
   const [heroBomba, ...restoBombas] = bombas
   const bombasSecundarias = mostrarTodas ? restoBombas : restoBombas.slice(0, 3)
 
   return (
-    <div style={{ background: '#fff', minHeight: '100%', paddingBottom: '40px' }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100%', paddingBottom: '40px' }}>
       <style>{`
         .inicio-wrapper { padding: 32px 24px; }
         .inicio-h1 { display: flex !important; flex-wrap: wrap !important; margin: 0 0 4px !important; }
         .inicio-h1 span {
           font-family: var(--font-sans) !important;
-          font-size: var(--fs-section) !important; font-weight: 600 !important;
+          font-size: var(--fs-section) !important; font-weight: 700 !important;
           text-transform: none !important; letter-spacing: 0 !important;
-          color: #0a0a0a !important; line-height: var(--lh-section) !important;
+          color: #f7f7f7 !important; line-height: var(--lh-section) !important;
         }
         .stats-bar { display: flex; gap: 28px; margin-bottom: 28px; flex-wrap: wrap; }
         .stat-item { display: flex; flex-direction: column; gap: 2px; }
-        .stat-val { font-size: var(--fs-h1); font-weight: 700; color: #0a0a0a; line-height: 1; }
-        .stat-label { font-size: var(--fs-xs); color: #888; font-weight: 500; }
+        .stat-val {
+          font-family: var(--font-display);
+          font-size: var(--fs-h1); font-weight: 800;
+          color: #d4a574; line-height: 1;
+        }
+        .stat-label { font-size: var(--fs-xs); color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; }
         .hero-spotlight {
           border-radius: 12px !important;
-          border: 1px solid #e5e7eb !important;
+          border: 1px solid #2a2a2a !important;
           overflow: hidden !important;
           margin-bottom: 8px;
         }
         .seccion-label {
-          font-size: 11px; font-weight: 700; color: #555;
+          font-size: 11px; font-weight: 700; color: #6b7280;
           letter-spacing: 0.12em; text-transform: uppercase;
           margin-bottom: 24px; display: block;
         }
@@ -82,7 +95,14 @@ export function VistaInicio({
 
       <div className="inicio-wrapper">
 
-        {/* Título animado con BlurText */}
+        {/* Saludo personalizado */}
+        {nombreNegocio && (
+          <p style={{ margin: '0 0 4px', fontSize: '13px', color: '#6b7280', fontWeight: 500 }}>
+            Hola, <strong style={{ color: '#d4a574' }}>{nombreNegocio}</strong>
+          </p>
+        )}
+
+        {/* Título animado */}
         <BlurText
           text="Las mejores ofertas de hoy"
           animateBy="words"
@@ -92,11 +112,11 @@ export function VistaInicio({
           className="inicio-h1"
         />
 
-        <p style={{ fontSize: 'var(--fs-body)', color: '#555', margin: '0 0 20px', lineHeight: 'var(--lh-body)' }}>
-          Productos con mayor diferencia de precio entre mayoristas
+        <p style={{ fontSize: 'var(--fs-body)', color: '#6b7280', margin: '0 0 20px', lineHeight: 'var(--lh-body)' }}>
+          Lo que mas conviene comprar hoy
         </p>
 
-        {/* Stats bar con CountUp */}
+        {/* Stats bar */}
         {bombas.length > 0 && (
           <div className="stats-bar">
             <div className="stat-item">
@@ -120,10 +140,10 @@ export function VistaInicio({
           </div>
         )}
 
-        {/* Logo Loop — mayoristas animados */}
+        {/* Logo Loop */}
         <div style={{ marginBottom: '36px' }}>
           <div style={{
-            fontSize: '11px', fontWeight: 700, color: '#555',
+            fontSize: '11px', fontWeight: 700, color: '#6b7280',
             letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px',
           }}>
             MAYORISTAS DISPONIBLES
@@ -136,7 +156,7 @@ export function VistaInicio({
           <div style={{ marginBottom: '4px' }}>
             <SpotlightCard
               className="hero-spotlight"
-              spotlightColor="rgba(212, 165, 116, 0.12)"
+              spotlightColor="rgba(212, 165, 116, 0.15)"
             >
               <BombaListItem
                 bomba={heroBomba}
@@ -158,32 +178,50 @@ export function VistaInicio({
             />
           ))}
           {bombas.length === 0 && (
-            <div style={{ padding: '48px 0', textAlign: 'center', color: '#6b7280' }}>
-              <div style={{ fontSize: '15px', fontWeight: 600 }}>Sin ofertas disponibles</div>
+            <div style={{ padding: '64px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: '40px', marginBottom: '16px', color: '#2a2a2a' }}>📦</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#f7f7f7', marginBottom: '8px' }}>
+                Actualizando precios
+              </div>
+              <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '24px' }}>
+                Los datos se cargan en los proximos minutos
+              </div>
+              <motion.button
+                {...btnHover}
+                style={{
+                  background: '#d4a574', color: '#0a0a0a',
+                  border: 'none', borderRadius: '8px',
+                  padding: '12px 24px', fontSize: '14px', fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Ver catalogo completo
+              </motion.button>
             </div>
           )}
         </div>
 
         {/* Botón "Ver más" */}
         {!mostrarTodas && bombas.length > 4 && (
-          <button
+          <motion.button
             onClick={() => setMostrarTodas(true)}
+            {...btnHover}
             style={{
               width: '100%', padding: '14px',
-              background: '#f5f5f5', color: '#0a0a0a',
-              border: '1.5px solid #0a0a0a', borderRadius: '8px',
+              background: 'transparent', color: '#d4a574',
+              border: '1.5px solid #d4a574', borderRadius: '8px',
               fontSize: '14px', fontWeight: 700, cursor: 'pointer',
               marginTop: '8px',
             }}
           >
-            Ver las 50 mejores ofertas
-          </button>
+            Ver todas las ofertas
+          </motion.button>
         )}
 
         {/* CircularGallery — sectores */}
         <div style={{ marginTop: '52px' }}>
           <BlurText
-            text="EXPLORA POR SECTOR"
+            text="BUSCA POR CATEGORIA"
             animateBy="words"
             direction="top"
             delay={100}
@@ -194,7 +232,7 @@ export function VistaInicio({
             <CircularGallery
               items={SECTORES_GALLERY}
               bend={3}
-              textColor="#0a0a0a"
+              textColor="#f7f7f7"
               borderRadius={0.05}
               font="bold 24px Poppins, sans-serif"
               scrollSpeed={2}

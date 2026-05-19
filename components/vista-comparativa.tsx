@@ -183,7 +183,7 @@ export function VistaComparativa({ producto, onBack, onGuardar }: VistaComparati
           {/* Precio compra readonly */}
           <div style={{ marginBottom: '16px' }}>
             <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 600 }}>
-              Comprando en {mejorPrecio.mayorista}:
+              Si comprás en {mejorPrecio.mayorista}:
             </span>
             <p className="comp-precio-compra" style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 900, color: '#0a0a0a' }}>
               {formatearPrecio(precioCompra)}
@@ -241,7 +241,7 @@ export function VistaComparativa({ producto, onBack, onGuardar }: VistaComparati
                     background: '#ffffff',
                   }}
                 />
-                <span style={{ fontSize: '14px', color: '#6b7280' }}>u:</span>
+                <span style={{ fontSize: '14px', color: '#6b7280' }}>unidades:</span>
               </div>
               <span style={{ fontSize: '14px', fontWeight: 900, color: '#0a0a0a' }}>{formatearPrecio(gananciaTotal)}</span>
             </div>

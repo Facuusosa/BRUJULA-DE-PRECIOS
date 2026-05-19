@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { Trash2, ShoppingCart, TrendingDown, Plus, X } from 'lucide-react'
 import Image from 'next/image'
 import { ItemLista, Lista, formatearPrecio } from '@/lib/data'
+import { iconTap } from '@/lib/motion-variants'
 
 interface VistaListaProps {
   listas: Lista[]
@@ -13,6 +15,7 @@ interface VistaListaProps {
   onRenombrarLista: (id: string, nombre: string) => void
   onEliminarLista: (id: string) => void
   onEliminarItem: (index: number) => void
+  onCambiarCantidad?: (index: number, cantidad: number) => void
   onIrAComparar: () => void
 }
 
@@ -22,7 +25,7 @@ function calcularTotalMix(items: ItemLista[]): number {
   return items.reduce((sum, item) => {
     const validos = item.producto.precios.filter(p => p.precio > 0)
     if (validos.length === 0) return sum
-    return sum + Math.min(...validos.map(p => p.precio))
+    return sum + Math.min(...validos.map(p => p.precio)) * (item.cantidad ?? 1)
   }, 0)
 }
 
@@ -30,13 +33,14 @@ function calcularOpcionMayorista(items: ItemLista[], mayorista: string) {
   let total = 0
   let productosConPrecioPropio = 0
   for (const item of items) {
+    const cant = item.cantidad ?? 1
     const precioPropio = item.producto.precios.find(p => p.mayorista === mayorista && p.precio > 0)
     if (precioPropio) {
-      total += precioPropio.precio
+      total += precioPropio.precio * cant
       productosConPrecioPropio++
     } else {
       const validos = item.producto.precios.filter(p => p.precio > 0)
-      if (validos.length > 0) total += Math.min(...validos.map(p => p.precio))
+      if (validos.length > 0) total += Math.min(...validos.map(p => p.precio)) * cant
     }
   }
   return { total, cubre: productosConPrecioPropio, total_items: items.length }
@@ -71,6 +75,7 @@ export function VistaLista({
   onRenombrarLista,
   onEliminarLista,
   onEliminarItem,
+  onCambiarCantidad,
   onIrAComparar,
 }: VistaListaProps) {
   const [creandoLista, setCreandoLista] = useState(false)
@@ -79,6 +84,14 @@ export function VistaLista({
   const [nombreRename, setNombreRename] = useState('')
   const inputNuevaRef = useRef<HTMLInputElement>(null)
   const inputRenameRef = useRef<HTMLInputElement>(null)
+  const [nombreNegocio, setNombreNegocio] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('brujula_perfil')
+    if (saved) {
+      try { setNombreNegocio(JSON.parse(saved).nombre ?? '') } catch {}
+    }
+  }, [])
 
   useEffect(() => {
     if (creandoLista) inputNuevaRef.current?.focus()
@@ -123,7 +136,7 @@ export function VistaLista({
   const mixEsMejor = items.length > 0 && totalMix < mejorOpcionIndividual - 1
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: '#0a0a0a' }}>
 
       {/* SELECTOR DE LISTAS */}
       <div style={{ background: '#0a0a0a', padding: '20px 20px 18px' }}>
@@ -239,21 +252,23 @@ export function VistaLista({
       {/* ANÁLISIS */}
       {items.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '16px', textAlign: 'center', padding: '40px 20px' }}>
-          <ShoppingCart size={48} color="#e2e8f0" strokeWidth={1.5} />
+          <ShoppingCart size={48} color="#2a2a2a" strokeWidth={1.5} />
           <div>
-            <p style={{ fontSize: '16px', fontWeight: 700, color: '#0a0a0a', margin: '0 0 6px' }}>
-              {listas.length === 0 ? 'Todavía no tenés listas' : `"${listaActiva?.nombre ?? 'Esta lista'}" está vacía`}
+            <p style={{ fontSize: '16px', fontWeight: 700, color: '#f7f7f7', margin: '0 0 6px' }}>
+              {listas.length === 0 ? 'Todavía no armaste ninguna lista' : `"${listaActiva?.nombre ?? 'Esta lista'}" está vacía`}
             </p>
             <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
               Usá el botón + en el catálogo para agregar productos
             </p>
           </div>
-          <button
+          <motion.button
             onClick={onIrAComparar}
-            style={{ background: '#0a0a0a', color: '#ffffff', border: 'none', borderRadius: '12px', padding: '14px 28px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
+            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            style={{ background: '#d4a574', color: '#0a0a0a', border: 'none', borderRadius: '12px', padding: '14px 28px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
           >
             Ir al catálogo
-          </button>
+          </motion.button>
         </div>
       ) : (
         <>
@@ -268,13 +283,13 @@ export function VistaLista({
               </span>
             </div>
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
-              {mixEsMejor ? 'Comprando en el lugar más barato por producto' : 'Comprando todo en el lugar más barato'}
+              {mixEsMejor ? 'Comprando donde más conviene por producto' : 'Comprando todo en el lugar más barato'}
             </p>
             {ahorroMix > 50 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', background: 'rgba(22,163,74,0.2)', borderRadius: '8px', padding: '6px 10px', width: 'fit-content' }}>
-                <TrendingDown size={14} color="#4ade80" />
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#4ade80' }}>
-                  Ahorrás {formatearPrecio(ahorroMix)} ({ahorroMixPct}%) vs la opción más cara
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', background: 'rgba(212,165,116,0.15)', borderRadius: '8px', padding: '6px 10px', width: 'fit-content' }}>
+                <TrendingDown size={14} color="#d4a574" />
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#d4a574' }}>
+                  Ahorrás {formatearPrecio(ahorroMix)} comprando inteligente
                 </span>
               </div>
             )}
@@ -288,39 +303,62 @@ export function VistaLista({
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                   Productos ({items.length})
                 </span>
-                <button
+                <motion.button
                   onClick={onIrAComparar}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: '1.5px solid #e5e7eb', borderRadius: '20px', padding: '5px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#374151' }}
+                  {...iconTap}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: '1.5px solid #2a2a2a', borderRadius: '20px', padding: '5px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#f7f7f7' }}
                 >
                   <Plus size={12} />
                   Agregar
-                </button>
+                </motion.button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {items.map((item, index) => {
                   const validos = item.producto.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
                   const precioMejor = validos[0]?.precio ?? 0
+                  const cantidad = item.cantidad ?? 1
                   return (
-                    <div key={index} style={{ background: '#ffffff', borderRadius: '14px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                      <div style={{ width: '48px', height: '48px', borderRadius: '10px', background: '#f5f5f5', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div key={index} style={{ background: '#141414', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #2a2a2a' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: '#1a1a1a', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {item.producto.imageUrl ? (
-                          <Image src={item.producto.imageUrl} alt={item.producto.nombre} width={48} height={48} style={{ objectFit: 'contain' }} unoptimized />
+                          <Image src={item.producto.imageUrl} alt={item.producto.nombre} width={44} height={44} style={{ objectFit: 'contain' }} unoptimized />
                         ) : (
-                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e2e8f0' }} />
+                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#2a2a2a' }} />
                         )}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#0a0a0a', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#f7f7f7', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.producto.nombre}
                         </p>
                         <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
-                          Mejor precio: <strong style={{ color: '#16a34a' }}>{formatearPrecio(precioMejor)}</strong>
-                          {validos.length > 1 && <span style={{ color: '#9ca3af' }}> · {validos.length} tiendas</span>}
+                          <strong style={{ color: '#d4a574' }}>{formatearPrecio(precioMejor)}</strong>
+                          {cantidad > 1 && <strong style={{ color: '#d4a574' }}> × {cantidad} = {formatearPrecio(precioMejor * cantidad)}</strong>}
+                          {validos[0] && <span style={{ color: '#6b7280' }}> · {validos[0].mayorista}</span>}
                         </p>
                       </div>
-                      <button onClick={() => onEliminarItem(index)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px', flexShrink: 0 }}>
-                        <Trash2 size={16} />
-                      </button>
+                      {/* Controles de cantidad */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <motion.button
+                          onClick={() => {
+                            if (cantidad <= 1) onEliminarItem(index)
+                            else onCambiarCantidad?.(index, cantidad - 1)
+                          }}
+                          {...iconTap}
+                          style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #2a2a2a', background: '#1a1a1a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: '#f7f7f7', lineHeight: 1 }}
+                        >
+                          −
+                        </motion.button>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#f7f7f7', minWidth: '20px', textAlign: 'center' }}>
+                          {cantidad}
+                        </span>
+                        <motion.button
+                          onClick={() => onCambiarCantidad?.(index, cantidad + 1)}
+                          {...iconTap}
+                          style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #d4a574', background: '#d4a574', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: '#0a0a0a', lineHeight: 1 }}
+                        >
+                          +
+                        </motion.button>
+                      </div>
                     </div>
                   )
                 })}
@@ -330,7 +368,7 @@ export function VistaLista({
             {/* COMPARATIVA POR MAYORISTA */}
             <div>
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.12em', display: 'block', marginBottom: '12px' }}>
-                Si comprás todo en uno solo
+                Si comprás todo en el mismo lugar
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {opciones
@@ -340,29 +378,28 @@ export function VistaLista({
                     const diferencia = total - Math.min(...opciones.map(o => o.total))
                     return (
                       <div key={mayorista} style={{
-                        background: '#ffffff', borderRadius: '12px',
-                        borderLeft: `4px solid ${esMejor ? '#16a34a' : '#e2e8f0'}`,
+                        background: '#141414', borderRadius: '12px',
+                        borderLeft: `4px solid ${esMejor ? '#d4a574' : '#2a2a2a'}`,
                         padding: '14px 16px', display: 'flex',
                         justifyContent: 'space-between', alignItems: 'center',
-                        boxShadow: esMejor ? '0 2px 8px rgba(22,163,74,0.1)' : 'none',
                       }}>
                         <div>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: esMejor ? '#16a34a' : '#6b7280', textTransform: 'uppercase' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: esMejor ? '#d4a574' : '#6b7280', textTransform: 'uppercase' }}>
                             {mayorista}
-                            {esMejor && <span style={{ marginLeft: '6px', fontSize: '10px', background: '#dcfce7', color: '#16a34a', padding: '2px 6px', borderRadius: '4px' }}>Más barato</span>}
+                            {esMejor && <span style={{ marginLeft: '6px', fontSize: '10px', background: '#d4a574', color: '#0a0a0a', padding: '2px 6px', borderRadius: '4px' }}>Más barato</span>}
                           </span>
                           {cubre < total_items && (
-                            <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>
-                              Tiene {cubre} de {total_items} productos · resto al mejor precio disponible
+                            <p style={{ fontSize: '11px', color: '#6b7280', margin: '2px 0 0' }}>
+                              Cubre {cubre} de {total_items} productos · resto al mejor precio disponible
                             </p>
                           )}
                           {!esMejor && diferencia > 0 && (
-                            <p style={{ fontSize: '11px', color: '#ef4444', margin: '2px 0 0' }}>
+                            <p style={{ fontSize: '11px', color: '#6b7280', margin: '2px 0 0' }}>
                               +{formatearPrecio(diferencia)} más caro
                             </p>
                           )}
                         </div>
-                        <span style={{ fontSize: '22px', fontWeight: 900, color: '#0a0a0a', flexShrink: 0 }}>
+                        <span style={{ fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif', fontSize: '22px', fontWeight: 800, color: '#f7f7f7', flexShrink: 0 }}>
                           {formatearPrecio(total)}
                         </span>
                       </div>
@@ -373,34 +410,34 @@ export function VistaLista({
 
             {/* PLAN DE COMPRA MIXTA */}
             {mixEsMejor && mixDetallado.length > 1 && (
-              <div style={{ background: 'linear-gradient(135deg, rgba(10,10,10,0.03), #ffffff)', borderRadius: '16px', border: '1.5px solid #f59e0b', padding: '18px' }}>
+              <div style={{ background: '#141414', borderRadius: '16px', border: '1.5px solid #d4a574', padding: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                   <div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Plan de compra mixta
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#d4a574', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Comprá en varios para ahorrar más
                     </span>
                     <p style={{ fontSize: '13px', color: '#6b7280', margin: '3px 0 0' }}>
                       Ahorrás {formatearPrecio(ahorroMix)} comprando en varios lugares
                     </p>
                   </div>
-                  <span style={{ fontSize: '22px', fontWeight: 900, color: '#0a0a0a' }}>{formatearPrecio(totalMix)}</span>
+                  <span style={{ fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif', fontSize: '22px', fontWeight: 800, color: '#f7f7f7' }}>{formatearPrecio(totalMix)}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {mixDetallado.map(grupo => (
                     <div key={grupo.mayorista}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid #f0f0f0' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#0a0a0a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid #2a2a2a' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#f7f7f7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                           {grupo.mayorista}
                         </span>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>{formatearPrecio(grupo.total)}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#f7f7f7' }}>{formatearPrecio(grupo.total)}</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                         {grupo.productos.map((p, i) => (
                           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '12px', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                            <span style={{ fontSize: '12px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                               {p.nombre}
                             </span>
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#16a34a', flexShrink: 0 }}>{formatearPrecio(p.precio)}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#d4a574', flexShrink: 0 }}>{formatearPrecio(p.precio)}</span>
                           </div>
                         ))}
                       </div>
@@ -412,7 +449,7 @@ export function VistaLista({
 
             {gananciaTotal > 0 && (
               <p style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center' }}>
-                Con margen {margenPromedio}%: <strong style={{ color: '#16a34a' }}>{formatearPrecio(gananciaTotal)}</strong> de ganancia estimada
+                Con margen {margenPromedio}%: <strong style={{ color: '#d4a574' }}>{formatearPrecio(gananciaTotal)}</strong> de ganancia estimada
               </p>
             )}
 

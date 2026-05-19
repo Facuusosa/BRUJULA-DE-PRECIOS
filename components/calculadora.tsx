@@ -153,7 +153,7 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                 <Slider
                   value={[margen]}
                   onValueChange={(value) => setMargen(value[0])}
-                  min={10}
+                  min={0}
                   max={100}
                   step={1}
                   className="[&_[data-slot=slider-thumb]]:bg-[#006d38] [&_[data-slot=slider-thumb]]:border-[#006d38] [&_[data-slot=slider-range]]:bg-[#006d38]"

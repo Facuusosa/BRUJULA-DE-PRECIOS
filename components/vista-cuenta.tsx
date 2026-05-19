@@ -1,129 +1,380 @@
 'use client'
 
-import { Bell, Store, CreditCard, ChevronRight, LogOut } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { Lock, MessageCircle, Building2, User, CreditCard } from 'lucide-react'
+import { PricingSection } from './pricing-section'
+import { btnHover, iconTap, chipHover } from '@/lib/motion-variants'
+
+const WHATSAPP_NUMERO = '541168079566'
+const WHATSAPP_MSG = encodeURIComponent('Hola Facundo, quiero activar el plan Pro de Brujula de Precios')
+
+interface BrujulaPerfil {
+  nombre: string
+}
+
+interface BrujulaConfig {
+  nombreNegocio: string
+  rubro: 'Almacen' | 'Kiosco' | 'Minimercado' | 'Otro'
+  mayoristasPreferidos: string[]
+}
+
+const MAYORISTAS = ['Yaguar', 'Maxiconsumo', 'MaxiCarrefour']
+const RUBROS = ['Almacen', 'Kiosco', 'Minimercado', 'Otro'] as const
+
+const TABS = [
+  { id: 'perfil',      label: 'Perfil',       icon: User },
+  { id: 'negocio',     label: 'Mi negocio',   icon: Building2 },
+  { id: 'facturacion', label: 'Facturación',  icon: CreditCard },
+] as const
+
+type TabId = typeof TABS[number]['id']
 
 export function VistaCuenta() {
-  const usuario = {
-    nombre: 'Juan Perez',
-    email: 'juan@comercio.com',
-    iniciales: 'JP',
-    plan: 'Pro',
+  const [tabActiva, setTabActiva] = useState<TabId>('perfil')
+  const [perfil, setPerfil] = useState<BrujulaPerfil>({ nombre: '' })
+  const [config, setConfig] = useState<BrujulaConfig>({
+    nombreNegocio: '',
+    rubro: 'Almacen',
+    mayoristasPreferidos: ['Yaguar', 'Maxiconsumo', 'MaxiCarrefour'],
+  })
+  const [guardadoPerfil, setGuardadoPerfil] = useState(false)
+  const [guardadoNegocio, setGuardadoNegocio] = useState(false)
+
+  useEffect(() => {
+    const savedPerfil = localStorage.getItem('brujula_perfil')
+    if (savedPerfil) { try { setPerfil(JSON.parse(savedPerfil)) } catch {} }
+    const savedConfig = localStorage.getItem('brujula_config')
+    if (savedConfig) { try { setConfig(JSON.parse(savedConfig)) } catch {} }
+  }, [])
+
+  const handleGuardarPerfil = () => {
+    localStorage.setItem('brujula_perfil', JSON.stringify(perfil))
+    setGuardadoPerfil(true)
+    setTimeout(() => setGuardadoPerfil(false), 2000)
   }
 
-  const menuItems = [
-    { Icon: Bell,       label: 'Alertas de precio', desc: 'Configura notificaciones' },
-    { Icon: Store,      label: 'Mis mayoristas',     desc: 'Gestiona tus favoritos' },
-    { Icon: CreditCard, label: 'Suscripcion',        desc: 'Plan Pro activo' },
-  ]
+  const handleGuardarNegocio = () => {
+    localStorage.setItem('brujula_config', JSON.stringify(config))
+    setGuardadoNegocio(true)
+    setTimeout(() => setGuardadoNegocio(false), 2000)
+  }
+
+  const toggleMayorista = (m: string) => {
+    setConfig(prev => ({
+      ...prev,
+      mayoristasPreferidos: prev.mayoristasPreferidos.includes(m)
+        ? prev.mayoristasPreferidos.filter(x => x !== m)
+        : [...prev.mayoristasPreferidos, m],
+    }))
+  }
+
+  const iniciales = perfil.nombre
+    ? perfil.nombre.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
+    : '?'
+
+  const tabIndex = TABS.findIndex(t => t.id === tabActiva)
 
   return (
-    <div style={{ background: '#f7f7f7', minHeight: '100%', paddingBottom: '40px' }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100%', paddingBottom: '40px' }}>
       <style>{`
-        .cuenta-inner {
-          max-width: 500px;
-          margin: 0 auto;
-          padding: 32px 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
+        .cuenta-input {
+          width: 100%;
+          padding: 12px 14px;
+          border: 1.5px solid #2a2a2a;
+          border-radius: 8px;
+          font-size: 14px;
+          color: #f7f7f7;
+          background: #141414;
+          outline: none;
+          box-sizing: border-box;
+          font-family: inherit;
+          transition: border-color 0.2s;
         }
-        @media (min-width: 768px) {
-          .cuenta-inner {
-            padding: 40px 20px;
-          }
+        .cuenta-input:focus { border-color: #d4a574; }
+        .cuenta-input option { background: #141414; color: #f7f7f7; }
+        .cuenta-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #6b7280;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+          display: block;
         }
+        .cuenta-label-muted {
+          font-size: 11px;
+          font-weight: 700;
+          color: #6b7280;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+          display: block;
+          opacity: 0.6;
+        }
+        @keyframes borderPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.4); }
+          50%       { box-shadow: 0 0 0 8px rgba(212, 165, 116, 0); }
+        }
+        .pro-pulse { animation: borderPulse 2.5s ease-in-out infinite; }
       `}</style>
 
-      <div className="cuenta-inner">
-
-        {/* Avatar + Info */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', paddingTop: '8px' }}>
+      {/* Tab bar sticky */}
+      <div style={{ position: 'sticky', top: 0, background: '#0a0a0a', zIndex: 10, borderBottom: '1px solid #2a2a2a' }}>
+        <div style={{ maxWidth: '500px', margin: '0 auto', position: 'relative' }}>
+          <div style={{ display: 'flex' }}>
+            {TABS.map(tab => {
+              const Icon = tab.icon
+              const isActive = tabActiva === tab.id
+              return (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => setTabActiva(tab.id)}
+                  whileHover={!isActive ? { backgroundColor: 'rgba(212,165,116,0.06)' } : {}}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  style={{
+                    flex: 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    padding: '14px 8px',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? '#d4a574' : '#6b7280',
+                    borderRadius: '0',
+                  }}
+                >
+                  <Icon size={15} />
+                  {tab.label}
+                </motion.button>
+              )
+            })}
+          </div>
+          {/* Underline deslizante */}
           <div style={{
-            width: '80px', height: '80px', borderRadius: '50%',
-            background: '#0a0a0a',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ fontSize: '28px', fontWeight: 700, color: '#d4a574' }}>{usuario.iniciales}</span>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: '#0a0a0a', fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif', textTransform: 'uppercase', letterSpacing: '0.01em' }}>{usuario.nombre}</p>
-            <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#4a5568' }}>{usuario.email}</p>
-          </div>
+            position: 'absolute', bottom: 0, left: 0,
+            width: `${100 / TABS.length}%`,
+            height: '2px', background: '#d4a574',
+            transform: `translateX(${tabIndex * 100}%)`,
+            transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+          }} />
         </div>
+      </div>
 
-        {/* Card plan */}
-        <div style={{
-          background: '#0a0a0a',
-          borderRadius: '16px',
-          padding: '20px',
-          color: '#fff',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.7)' }}>
-              TU PLAN
-            </span>
-            <span style={{
-              background: '#d4a574', color: '#0a0a0a',
-              fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px',
-            }}>
-              {usuario.plan}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d4a574' }} />
-            <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)' }}>Activo</span>
-          </div>
-          <button style={{
-            background: 'none', border: '1px solid rgba(255,255,255,0.35)',
-            borderRadius: '8px', color: '#fff',
-            fontSize: '13px', fontWeight: 600, padding: '8px 16px', cursor: 'pointer',
-          }}>
-            Gestionar suscripcion
-          </button>
-        </div>
+      {/* Contenido tabs */}
+      <div style={{ maxWidth: '500px', margin: '0 auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-        {/* Label sección */}
-        <div style={{ fontSize: '11px', fontWeight: 700, color: '#4a5568', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '-8px' }}>
-          MI CUENTA
-        </div>
-
-        {/* Cards menú */}
-        <div style={{ background: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-          {menuItems.map(({ Icon, label, desc }, i) => (
-            <div key={label}>
-              {i > 0 && <div style={{ height: '1px', background: '#f0f0f0', margin: '0 20px' }} />}
+        {/* ── TAB PERFIL ── */}
+        {tabActiva === 'perfil' && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '28px 0 16px' }}>
               <div style={{
-                display: 'flex', alignItems: 'center', gap: '14px',
-                padding: '18px 20px', cursor: 'pointer',
+                width: '72px', height: '72px', borderRadius: '50%',
+                background: '#d4a574', color: '#0a0a0a',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '24px', fontWeight: 800, letterSpacing: '0.02em',
+                userSelect: 'none',
               }}>
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: '10px',
-                  background: '#e8f5e9',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <Icon size={20} color="#0a0a0a" strokeWidth={1.8} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>{label}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>{desc}</p>
-                </div>
-                <ChevronRight size={18} color="#9ca3af" />
+                {iniciales}
+              </div>
+              {perfil.nombre && (
+                <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f7f7f7' }}>{perfil.nombre}</p>
+              )}
+            </div>
+
+            <div style={{ background: '#141414', borderRadius: '12px', border: '1px solid #2a2a2a', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label className="cuenta-label" htmlFor="perfil-nombre">¿Cómo te llamás?</label>
+                <input
+                  id="perfil-nombre"
+                  className="cuenta-input"
+                  placeholder="Tu nombre o apodo"
+                  value={perfil.nombre}
+                  onChange={e => setPerfil({ nombre: e.target.value })}
+                />
+              </div>
+
+              {/* Email bloqueado */}
+              <div>
+                <label className="cuenta-label-muted">Email (disponible en PRO)</label>
+                <motion.div
+                  onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`, '_blank')}
+                  whileHover={{ borderColor: '#d4a574' }}
+                  transition={{ duration: 0.15 }}
+                  style={{
+                    padding: '12px 14px',
+                    background: '#1a1a1a',
+                    border: '1.5px solid #2a2a2a',
+                    borderRadius: '8px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Lock size={14} color="#6b7280" />
+                    <span style={{ fontSize: '14px', color: '#6b7280' }}>tu@email.com</span>
+                  </div>
+                  <span style={{ background: '#d4a574', color: '#0a0a0a', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>PRO</span>
+                </motion.div>
+              </div>
+
+              {/* Contraseña bloqueada */}
+              <div>
+                <label className="cuenta-label-muted">Contraseña (disponible en PRO)</label>
+                <motion.div
+                  onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`, '_blank')}
+                  whileHover={{ borderColor: '#d4a574' }}
+                  transition={{ duration: 0.15 }}
+                  style={{
+                    padding: '12px 14px',
+                    background: '#1a1a1a',
+                    border: '1.5px solid #2a2a2a',
+                    borderRadius: '8px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Lock size={14} color="#6b7280" />
+                    <span style={{ fontSize: '14px', color: '#6b7280' }}>••••••••</span>
+                  </div>
+                  <span style={{ background: '#d4a574', color: '#0a0a0a', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>PRO</span>
+                </motion.div>
+              </div>
+
+              <motion.button
+                onClick={handleGuardarPerfil}
+                {...btnHover}
+                style={{
+                  background: guardadoPerfil ? '#16a34a' : '#d4a574',
+                  color: '#0a0a0a', border: 'none', borderRadius: '6px',
+                  padding: '12px', fontSize: '14px', fontWeight: 700,
+                  cursor: 'pointer',
+                  letterSpacing: '0.05em',
+                  fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {guardadoPerfil ? 'Guardado' : 'Guardar'}
+              </motion.button>
+            </div>
+          </>
+        )}
+
+        {/* ── TAB MI NEGOCIO ── */}
+        {tabActiva === 'negocio' && (
+          <div style={{ background: '#141414', borderRadius: '12px', border: '1px solid #2a2a2a', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+              Estos datos personalizan tu experiencia en la app
+            </p>
+
+            <div>
+              <label className="cuenta-label" htmlFor="nombre-negocio">Nombre del negocio</label>
+              <input
+                id="nombre-negocio"
+                className="cuenta-input"
+                placeholder="Tu almacen, kiosco, negocio..."
+                value={config.nombreNegocio}
+                onChange={e => setConfig(prev => ({ ...prev, nombreNegocio: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="cuenta-label" htmlFor="rubro">Rubro</label>
+              <select
+                id="rubro"
+                className="cuenta-input"
+                value={config.rubro}
+                onChange={e => setConfig(prev => ({ ...prev, rubro: e.target.value as BrujulaConfig['rubro'] }))}
+                style={{ cursor: 'pointer' }}
+              >
+                {RUBROS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <span className="cuenta-label">Mayoristas que usás</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {MAYORISTAS.map(m => (
+                  <motion.label
+                    key={m}
+                    whileHover={{ backgroundColor: 'rgba(212,165,116,0.06)' }}
+                    transition={{ duration: 0.15 }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      cursor: 'pointer', padding: '8px 10px', borderRadius: '8px',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={config.mayoristasPreferidos.includes(m)}
+                      onChange={() => toggleMayorista(m)}
+                      style={{ width: '18px', height: '18px', accentColor: '#d4a574', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '14px', color: '#f7f7f7', fontWeight: 500, flex: 1 }}>{m}</span>
+                    {m === 'MaxiCarrefour' && (
+                      <span style={{ background: '#d4a574', color: '#0a0a0a', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>
+                        PRO
+                      </span>
+                    )}
+                  </motion.label>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Cerrar sesion */}
-        <button style={{
-          width: '100%', background: 'transparent',
-          border: '1.5px solid #ef4444', borderRadius: '10px',
-          color: '#ef4444', fontSize: '14px', fontWeight: 700,
-          padding: '14px', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-        }}>
-          <LogOut size={18} />
-          Cerrar sesion
-        </button>
+            <motion.button
+              onClick={handleGuardarNegocio}
+              {...btnHover}
+              style={{
+                background: guardadoNegocio ? '#16a34a' : '#d4a574',
+                color: '#0a0a0a', border: 'none', borderRadius: '6px',
+                padding: '12px', fontSize: '14px', fontWeight: 700,
+                cursor: 'pointer',
+                letterSpacing: '0.05em',
+                fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                textTransform: 'uppercase',
+              }}
+            >
+              {guardadoNegocio ? 'Guardado' : 'Guardar'}
+            </motion.button>
+          </div>
+        )}
+
+        {/* ── TAB FACTURACIÓN ── */}
+        {tabActiva === 'facturacion' && (
+          <>
+            <PricingSection
+              onWhatsApp={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`, '_blank')}
+            />
+
+            {/* Contacto */}
+            <div style={{ background: '#141414', borderRadius: '12px', border: '1px solid #2a2a2a', padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#f7f7f7' }}>¿Preguntas?</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>Escribinos por WhatsApp</p>
+                </div>
+                <motion.button
+                  onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}`, '_blank')}
+                  {...btnHover}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: '#d4a574', color: '#0a0a0a',
+                    border: 'none', borderRadius: '6px',
+                    padding: '8px 14px', fontSize: '13px', fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <MessageCircle size={16} />
+                  Escribir
+                </motion.button>
+              </div>
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #2a2a2a' }}>
+                <p style={{ margin: 0, fontSize: '11px', color: '#6b7280', textAlign: 'center' }}>Brujula de Precios v1.0</p>
+              </div>
+            </div>
+          </>
+        )}
 
       </div>
     </div>

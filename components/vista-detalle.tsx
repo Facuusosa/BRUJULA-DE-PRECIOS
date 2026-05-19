@@ -2,12 +2,14 @@
 
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 import { ChevronLeft, Heart, Share2, ExternalLink } from 'lucide-react'
 import {
   Producto, formatearPrecio, extraerTamano,
   calcularBombas
 } from '@/lib/data'
 import BlurText from '@/components/reactbits/TextAnimations/BlurText/BlurText'
+import { btnHover, iconTap, chipHover } from '@/lib/motion-variants'
 
 interface VistaDetalleProps {
   producto: Producto
@@ -73,7 +75,7 @@ export function VistaDetalle({
     const pv = parseInt(limpio, 10)
     if (!isNaN(pv) && pv > precioCompra && precioCompra > 0) {
       const nuevoMargen = (1 - precioCompra / pv) * 100
-      setMargen(Math.min(80, Math.max(5, Math.round(nuevoMargen))))
+      setMargen(Math.min(95, Math.max(5, Math.round(nuevoMargen))))
       setGananciaEdit('')
     }
   }
@@ -85,7 +87,7 @@ export function VistaDetalle({
     if (!isNaN(g) && g > 0 && precioCompra > 0) {
       const pv = precioCompra + g
       const nuevoMargen = (1 - precioCompra / pv) * 100
-      setMargen(Math.min(80, Math.max(5, Math.round(nuevoMargen))))
+      setMargen(Math.min(95, Math.max(5, Math.round(nuevoMargen))))
       setPrecioVentaEdit('')
     }
   }
@@ -96,7 +98,6 @@ export function VistaDetalle({
       .slice(0, 8),
     [producto.sector, producto.id]
   )
-
 
   const handleGuardar = () => {
     if (!mejorPrecio) return
@@ -111,7 +112,7 @@ export function VistaDetalle({
   }
 
   return (
-    <div style={{ background: '#fff', minHeight: '100%' }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100%' }}>
       <style>{`
         .detalle-layout {
           display: flex;
@@ -122,11 +123,11 @@ export function VistaDetalle({
           top: 0;
           z-index: 5;
           height: 300px;
-          background: #ffffff;
+          background: #141414;
           flex-shrink: 0;
         }
         .detalle-info-panel {
-          background: #fff;
+          background: #0a0a0a;
           border-radius: 20px 20px 0 0;
           margin-top: -20px;
           position: relative;
@@ -145,15 +146,15 @@ export function VistaDetalle({
           display: flex;
           align-items: center;
           gap: 4px;
-          background: rgba(255,255,255,0.9);
-          backdrop-filter: blur(4px);
-          border: none;
+          background: rgba(10,10,10,0.85);
+          backdrop-filter: blur(8px);
+          border: 1px solid #2a2a2a;
           border-radius: 20px;
           padding: 10px 14px;
           cursor: pointer;
           font-size: 14px;
           font-weight: 600;
-          color: #0a0a0a;
+          color: #f7f7f7;
           min-height: 44px;
         }
         .detalle-actions-img {
@@ -165,9 +166,9 @@ export function VistaDetalle({
           gap: 8px;
         }
         .detalle-action-btn {
-          background: rgba(255,255,255,0.9);
-          backdrop-filter: blur(4px);
-          border: none;
+          background: rgba(10,10,10,0.85);
+          backdrop-filter: blur(8px);
+          border: 1px solid #2a2a2a;
           border-radius: 50%;
           width: 44px;
           height: 44px;
@@ -175,25 +176,6 @@ export function VistaDetalle({
           align-items: center;
           justify-content: center;
           cursor: pointer;
-        }
-        .detalle-precio-row {
-          display: flex;
-          align-items: center;
-          padding: 14px 0;
-          border-bottom: 1px solid #f0f0f0;
-          gap: 12px;
-        }
-        .visitar-btn {
-          font-size: 12px;
-          font-weight: 600;
-          color: #0a0a0a;
-          background: #e8f5e9;
-          padding: 6px 14px;
-          border-radius: 4px;
-          border: none;
-          cursor: pointer;
-          white-space: nowrap;
-          flex-shrink: 0;
         }
         .relacionados-scroll {
           display: flex;
@@ -203,6 +185,14 @@ export function VistaDetalle({
           scrollbar-width: none;
         }
         .relacionados-scroll::-webkit-scrollbar { display: none; }
+        .detalle-nombre-blur { margin: 0 0 24px !important; }
+        .detalle-nombre-blur span {
+          font-family: var(--font-barlow-condensed), "Barlow Condensed", sans-serif !important;
+          font-size: 26px !important; font-weight: 800 !important;
+          text-transform: uppercase !important; letter-spacing: 0.01em !important;
+          color: #f7f7f7 !important; line-height: 1.15 !important;
+        }
+        .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         @media (min-width: 768px) {
           .detalle-layout {
             display: grid;
@@ -222,9 +212,11 @@ export function VistaDetalle({
             padding: 32px 40px 80px;
             min-width: 0;
           }
-          .detalle-back-btn {
-            background: rgba(255,255,255,0.95);
-          }
+          .detalle-nombre-blur span { font-size: 32px !important; }
+        }
+        @media (max-width: 380px) {
+          .detalle-nombre-blur span { font-size: 22px !important; }
+          .calc-grid { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -232,17 +224,17 @@ export function VistaDetalle({
 
         {/* Panel imagen (sticky) */}
         <div className="detalle-imagen-panel">
-          <button className="detalle-back-btn" onClick={onBack}>
+          <motion.button className="detalle-back-btn" onClick={onBack} {...iconTap}>
             <ChevronLeft size={16} strokeWidth={2.5} />
             Volver
-          </button>
+          </motion.button>
           <div className="detalle-actions-img">
-            <button className="detalle-action-btn" onClick={onToggleFavorito} aria-label="Favorito">
-              <Heart size={18} strokeWidth={1.8} color={esFavorito ? '#ef4444' : '#555'} fill={esFavorito ? '#ef4444' : 'none'} />
-            </button>
-            <button className="detalle-action-btn" aria-label="Compartir">
-              <Share2 size={18} strokeWidth={1.8} color="#555" />
-            </button>
+            <motion.button className="detalle-action-btn" onClick={onToggleFavorito} aria-label="Favorito" {...iconTap}>
+              <Heart size={18} strokeWidth={1.8} color={esFavorito ? '#d4a574' : '#6b7280'} fill={esFavorito ? '#d4a574' : 'none'} />
+            </motion.button>
+            <motion.button className="detalle-action-btn" aria-label="Compartir" {...iconTap}>
+              <Share2 size={18} strokeWidth={1.8} color="#6b7280" />
+            </motion.button>
           </div>
           {producto.imageUrl ? (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -255,7 +247,7 @@ export function VistaDetalle({
               />
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ccc', fontSize: '48px' }}>?</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#2a2a2a', fontSize: '48px' }}>?</div>
           )}
         </div>
 
@@ -266,7 +258,8 @@ export function VistaDetalle({
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
             {tamano && (
               <span style={{
-                background: '#0a0a0a', color: '#fff',
+                background: '#222222', color: '#f7f7f7',
+                border: '1px solid #2a2a2a',
                 fontSize: '11px', fontWeight: 700, padding: '3px 8px',
                 borderRadius: '4px', letterSpacing: '0.05em',
               }}>
@@ -275,8 +268,8 @@ export function VistaDetalle({
             )}
             {producto.abc && (
               <span style={{
-                background: producto.abc === 'A' ? '#0a0a0a' : producto.abc === 'B' ? '#2563eb' : '#6b7280',
-                color: '#fff',
+                background: producto.abc === 'A' ? '#d4a574' : producto.abc === 'B' ? '#2563eb' : '#2a2a2a',
+                color: producto.abc === 'A' ? '#0a0a0a' : '#f7f7f7',
                 fontSize: '11px', fontWeight: 700, padding: '3px 8px',
                 borderRadius: '4px', letterSpacing: '0.05em',
               }}>
@@ -285,24 +278,7 @@ export function VistaDetalle({
             )}
           </div>
 
-          {/* Nombre — BlurText + Barlow Condensed */}
-          <style>{`
-            .detalle-nombre-blur { margin: 0 0 24px !important; }
-            .detalle-nombre-blur span {
-              font-family: var(--font-barlow-condensed), "Barlow Condensed", sans-serif !important;
-              font-size: 26px !important; font-weight: 800 !important;
-              text-transform: uppercase !important; letter-spacing: 0.01em !important;
-              color: #0a0a0a !important; line-height: 1.15 !important;
-            }
-            .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-            @media (min-width: 768px) {
-              .detalle-nombre-blur span { font-size: 32px !important; }
-            }
-            @media (max-width: 380px) {
-              .detalle-nombre-blur span { font-size: 22px !important; }
-              .calc-grid { grid-template-columns: 1fr; }
-            }
-          `}</style>
+          {/* Nombre */}
           <BlurText
             text={producto.nombre}
             animateBy="words"
@@ -323,17 +299,18 @@ export function VistaDetalle({
               const pctDif = mejorPrecio ? Math.round((diferencia / mejorPrecio.precio) * 100) : 0
 
               return (
-                <div
+                <motion.div
                   key={precio.mayorista}
                   onClick={() => setMayoristaSel(precio.mayorista)}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     padding: '14px 16px',
                     borderRadius: '10px',
-                    border: `2px solid ${esSeleccionado ? '#0a0a0a' : esMejor ? '#16a34a40' : '#e5e7eb'}`,
-                    background: esMejor ? '#f0fdf4' : esSeleccionado && !esMejor ? '#fafafa' : '#fff',
+                    border: `2px solid ${esSeleccionado ? '#d4a574' : esMejor ? 'rgba(212,165,116,0.3)' : '#2a2a2a'}`,
+                    background: esMejor ? '#1a1a1a' : '#141414',
                     cursor: 'pointer',
-                    transition: 'border-color 0.15s, background 0.15s',
                     position: 'relative',
                   }}
                 >
@@ -342,7 +319,7 @@ export function VistaDetalle({
                     <div style={{
                       position: 'absolute', left: 0, top: '20%', bottom: '20%',
                       width: '3px', borderRadius: '0 3px 3px 0',
-                      background: '#0a0a0a',
+                      background: '#d4a574',
                     }} />
                   )}
 
@@ -351,7 +328,7 @@ export function VistaDetalle({
                     {logo ? (
                       <Image src={logo} alt={precio.mayorista} fill style={{ objectFit: 'contain', objectPosition: 'left' }} unoptimized />
                     ) : (
-                      <span style={{ fontSize: '12px', fontWeight: 700 }}>{precio.mayorista}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#f7f7f7' }}>{precio.mayorista}</span>
                     )}
                   </div>
 
@@ -359,24 +336,25 @@ export function VistaDetalle({
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                       <span style={{
-                        fontSize: '20px', fontWeight: 800,
-                        color: esMejor ? '#16a34a' : '#0a0a0a',
+                        fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                        fontSize: esMejor ? '24px' : '20px', fontWeight: 800,
+                        color: esMejor ? '#d4a574' : '#f7f7f7',
                       }}>
                         {formatearPrecio(precio.precio)}
                       </span>
                       {!esMejor && diferencia > 0 && (
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#ef4444' }}>
-                          +{formatearPrecio(diferencia)} ({pctDif}% más caro)
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>
+                          +{formatearPrecio(diferencia)} ({pctDif}% más)
                         </span>
                       )}
                     </div>
                     {esMejor && (
                       <div style={{
                         display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '3px',
-                        fontSize: '11px', fontWeight: 700, color: '#16a34a',
-                        background: '#dcfce7', padding: '2px 8px', borderRadius: '20px',
+                        fontSize: '11px', fontWeight: 700, color: '#0a0a0a',
+                        background: '#d4a574', padding: '2px 8px', borderRadius: '20px',
                       }}>
-                        <span>✓</span> Mejor precio
+                        Mejor precio
                       </div>
                     )}
                   </div>
@@ -392,8 +370,9 @@ export function VistaDetalle({
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 34, height: 34, borderRadius: '50%',
-                        background: '#f3f4f6', flexShrink: 0, color: '#6b7280',
+                        background: '#222222', flexShrink: 0, color: '#6b7280',
                         textDecoration: 'none',
+                        border: '1px solid #2a2a2a',
                       }}
                     >
                       <ExternalLink size={15} strokeWidth={2} />
@@ -403,19 +382,19 @@ export function VistaDetalle({
                   {/* Indicador "en calculadora" */}
                   {esSeleccionado && (
                     <span style={{
-                      fontSize: '10px', fontWeight: 700, color: '#fff',
-                      background: '#0a0a0a', padding: '3px 8px', borderRadius: '20px',
+                      fontSize: '10px', fontWeight: 700, color: '#0a0a0a',
+                      background: '#d4a574', padding: '3px 8px', borderRadius: '20px',
                       whiteSpace: 'nowrap', flexShrink: 0,
                     }}>
                       En cálculo
                     </span>
                   )}
-                </div>
+                </motion.div>
               )
             })}
             {preciosValidos.length === 0 && (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
-                Sin precios disponibles
+              <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
+                Sin precios por ahora
               </div>
             )}
           </div>
@@ -424,17 +403,25 @@ export function VistaDetalle({
           {preciosValidos.length > 1 && mejorPrecio && precioMax && mejorPrecio.precio !== precioMax.precio && (
             <div style={{ marginBottom: '28px' }}>
               <SectionLabel>COMPARATIVA</SectionLabel>
-              <div style={{ background: '#f0fdf4', borderRadius: '10px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Ahorrás comprando en <strong style={{ color: '#0a0a0a' }}>{mejorPrecio.mayorista}</strong></div>
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#16a34a', lineHeight: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>
+                    Ahorrás comprando en <strong style={{ color: '#f7f7f7' }}>{mejorPrecio.mayorista}</strong>
+                  </div>
+                  <div style={{
+                    fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                    fontSize: '32px', fontWeight: 800, color: '#d4a574', lineHeight: 1,
+                  }}>
                     {formatearPrecio(precioMax.precio - mejorPrecio.precio)}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>vs {precioMax.mayorista}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>vs {precioMax.mayorista}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '2px' }}>Diferencia</div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#374151' }}>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Diferencia</div>
+                  <div style={{
+                    fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                    fontSize: '20px', fontWeight: 800, color: '#f7f7f7',
+                  }}>
                     {Math.round(((precioMax.precio - mejorPrecio.precio) / precioMax.precio) * 100)}%
                   </div>
                 </div>
@@ -444,79 +431,88 @@ export function VistaDetalle({
 
           {/* CALCULADORA DE MARGEN */}
           {preciosValidos.length > 0 && (
-            <div style={{ background: '#f7f7f7', borderRadius: '12px', padding: '20px', marginBottom: '28px' }}>
+            <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '20px', marginBottom: '28px' }}>
               <SectionLabel>CALCULADORA DE MARGEN</SectionLabel>
 
               {/* Selector mayorista */}
               {preciosValidos.length > 1 && (
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {preciosValidos.map(p => (
-                    <button
+                    <motion.button
                       key={p.mayorista}
                       onClick={() => setMayoristaSel(p.mayorista)}
+                      {...chipHover}
                       style={{
                         padding: '5px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600,
-                        border: `1.5px solid ${mayoristaCal === p.mayorista ? '#0a0a0a' : '#e5e7eb'}`,
-                        background: mayoristaCal === p.mayorista ? '#0a0a0a' : '#fff',
-                        color: mayoristaCal === p.mayorista ? '#fff' : '#555',
+                        border: `1.5px solid ${mayoristaCal === p.mayorista ? '#d4a574' : '#2a2a2a'}`,
+                        background: mayoristaCal === p.mayorista ? '#d4a574' : '#1a1a1a',
+                        color: mayoristaCal === p.mayorista ? '#0a0a0a' : '#6b7280',
                         cursor: 'pointer',
                       }}
                     >
                       {p.mayorista}
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               )}
 
-              <div style={{ fontSize: '13px', color: '#555', marginBottom: '12px' }}>
-                Comprando en <strong style={{ color: '#0a0a0a' }}>{mayoristaCal}</strong>: {formatearPrecio(precioCompra)}
+              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px' }}>
+                Comprando en <strong style={{ color: '#f7f7f7' }}>{mayoristaCal}</strong>: {formatearPrecio(precioCompra)}
               </div>
 
               {/* Slider margen */}
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#0a0a0a' }}>Margen</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>{margen}%</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#f7f7f7' }}>Margen</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#d4a574' }}>{margen}%</span>
                 </div>
                 <input
                   type="range"
-                  min={5} max={80} value={margen}
+                  min={5} max={95} value={margen}
                   onChange={e => handleSlider(Number(e.target.value))}
                   className="slider-brujula"
-                  style={{ width: '100%', '--slider-pct': `${((margen - 5) / (80 - 5)) * 100}%` } as React.CSSProperties}
+                  style={{ width: '100%', '--slider-pct': `${((margen - 5) / (95 - 5)) * 100}%` } as React.CSSProperties}
                 />
               </div>
 
               {/* Resultados — editables */}
               <div className="calc-grid">
-                <div style={{ background: '#fff', borderRadius: '8px', padding: '12px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Precio venta</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#9ca3af' }}>$</span>
+                <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Precio venta</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                      fontSize: '18px', fontWeight: 800, color: '#d4a574',
+                    }}>$</span>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={precioVentaMostrar}
                       onChange={e => handlePrecioVentaManual(e.target.value)}
                       style={{
-                        fontSize: '18px', fontWeight: 700, color: '#0a0a0a',
+                        fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                        fontSize: '28px', fontWeight: 800, color: '#d4a574',
                         border: 'none', background: 'transparent', outline: 'none',
                         width: '100%', minWidth: 0, padding: 0,
                       }}
                     />
                   </div>
                 </div>
-                <div style={{ background: '#fff', borderRadius: '8px', padding: '12px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Ganancia</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#9ca3af' }}>$</span>
+                <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ganancia</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                      fontSize: '18px', fontWeight: 800, color: '#6b7280',
+                    }}>$</span>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={gananciaMostrar}
                       onChange={e => handleGananciaManual(e.target.value)}
                       style={{
-                        fontSize: '18px', fontWeight: 700, color: '#0a0a0a',
+                        fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                        fontSize: '28px', fontWeight: 800, color: '#f7f7f7',
                         border: 'none', background: 'transparent', outline: 'none',
                         width: '100%', minWidth: 0, padding: 0,
                       }}
@@ -529,48 +525,54 @@ export function VistaDetalle({
 
           {/* Guardar */}
           {preciosValidos.length > 0 && (
-            <button
+            <motion.button
               onClick={handleGuardar}
+              {...btnHover}
               style={{
                 width: '100%', padding: '14px',
-                background: '#0a0a0a', color: '#fff',
+                background: '#d4a574', color: '#0a0a0a',
                 touchAction: 'manipulation',
                 border: 'none', borderRadius: '8px',
                 fontSize: '15px', fontWeight: 700,
                 cursor: 'pointer', marginBottom: '32px',
+                fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                letterSpacing: '0.04em', textTransform: 'uppercase',
               }}
             >
               Guardar en mi lista
-            </button>
+            </motion.button>
           )}
 
           {/* ALTERNATIVAS DEL SECTOR */}
           {relacionados.length > 0 && (
             <div>
-              <SectionLabel>ALTERNATIVAS DEL SECTOR</SectionLabel>
+              <SectionLabel>DE LA MISMA CATEGORÍA</SectionLabel>
               <div className="relacionados-scroll">
                 {relacionados.map(rel => {
                   const preciosRel = rel.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
                   const logo = LOGOS[preciosRel[0]?.mayorista ?? '']
                   return (
-                    <div
+                    <motion.div
                       key={rel.id}
                       onClick={() => onVerProducto?.(rel)}
+                      whileHover={{ borderColor: '#d4a574' }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       style={{
                         width: '140px', flexShrink: 0,
-                        border: '1px solid #e5e7eb', borderRadius: '10px',
+                        border: '1px solid #2a2a2a', borderRadius: '10px',
                         overflow: 'hidden', cursor: 'pointer',
-                        background: '#fff',
+                        background: '#141414',
                       }}
                     >
-                      <div style={{ height: '100px', background: '#f5f5f5', position: 'relative' }}>
+                      <div style={{ height: '100px', background: '#1a1a1a', position: 'relative' }}>
                         {rel.imageUrl ? (
                           <Image src={rel.imageUrl} alt={rel.nombre} fill style={{ objectFit: 'contain', padding: '8px' }} unoptimized />
                         ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ccc', fontSize: '24px' }}>?</div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#2a2a2a', fontSize: '24px' }}>?</div>
                         )}
                         {logo && (
-                          <div style={{ position: 'absolute', bottom: '4px', left: '4px', width: '40px', height: '16px', background: '#fff', borderRadius: '3px', border: '1px solid #e0e0e0', overflow: 'hidden' }}>
+                          <div style={{ position: 'absolute', bottom: '4px', left: '4px', width: '40px', height: '16px', background: '#141414', borderRadius: '3px', border: '1px solid #2a2a2a', overflow: 'hidden' }}>
                             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                               <Image src={logo} alt="" fill style={{ objectFit: 'contain' }} unoptimized />
                             </div>
@@ -579,7 +581,7 @@ export function VistaDetalle({
                       </div>
                       <div style={{ padding: '8px' }}>
                         <div style={{
-                          fontSize: '11px', fontWeight: 600, color: '#0a0a0a',
+                          fontSize: '11px', fontWeight: 600, color: '#f7f7f7',
                           lineHeight: 1.3, marginBottom: '4px',
                           display: '-webkit-box', WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical', overflow: 'hidden',
@@ -587,12 +589,15 @@ export function VistaDetalle({
                           {rel.nombre}
                         </div>
                         {preciosRel[0] && (
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>
+                          <div style={{
+                            fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                            fontSize: '14px', fontWeight: 800, color: '#d4a574',
+                          }}>
                             {formatearPrecio(preciosRel[0].precio)}
                           </div>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
@@ -607,7 +612,7 @@ export function VistaDetalle({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: '11px', fontWeight: 700, color: '#555',
+      fontSize: '11px', fontWeight: 700, color: '#6b7280',
       letterSpacing: '0.08em', textTransform: 'uppercase',
       marginBottom: '12px', paddingTop: '4px',
     }}>

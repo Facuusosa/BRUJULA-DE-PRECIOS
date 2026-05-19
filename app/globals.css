@@ -1,6 +1,11 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* El drawer hamburger solo existe en mobile — en desktop el hamburger controla el sidebar */
+@media (min-width: 700px) {
+  .mobile-only-drawer { display: none !important; }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -9,45 +14,60 @@
   --header-height:   82px;
   --bottom-nav-h:    64px;
 
-  /* ── Paleta nueva (negro puro + verde brillante) ── */
-  --c-dark:          #0a0a0a;   /* negro principal — texto, botones, activos */
-  --c-hover:         #000000;   /* hover botones primarios */
-  --c-badge:         #0a0a0a;   /* badge tamaño (500G, 1KG) */
-  --c-badge-text:    #ffffff;
-  --c-soft:          #f5f5f5;   /* fondo cards, pills inactivos, img bg */
-  --c-border:        #e0e0e0;   /* bordes, separadores */
-  --c-text2:         #6b7280;   /* texto secundario (marca, precio/unidad) */
-  --c-link:          #4f46e5;   /* nombre del producto (estilo trolley) */
-  --c-best:          #0a0a0a;   /* badge Mejor Precio — negro */
-  --c-best-text:     #ffffff;
+  /* ── Dark Mode — 4 niveles por luminance ── */
+  --bg-canvas:       #0a0a0a;   /* fondo base — Off-Black con calor */
+  --bg-surface:      #141414;   /* cards, list items */
+  --bg-raised:       #1a1a1a;   /* hero, modales, elementos elevados */
+  --bg-overlay:      #222222;   /* drawers, bottom sheets, menús */
+  --c-border-dark:   #2a2a2a;   /* bordes estructurales en dark */
+  --c-ghost-border:  rgba(255,255,255,0.06); /* bordes ultra-sutiles */
 
-  /* ── Sistema monocromático ── */
-  --c-green:         #0a0a0a;   /* acento principal — negro */
-  --c-green-h:       #222222;   /* hover */
-  --c-gold:          #d4a574;   /* dorado — mejor precio, plan pro */
-  --c-cream:         #f7f7f7;   /* fondo suave gris */
-  --c-img-bg:        #f5f5f5;   /* fondo imagen producto */
+  /* ── Acento único — Caramel Gold ── */
+  --c-gold:          #d4a574;   /* EL acento: CTAs, rank #1, badges, chips activos */
+  --c-gold-text:     #0a0a0a;   /* texto sobre gold */
 
-  /* ── Aliases Tailwind/shadcn ── */
-  --background:            #ffffff;
-  --foreground:            #0a0a0a;
-  --card:                  #ffffff;
-  --card-foreground:       #0a0a0a;
-  --popover:               #ffffff;
-  --popover-foreground:    #0a0a0a;
-  --primary:               #0a0a0a;
-  --primary-foreground:    #ffffff;
-  --secondary:             #f5f5f5;
-  --secondary-foreground:  #0a0a0a;
-  --muted:                 #f5f5f5;
+  /* ── Success — solo para estados de éxito ── */
+  --c-green:         #16a34a;   /* guardado, confirmado, descuento badge */
+  --c-green-h:       #15803d;   /* hover */
+
+  /* ── Texto en dark ── */
+  --c-text-primary:  #f7f7f7;   /* texto primario */
+  --c-text-meta:     #6b7280;   /* texto secundario, labels, metadata */
+
+  /* ── Legacy — mantener para compatibilidad durante migración ── */
+  --c-dark:          #0a0a0a;
+  --c-hover:         #1a1a1a;
+  --c-badge:         #d4a574;   /* badge tamaño → gold */
+  --c-badge-text:    #0a0a0a;
+  --c-soft:          #141414;   /* fondo cards → dark surface */
+  --c-border:        #2a2a2a;   /* bordes → dark */
+  --c-text2:         #6b7280;
+  --c-link:          #d4a574;   /* links → gold */
+  --c-best:          #d4a574;   /* badge Mejor Precio → gold */
+  --c-best-text:     #0a0a0a;
+  --c-cream:         #1a1a1a;
+  --c-img-bg:        #141414;   /* fondo imagen producto → dark */
+
+  /* ── Aliases Tailwind/shadcn — actualizados a dark ── */
+  --background:            #0a0a0a;
+  --foreground:            #f7f7f7;
+  --card:                  #141414;
+  --card-foreground:       #f7f7f7;
+  --popover:               #1a1a1a;
+  --popover-foreground:    #f7f7f7;
+  --primary:               #d4a574;
+  --primary-foreground:    #0a0a0a;
+  --secondary:             #141414;
+  --secondary-foreground:  #f7f7f7;
+  --muted:                 #1a1a1a;
   --muted-foreground:      #6b7280;
-  --accent:                #f5f5f5;
+  --accent:                #d4a574;
   --accent-foreground:     #0a0a0a;
   --destructive:           #ef4444;
   --destructive-foreground:#ffffff;
-  --border:                #e5e7eb;
-  --input:                 #f5f5f5;
-  --ring:                  #0a0a0a;
+  --border:                #2a2a2a;
+  --input:                 #141414;
+  --ring:                  #d4a574;
 
   /* ── Tipografía ── */
   --font-sans: var(--font-poppins), 'Poppins', sans-serif;
@@ -188,12 +208,24 @@
   animation: slide-in-right 0.25s ease-out forwards;
 }
 
+/* Card hover legacy — Framer Motion whileHover reemplaza esto en componentes migrados */
 .card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, background 0.15s ease;
 }
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Skeleton shimmer — dark mode */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #141414 25%, #1a1a1a 50%, #141414 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
 }
 
 /* ──────────────────────────────────────────────

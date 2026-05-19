@@ -23,7 +23,7 @@ export function VistaOfertas({ onVerProducto }: VistaOfertasProps) {
 
   const tituloPorSector = sector === 'Todos'
     ? 'Todas las ofertas de hoy'
-    : `Top Ofertas - ${sector}`
+    : `Lo mejor de ${sector}`
 
   return (
     <div style={{ background: '#fff', minHeight: '100%', paddingBottom: '40px' }}>
@@ -61,7 +61,7 @@ export function VistaOfertas({ onVerProducto }: VistaOfertasProps) {
           {tituloPorSector}
         </h1>
         <p style={{ fontSize: '14px', color: '#555', margin: '0 0 28px' }}>
-          Productos con mayor ahorro entre mayoristas
+          Lo que más conviene comprar hoy
         </p>
 
         {/* Lista numerada */}
@@ -78,8 +78,8 @@ export function VistaOfertas({ onVerProducto }: VistaOfertasProps) {
           </div>
         ) : (
           <div style={{ padding: '60px 0', textAlign: 'center', color: '#6b7280' }}>
-            <div style={{ fontSize: '16px', fontWeight: 600 }}>Sin ofertas en este sector</div>
-            <div style={{ fontSize: '14px', marginTop: '8px' }}>Proba con otro sector</div>
+            <div style={{ fontSize: '16px', fontWeight: 600 }}>Nada en esta categoría hoy</div>
+            <div style={{ fontSize: '14px', marginTop: '8px' }}>Probá con otra categoría</div>
           </div>
         )}
       </div>

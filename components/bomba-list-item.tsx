@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 import { ProductoBomba, formatearPrecio, extraerTamano } from '@/lib/data'
 import Magnet from '@/components/reactbits/Animations/Magnet/Magnet'
 
@@ -28,14 +29,14 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
         .bli-wrap {
           display: flex;
           flex-direction: column;
-          border-bottom: 1px solid var(--c-border);
+          border-bottom: 1px solid var(--c-border-dark, #2a2a2a);
           overflow: hidden;
         }
         .bli-img {
           position: relative;
           width: 100%;
-          height: 400px;
-          background: #fff;
+          height: 260px;
+          background: #141414;
           flex-shrink: 0;
         }
         .bli-info {
@@ -43,25 +44,32 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
           flex-direction: column;
           padding: 20px 20px 28px;
           gap: 12px;
-          border-top: 1px solid var(--c-border);
+          border-top: 1px solid #2a2a2a;
+          background: #141414;
         }
         .bli-nombre {
           font-family: var(--font-sans);
-          font-size: 21px;
+          font-size: 20px;
           font-weight: 600;
-          color: #0a0a0a;
+          color: #f7f7f7;
           line-height: 1.33;
         }
         .bli-ahorro {
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 600;
-          color: var(--c-green);
+          color: #6b7280;
         }
         .bli-precio-val {
           font-size: 15px;
           font-weight: 500;
-          color: #0a0a0a;
+          color: #f7f7f7;
           line-height: 1.33;
+        }
+        .bli-precio-val-best {
+          font-family: var(--font-display);
+          font-size: 18px;
+          font-weight: 700;
+          color: #d4a574;
         }
         @media (min-width: 700px) {
           .bli-wrap {
@@ -73,7 +81,7 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
             width: 42%;
             height: auto;
             min-height: 340px;
-            border-right: 1px solid var(--c-border);
+            border-right: 1px solid #2a2a2a;
           }
           .bli-info {
             flex: 1;
@@ -82,13 +90,7 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
             gap: 14px;
           }
           .bli-nombre {
-            font-size: 23px;
-          }
-          .bli-ahorro {
-            font-size: 16px;
-          }
-          .bli-precio-val {
-            font-size: 17px;
+            font-size: 22px;
           }
         }
       `}</style>
@@ -101,22 +103,25 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
           <div style={{
             position: 'absolute', top: '14px', left: '14px', zIndex: 2,
             width: '36px', height: '36px',
-            background: rank <= 3 ? '#0a0a0a' : '#e5e7eb',
-            color: rank <= 3 ? '#fff' : '#555',
-            fontSize: '16px', fontWeight: 800,
+            background: rank === 1 ? '#d4a574' : '#1a1a1a',
+            color: rank === 1 ? '#0a0a0a' : '#f7f7f7',
+            border: rank > 1 && rank <= 3 ? '1px solid #d4a574' : 'none',
+            fontFamily: 'var(--font-display)',
+            fontSize: '18px', fontWeight: 800,
             borderRadius: '6px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {rank}
           </div>
 
-          {/* Badge ahorro % */}
+          {/* Badge ahorro % — gold */}
           {bomba.ahorroVsMaximo > 0 && (
             <div style={{
               position: 'absolute', top: '14px', right: '14px', zIndex: 2,
-              background: '#0a0a0a', color: '#fff',
-              fontSize: '12px', fontWeight: 800,
+              background: '#d4a574', color: '#0a0a0a',
+              fontSize: '12px', fontWeight: 900,
               padding: '5px 12px', borderRadius: '20px',
+              letterSpacing: '0.03em',
             }}>
               {bomba.ahorroVsMaximo}% mas barato
             </div>
@@ -134,7 +139,7 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
             <div style={{
               position: 'absolute', inset: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#d1d5db', fontSize: '48px',
+              color: '#2a2a2a', fontSize: '48px',
             }}>?</div>
           )}
         </div>
@@ -150,8 +155,10 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
             {tamano && (
               <span style={{
                 alignSelf: 'flex-start',
-                background: '#0a0a0a', color: '#fff',
-                fontSize: '12px', fontWeight: 800,
+                background: '#222222',
+                color: '#f7f7f7',
+                border: '1px solid #2a2a2a',
+                fontSize: '12px', fontWeight: 700,
                 padding: '4px 10px', borderRadius: '4px',
                 letterSpacing: '0.05em',
               }}>
@@ -170,14 +177,14 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
             <>
               <div style={{
                 fontSize: '11px', fontWeight: 800,
-                color: '#888', letterSpacing: '0.12em',
+                color: '#6b7280', letterSpacing: '0.12em',
                 textTransform: 'uppercase',
               }}>
                 Donde comprarlo
               </div>
 
               <div style={{
-                border: '1px solid var(--c-border)',
+                border: '1px solid #2a2a2a',
                 borderRadius: '10px',
                 overflow: 'hidden',
               }}>
@@ -189,8 +196,9 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
                       alignItems: 'center',
                       gap: '12px',
                       padding: '12px 14px',
-                      borderTop: idx > 0 ? '1px solid var(--c-border)' : 'none',
-                      background: idx === 0 ? '#f7f7f7' : '#fff',
+                      borderTop: idx > 0 ? '1px solid #2a2a2a' : 'none',
+                      background: idx === 0 ? '#1a1a1a' : '#141414',
+                      borderLeft: idx === 0 ? '3px solid #d4a574' : '3px solid transparent',
                     }}
                   >
                     {/* Logo */}
@@ -204,22 +212,26 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
                           unoptimized
                         />
                       ) : (
-                        <span style={{ fontSize: '11px', fontWeight: 700 }}>{precio.mayorista}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#f7f7f7' }}>{precio.mayorista}</span>
                       )}
                     </div>
 
                     {/* Precio + badge */}
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span className="bli-precio-val">{formatearPrecio(precio.precio)}</span>
+                      <span className={idx === 0 ? 'bli-precio-val-best' : 'bli-precio-val'}>
+                        {formatearPrecio(precio.precio)}
+                      </span>
                       {idx === 0 && (
                         <span style={{
                           alignSelf: 'flex-start',
-                          background: 'var(--c-best)',
-                          color: 'var(--c-best-text)',
+                          background: '#d4a574',
+                          color: '#0a0a0a',
                           fontSize: '10px',
                           fontWeight: 800,
                           padding: '2px 7px',
                           borderRadius: '10px',
+                          letterSpacing: '0.05em',
+                          textTransform: 'uppercase',
                         }}>
                           Mejor
                         </span>
@@ -233,33 +245,28 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
 
           {/* Botón */}
           <div style={{ marginTop: 'auto', paddingTop: '4px' }}>
-            <Magnet padding={20} magnetStrength={25}>
-              <button
+            <Magnet padding={20} magnetStrength={18}>
+              <motion.button
                 onClick={onVerProducto}
+                whileHover={{ backgroundColor: '#d4a574', color: '#0a0a0a', scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  padding: '11px 24px',
+                  padding: '13px 24px',
+                  minHeight: '44px',
                   background: 'transparent',
-                  color: '#0a0a0a',
-                  border: '2px solid #0a0a0a',
+                  color: '#d4a574',
+                  border: '2px solid #d4a574',
                   borderRadius: '20px',
                   fontSize: '15px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  transition: 'background 0.15s, color 0.15s',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = '#0a0a0a'
-                  e.currentTarget.style.color = '#fff'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.color = '#0a0a0a'
                 }}
               >
                 Ver producto
-              </button>
+              </motion.button>
             </Magnet>
           </div>
         </div>

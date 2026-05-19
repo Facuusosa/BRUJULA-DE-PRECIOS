@@ -1,8 +1,10 @@
 'use client'
 
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 import { Heart, Plus } from 'lucide-react'
 import { Producto, extraerTamano, calcularPrecioPorUnidad, formatearPrecio } from '@/lib/data'
+import { iconTap } from '@/lib/motion-variants'
 
 interface ProductCardProps {
   producto: Producto
@@ -34,23 +36,23 @@ export function ProductCard({ producto, onTap, onAgregar, esFavorito, onToggleFa
     : 0
 
   return (
-    <div
+    <motion.div
       onClick={onTap}
+      whileHover={{ borderColor: '#d4a574', backgroundColor: '#1a1a1a' }}
+      whileTap={{ scale: 0.99 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       style={{
-        background: '#ffffff',
-        border: '1px solid #eeeeee',
-        borderRadius: '0px',
+        background: '#141414',
+        border: '1px solid #2a2a2a',
+        borderRadius: '8px',
         overflow: 'hidden',
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'border-color 0.15s ease',
       }}
-      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#d1d5db'}
-      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#eeeeee'}
     >
       {/* Imagen */}
-      <div style={{ position: 'relative', aspectRatio: '1', background: '#f5f5f5' }}>
+      <div style={{ position: 'relative', aspectRatio: '1', background: '#1a1a1a' }}>
         {producto.imageUrl ? (
           <Image
             src={producto.imageUrl}
@@ -63,7 +65,7 @@ export function ProductCard({ producto, onTap, onAgregar, esFavorito, onToggleFa
           <div style={{
             position: 'absolute', inset: 0, display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-            fontSize: '32px', color: '#d1d5db',
+            fontSize: '32px', color: '#2a2a2a',
           }}>
             ?
           </div>
@@ -73,7 +75,8 @@ export function ProductCard({ producto, onTap, onAgregar, esFavorito, onToggleFa
         {tamano && !badgeAhorro && (
           <span style={{
             position: 'absolute', bottom: '8px', left: '8px',
-            background: '#000000', color: '#ffffff',
+            background: '#222222', color: '#f7f7f7',
+            border: '1px solid #2a2a2a',
             fontSize: '12px', fontWeight: 700,
             padding: '2px 7px', borderRadius: '4px',
             letterSpacing: '0.02em',
@@ -82,12 +85,12 @@ export function ProductCard({ producto, onTap, onAgregar, esFavorito, onToggleFa
           </span>
         )}
 
-        {/* Badge ahorro (vista Ofertas) */}
+        {/* Badge ahorro — gold */}
         {badgeAhorro && ahorroPorc > 0 && (
           <span style={{
             position: 'absolute', bottom: '8px', left: '8px',
-            background: '#16a34a', color: '#ffffff',
-            fontSize: '12px', fontWeight: 700,
+            background: '#d4a574', color: '#0a0a0a',
+            fontSize: '12px', fontWeight: 800,
             padding: '2px 7px', borderRadius: '4px',
           }}>
             -{ahorroPorc}%
@@ -95,61 +98,65 @@ export function ProductCard({ producto, onTap, onAgregar, esFavorito, onToggleFa
         )}
 
         {/* Botón + */}
-        <button
+        <motion.button
           onClick={e => { e.stopPropagation(); onAgregar() }}
+          {...iconTap}
           style={{
             position: 'absolute', top: '8px', right: '8px',
             width: '28px', height: '28px', borderRadius: '50%',
-            background: '#ffffff', border: '1px solid #e5e7eb',
+            background: '#1a1a1a', border: '1px solid #2a2a2a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', transition: 'background 0.15s',
+            cursor: 'pointer',
           }}
-          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = '#f5f5f5'}
-          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'}
           aria-label="Agregar"
         >
-          <Plus size={14} strokeWidth={2.5} color="#0a0a0a" />
-        </button>
+          <Plus size={14} strokeWidth={2.5} color="#f7f7f7" />
+        </motion.button>
       </div>
 
       {/* Info */}
-      <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+      <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
         {marca && (
-          <span style={{ fontSize: '14px', color: '#0a0a0a', fontWeight: 600, lineHeight: 1.3 }}>{marca}</span>
+          <span style={{ fontSize: '14px', color: '#f7f7f7', fontWeight: 600, lineHeight: 1.3 }}>{marca}</span>
         )}
         <span style={{
-          fontSize: '14px', fontWeight: 300, color: '#0a0a0a',
+          fontSize: '14px', fontWeight: 400, color: '#6b7280',
           lineHeight: 1.3, display: '-webkit-box',
           WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>
           {producto.nombre}
         </span>
         <div style={{ marginTop: '6px' }}>
-          <div style={{ fontSize: '20px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.2 }}>
+          <div style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '22px', fontWeight: 800,
+            color: '#d4a574', lineHeight: 1.2,
+          }}>
             {precioMinimo > 0 ? formatearPrecio(precioMinimo) : '—'}
           </div>
           {precioUnidad && (
-            <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 300 }}>{precioUnidad}</div>
+            <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 400 }}>{precioUnidad}</div>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+          <span style={{ fontSize: '12px', color: '#6b7280' }}>
             {producto.precios.filter(p => p.precio > 0).length} mayorista{producto.precios.filter(p => p.precio > 0).length !== 1 ? 's' : ''}
           </span>
-          <button
+          <motion.button
             onClick={e => { e.stopPropagation(); onToggleFavorito() }}
+            {...iconTap}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex' }}
             aria-label="Favorito"
           >
             <Heart
               size={16}
               strokeWidth={1.8}
-              color={esFavorito ? '#ef4444' : '#9ca3af'}
-              fill={esFavorito ? '#ef4444' : 'none'}
+              color={esFavorito ? '#d4a574' : '#6b7280'}
+              fill={esFavorito ? '#d4a574' : 'none'}
             />
-          </button>
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

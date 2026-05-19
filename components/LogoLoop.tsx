@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 
 interface LogoItem {
   src: string
@@ -44,34 +45,27 @@ export function LogoLoop({ items }: { items: LogoItem[] }) {
       `}</style>
       <div className="logo-loop-track">
         {track.map((item, i) => (
-          <a
+          <motion.a
             key={i}
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
+            whileHover={{ borderColor: '#d4a574' }}
+            transition={{ duration: 0.15 }}
             style={{
               flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: `${CARD_W}px`, height: '72px',
-              border: '1.5px solid #e5e7eb', borderRadius: '12px',
-              background: '#fff', padding: '12px',
+              border: '1.5px solid #2a2a2a', borderRadius: '12px',
+              background: '#141414', padding: '12px',
               cursor: 'pointer',
-              transition: 'border-color 0.15s, box-shadow 0.15s',
               textDecoration: 'none',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.borderColor = '#0a0a0a'
-              e.currentTarget.style.boxShadow   = '0 2px 12px rgba(10,61,31,0.12)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = '#e5e7eb'
-              e.currentTarget.style.boxShadow   = 'none'
             }}
           >
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
               <Image src={item.src} alt={item.alt} fill style={{ objectFit: 'contain' }} unoptimized />
             </div>
-          </a>
+          </motion.a>
         ))}
       </div>
     </div>
