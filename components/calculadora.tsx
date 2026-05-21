@@ -15,91 +15,89 @@ interface CalculadoraProps {
   onGuardar?: (data: { precioCompra: number; margen: number; precioVenta: number; ganancia: number }) => void
 }
 
-// Panel calculadora que aparece desde abajo
 export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClose, onGuardar }: CalculadoraProps) {
   const [precioCompra, setPrecioCompra] = useState<string>(
     (Math.round(precioInicial * 100) / 100).toString()
   )
   const [margen, setMargen] = useState(35)
   const [mayoristaActual, setMayoristaActual] = useState(mayorista)
-  
-  // Actualizar precio cuando cambia el producto
+
   useEffect(() => {
     setPrecioCompra((Math.round(precioInicial * 100) / 100).toString())
     setMayoristaActual(mayorista)
   }, [precioInicial, mayorista])
-  
-  // Calcular precio de venta y ganancia
-  const numPrecioCompra = Number(precioCompra) || 0;
+
+  const numPrecioCompra = Number(precioCompra) || 0
   const precioVenta = Math.round(numPrecioCompra * (1 + margen / 100))
   const ganancia = precioVenta - numPrecioCompra
-  
+
   const handleGuardar = () => {
     onGuardar?.({ precioCompra: numPrecioCompra, margen, precioVenta, ganancia })
     onClose()
   }
-  
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
           />
-          
-          {/* Panel */}
+
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-[480px] bg-white rounded-[2rem] z-[100] max-h-[90vh] overflow-y-auto shadow-2xl pt-6"
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-[480px] rounded-2xl z-[100] max-h-[90vh] overflow-y-auto pt-6"
+            style={{ background: '#141414', border: '1px solid #2a2a2a' }}
           >
-            {/* Botón cerrar */}
             <button
               onClick={onClose}
               className="absolute top-4 right-4 p-2 rounded-full"
-              style={{ backgroundColor: '#f2f4f6' }}
+              style={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a' }}
             >
-              <X className="w-5 h-5 text-[#64748b]" />
+              <X className="w-5 h-5" style={{ color: '#6b7280' }} />
             </button>
-            
+
             <div className="px-5 pb-8">
-              {/* Info del producto */}
               <div className="mb-6">
-                <h3 className="font-heading font-bold text-lg text-[#0f172a] pr-8">
+                <h3 className="font-heading font-bold text-lg pr-8" style={{ color: '#f7f7f7' }}>
                   {producto?.nombre}
                 </h3>
-                
-                {/* Selector de Mayorista */}
+
                 {producto?.precios && producto.precios.length > 0 ? (
                   <div className="mt-3">
-                    <span className="font-body text-xs text-[#64748b] block mb-2 font-medium">Comparar precios en:</span>
-                    <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+                    <span className="font-body text-xs block mb-2 font-medium" style={{ color: '#6b7280' }}>
+                      Comparar precios en:
+                    </span>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
                       {producto.precios.map(p => {
-                        const isSelected = p.mayorista === mayoristaActual;
+                        const isSelected = p.mayorista === mayoristaActual
                         return (
                           <button
                             key={p.mayorista}
                             onClick={() => {
-                              setMayoristaActual(p.mayorista);
-                              setPrecioCompra((Math.round(p.precio * 100) / 100).toString());
+                              setMayoristaActual(p.mayorista)
+                              setPrecioCompra((Math.round(p.precio * 100) / 100).toString())
                             }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap border transition-all ${
-                              isSelected 
-                                ? 'bg-[#006d38] text-white border-[#006d38] shadow-md shadow-[#006d38]/20' 
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                            }`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '6px 12px', borderRadius: '20px', whiteSpace: 'nowrap',
+                              border: `1.5px solid ${isSelected ? '#d4a574' : '#2a2a2a'}`,
+                              background: isSelected ? '#d4a574' : '#222222',
+                              color: isSelected ? '#0a0a0a' : '#f7f7f7',
+                              cursor: 'pointer', transition: 'all 0.15s',
+                            }}
                           >
-                            <span className={`font-body text-[11px] ${isSelected ? 'font-bold' : 'font-medium'}`}>
+                            <span style={{ fontSize: '11px', fontWeight: isSelected ? 700 : 500 }}>
                               {p.mayorista}
                             </span>
-                            <span className={`font-heading text-[12px] font-black ${isSelected ? 'text-white/90' : 'text-slate-800'}`}>
+                            <span style={{ fontSize: '12px', fontWeight: 800 }}>
                               ${Math.round(p.precio)}
                             </span>
                           </button>
@@ -108,35 +106,36 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                     </div>
                   </div>
                 ) : (
-                  <p className="font-body text-sm text-[#64748b] mt-1">
+                  <p className="font-body text-sm mt-1" style={{ color: '#6b7280' }}>
                     Comprando en {mayoristaActual}
                   </p>
                 )}
               </div>
-              
-              {/* Campo precio de compra */}
+
               <div className="mb-6">
-                <label className="font-body text-sm text-[#64748b] block mb-2">
+                <label className="font-body text-sm block mb-2" style={{ color: '#6b7280' }}>
                   Precio de compra
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-heading font-bold text-lg text-[#0f172a]">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-heading font-bold text-lg" style={{ color: '#f7f7f7' }}>
                     $
                   </span>
                   <input
                     type="number"
                     value={precioCompra}
                     onChange={(e) => setPrecioCompra(e.target.value)}
-                    className="w-full h-14 pl-8 pr-4 rounded-xl font-heading font-bold text-lg text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#006d38]"
-                    style={{ backgroundColor: '#f2f4f6' }}
+                    className="w-full h-14 pl-8 pr-4 rounded-xl font-heading font-bold text-lg focus:outline-none"
+                    style={{
+                      backgroundColor: '#1a1a1a', color: '#f7f7f7',
+                      border: '1px solid #2a2a2a',
+                    }}
                   />
                 </div>
               </div>
-              
-              {/* Slider margen */}
+
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="font-body text-sm text-[#64748b]">
+                  <label className="font-body text-sm" style={{ color: '#6b7280' }}>
                     Margen de ganancia
                   </label>
                   <div className="flex items-center gap-2">
@@ -144,10 +143,10 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                       type="number"
                       value={margen}
                       onChange={(e) => setMargen(Math.min(100, Math.max(10, Number(e.target.value))))}
-                      className="w-16 h-10 px-2 rounded-lg font-heading font-bold text-center text-[#006d38] focus:outline-none focus:ring-2 focus:ring-[#006d38]"
-                      style={{ backgroundColor: '#e8f5ee' }}
+                      className="w-16 h-10 px-2 rounded-lg font-heading font-bold text-center focus:outline-none"
+                      style={{ backgroundColor: '#1a1a1a', color: '#d4a574', border: '1px solid #2a2a2a' }}
                     />
-                    <span className="font-heading font-bold text-[#006d38]">%</span>
+                    <span className="font-heading font-bold" style={{ color: '#d4a574' }}>%</span>
                   </div>
                 </div>
                 <Slider
@@ -156,14 +155,13 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                   min={0}
                   max={100}
                   step={1}
-                  className="[&_[data-slot=slider-thumb]]:bg-[#006d38] [&_[data-slot=slider-thumb]]:border-[#006d38] [&_[data-slot=slider-range]]:bg-[#006d38]"
+                  className="[&_[data-slot=slider-thumb]]:bg-[#d4a574] [&_[data-slot=slider-thumb]]:border-[#d4a574] [&_[data-slot=slider-range]]:bg-[#d4a574]"
                 />
               </div>
-              
-              {/* Resultados animados */}
-              <div className="p-4 rounded-2xl mb-6" style={{ backgroundColor: '#e8f5ee' }}>
+
+              <div className="p-4 rounded-2xl mb-6" style={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a' }}>
                 <div className="flex justify-between items-start mb-4">
-                  <span className="font-body text-sm text-[#64748b]">
+                  <span className="font-body text-sm" style={{ color: '#6b7280' }}>
                     Precio de venta sugerido
                   </span>
                   <motion.span
@@ -171,14 +169,14 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     className="font-heading font-extrabold text-2xl sm:text-3xl text-right"
-                    style={{ color: '#006d38' }}
+                    style={{ color: '#d4a574' }}
                   >
                     {formatearPrecio(precioVenta)}
                   </motion.span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
-                  <span className="font-body text-sm text-[#64748b]">
+                  <span className="font-body text-sm" style={{ color: '#6b7280' }}>
                     Tu ganancia por unidad
                   </span>
                   <motion.span
@@ -186,18 +184,17 @@ export function Calculadora({ producto, mayorista, precioInicial, isOpen, onClos
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     className="font-heading font-bold text-xl"
-                    style={{ color: '#006d38' }}
+                    style={{ color: '#f7f7f7' }}
                   >
                     {formatearPrecio(ganancia)}
                   </motion.span>
                 </div>
               </div>
-              
-              {/* Botón guardar */}
+
               <button
                 onClick={handleGuardar}
-                className="w-full h-14 rounded-xl font-heading font-bold text-white transition-transform active:scale-98"
-                style={{ backgroundColor: '#006d38' }}
+                className="w-full h-14 rounded-xl font-heading font-bold transition-transform active:scale-95"
+                style={{ backgroundColor: '#d4a574', color: '#0a0a0a' }}
               >
                 Guardar en mi lista
               </button>

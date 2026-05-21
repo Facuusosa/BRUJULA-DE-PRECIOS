@@ -75,7 +75,7 @@ export function VistaDetalle({
     const pv = parseInt(limpio, 10)
     if (!isNaN(pv) && pv > precioCompra && precioCompra > 0) {
       const nuevoMargen = (1 - precioCompra / pv) * 100
-      setMargen(Math.min(95, Math.max(5, Math.round(nuevoMargen))))
+      setMargen(Math.min(100, Math.max(5, Math.round(nuevoMargen))))
       setGananciaEdit('')
     }
   }
@@ -87,7 +87,7 @@ export function VistaDetalle({
     if (!isNaN(g) && g > 0 && precioCompra > 0) {
       const pv = precioCompra + g
       const nuevoMargen = (1 - precioCompra / pv) * 100
-      setMargen(Math.min(95, Math.max(5, Math.round(nuevoMargen))))
+      setMargen(Math.min(100, Math.max(5, Math.round(nuevoMargen))))
       setPrecioVentaEdit('')
     }
   }
@@ -357,6 +357,11 @@ export function VistaDetalle({
                         Mejor precio
                       </div>
                     )}
+                    {precio.fechaScraping && (
+                      <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
+                        Precio al {precio.fechaScraping}
+                      </div>
+                    )}
                   </div>
 
                   {/* Link al sitio del mayorista */}
@@ -367,6 +372,7 @@ export function VistaDetalle({
                       rel="noopener noreferrer"
                       onClick={e => e.stopPropagation()}
                       aria-label={`Ver en ${precio.mayorista}`}
+                      title={precio.mayorista === 'MaxiCarrefour' ? 'Requiere login en comerciante.carrefour.com.ar' : `Ver en ${precio.mayorista}`}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 34, height: 34, borderRadius: '50%',
@@ -446,7 +452,7 @@ export function VistaDetalle({
                         padding: '5px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600,
                         border: `1.5px solid ${mayoristaCal === p.mayorista ? '#d4a574' : '#2a2a2a'}`,
                         background: mayoristaCal === p.mayorista ? '#d4a574' : '#1a1a1a',
-                        color: mayoristaCal === p.mayorista ? '#0a0a0a' : '#6b7280',
+                        color: mayoristaCal === p.mayorista ? '#0a0a0a' : '#f7f7f7',
                         cursor: 'pointer',
                       }}
                     >
@@ -468,10 +474,10 @@ export function VistaDetalle({
                 </div>
                 <input
                   type="range"
-                  min={5} max={95} value={margen}
+                  min={5} max={100} value={margen}
                   onChange={e => handleSlider(Number(e.target.value))}
                   className="slider-brujula"
-                  style={{ width: '100%', '--slider-pct': `${((margen - 5) / (95 - 5)) * 100}%` } as React.CSSProperties}
+                  style={{ width: '100%', '--slider-pct': `${((margen - 5) / (100 - 5)) * 100}%` } as React.CSSProperties}
                 />
               </div>
 

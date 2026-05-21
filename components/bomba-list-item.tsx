@@ -123,7 +123,7 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
               padding: '5px 12px', borderRadius: '20px',
               letterSpacing: '0.03em',
             }}>
-              {bomba.ahorroVsMaximo}% mas barato
+              {bomba.ahorroVsMaximo}% más barato
             </div>
           )}
 
@@ -167,7 +167,7 @@ export function BombaListItem({ bomba, rank, onVerProducto }: BombaListItemProps
             )}
             {bomba.ahorroEnPlata > 0 && (
               <span className="bli-ahorro">
-                Ahorras {formatearPrecio(bomba.ahorroEnPlata)} comprando en el mas barato
+                Ahorrás {formatearPrecio(bomba.ahorroEnPlata)} comprando en el más barato
               </span>
             )}
           </div>

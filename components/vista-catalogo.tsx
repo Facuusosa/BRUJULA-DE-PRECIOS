@@ -151,6 +151,7 @@ export function VistaCatalogo({
           .deals-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 600px) {
+          .deals-grid { grid-template-columns: repeat(2, 1fr); }
           .catalogo-main { padding: 16px 12px; }
           .mayoristas-logos { gap: 8px; }
         }
@@ -364,12 +365,22 @@ export function VistaCatalogo({
         ) : (
           <div style={{ padding: '60px 0', textAlign: 'center' }}>
             <Search size={48} color="#2a2a2a" strokeWidth={1.5} style={{ marginBottom: '16px' }} />
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#6b7280', marginBottom: '8px' }}>
-              Nada por aca
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#f7f7f7', marginBottom: '8px' }}>
+              Nada por acá
             </div>
-            <div style={{ fontSize: '13px', color: '#6b7280' }}>
-              Proba con otro filtro o busqueda
+            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>
+              Probá con otro filtro o búsqueda
             </div>
+            <button
+              onClick={() => { setBusqueda(''); setMayoristaSel(''); setSectorSel('') }}
+              style={{
+                padding: '10px 20px', borderRadius: '20px',
+                background: '#d4a574', color: '#0a0a0a',
+                border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              Limpiar filtros
+            </button>
           </div>
         )}
       </div>
@@ -401,6 +412,25 @@ function DealCard({ producto, mayoristaSel, onClick, isFavorito, onToggleFavorit
     .filter(p => p.precio > 0)
     .sort((a, b) => a.precio - b.precio)
 
+  const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
+  const fallbackIdx = useState(0)
+
+  useEffect(() => {
+    setImgSrc(producto.imageUrl || '')
+    fallbackIdx[1](0)
+  }, [producto.id, producto.imageUrl])
+
+  const handleImageError = () => {
+    const fallbacks = producto.imagenFallbacks || []
+    const idx = fallbackIdx[0]
+    if (idx < fallbacks.length) {
+      setImgSrc(fallbacks[idx])
+      fallbackIdx[1](idx + 1)
+    } else {
+      setImgSrc('')
+    }
+  }
+
   if (preciosValidos.length === 0) return null
 
   const precioMin = preciosValidos[0].precio
@@ -416,14 +446,15 @@ function DealCard({ producto, mayoristaSel, onClick, isFavorito, onToggleFavorit
       onClick={onClick}
     >
       {/* Imagen */}
-      <div style={{ height: '160px', background: '#1a1a1a', position: 'relative' }}>
-        {producto.imageUrl ? (
+      <div style={{ height: '140px', background: '#1a1a1a', position: 'relative' }}>
+        {imgSrc ? (
           <Image
-            src={producto.imageUrl}
+            src={imgSrc}
             alt={producto.nombre}
             fill
             style={{ objectFit: 'contain', padding: '12px' }}
             unoptimized
+            onError={handleImageError}
           />
         ) : (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a2a', fontSize: '32px' }}>?</div>
@@ -476,8 +507,8 @@ function DealCard({ producto, mayoristaSel, onClick, isFavorito, onToggleFavorit
           <div style={{
             position: 'absolute', bottom: '6px', right: '6px',
             background: '#d4a574', color: '#0a0a0a',
-            fontSize: '9px', fontWeight: 800,
-            padding: '2px 6px', borderRadius: '10px',
+            fontSize: '11px', fontWeight: 800,
+            padding: '3px 8px', borderRadius: '10px',
             letterSpacing: '0.03em',
           }}>
             {preciosValidos.length} precios
@@ -486,30 +517,30 @@ function DealCard({ producto, mayoristaSel, onClick, isFavorito, onToggleFavorit
       </div>
 
       {/* Info */}
-      <div style={{ padding: '10px 10px 12px' }}>
+      <div style={{ padding: '12px 12px 14px' }}>
         {/* Nombre */}
         <div style={{
-          fontSize: '13px', fontWeight: 600, color: '#f7f7f7',
+          fontSize: '14px', fontWeight: 600, color: '#f7f7f7',
           lineHeight: 1.4, marginBottom: '8px',
           display: '-webkit-box', WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          minHeight: '36px',
+          minHeight: '40px',
         }}>
           {producto.nombre}
         </div>
 
         {/* Tabla de precios */}
-        <div style={{ borderTop: '1px solid #2a2a2a', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <div style={{ borderTop: '1px solid #2a2a2a', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
           {MAYORISTAS_ORDER.map(nombreM => {
             const entrada = preciosValidos.find(p => p.mayorista === nombreM)
             const esMejor = nombreM === mejorMayorista
             return (
               <div key={nombreM} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                <div style={{ position: 'relative', width: '44px', height: '18px', flexShrink: 0, opacity: entrada ? 1 : 0.25 }}>
+                <div style={{ position: 'relative', width: '48px', height: '20px', flexShrink: 0, opacity: entrada ? 1 : 0.25 }}>
                   <Image src={LOGOS[nombreM]} alt={nombreM} fill style={{ objectFit: 'contain' }} unoptimized />
                 </div>
                 <span style={{
-                  fontSize: esMejor ? '14px' : '13px',
+                  fontSize: esMejor ? '16px' : '13px',
                   fontFamily: esMejor ? 'var(--font-display)' : 'var(--font-sans)',
                   fontWeight: esMejor ? 800 : 400,
                   color: entrada ? (esMejor ? '#d4a574' : '#6b7280') : '#2a2a2a',

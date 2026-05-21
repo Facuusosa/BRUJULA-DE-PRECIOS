@@ -6,6 +6,7 @@ export interface Precio {
   precio: number
   tipo: 'lista' | 'oferta'
   link?: string
+  fechaScraping?: string
 }
 
 export interface Producto {
@@ -17,6 +18,7 @@ export interface Producto {
   colorSector: string
   precios: Precio[]
   imageUrl?: string
+  imagenFallbacks?: string[]
   disponible?: boolean
   abc?: string   // Indicador de importancia del Listado Maestro: A=top, B, C, D
 }
@@ -199,6 +201,7 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
         precio: precio as number,
         tipo: 'lista' as const,
         link: item.fuentes?.[mayorista]?.link || undefined,
+        fechaScraping: item.fuentes?.[mayorista]?.fecha_scraping || undefined,
       }))
 
 
@@ -433,6 +436,9 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       colorSector: scMeta.color,
       precios: preciosMapped,
       imageUrl: item.imagen,
+      imagenFallbacks: Object.values((item.fuentes as Record<string, { imagen?: string }>) || {})
+        .map(f => f.imagen || '')
+        .filter(img => img && img !== item.imagen),
       disponible: true,
       abc: item.abc || '',
     }
