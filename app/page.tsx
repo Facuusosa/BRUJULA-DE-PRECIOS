@@ -280,6 +280,7 @@ export default function BrujulaMayorista() {
               onVerProducto={(producto) => handleVerProducto(producto, 'inicio')}
               favoritos={favoritos}
               onToggleFavorito={handleToggleFavorito}
+              onGuardar={handleAgregarRapido}
             />
           )}
 

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { ChevronLeft, Heart, Share2, ExternalLink } from 'lucide-react'
 import {
-  Producto, formatearPrecio, extraerTamano,
+  Producto, ProductoBomba, productos, formatearPrecio, extraerTamano,
   calcularBombas
 } from '@/lib/data'
 import BlurText from '@/components/reactbits/TextAnimations/BlurText/BlurText'
@@ -46,6 +46,18 @@ export function VistaDetalle({
   const [mayoristaSel, setMayoristaSel] = useState('')
   const [precioVentaEdit, setPrecioVentaEdit] = useState('')
   const [gananciaEdit, setGananciaEdit] = useState('')
+  const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
+  const [imgFallbackIdx, setImgFallbackIdx] = useState(0)
+
+  const handleDetalleImageError = () => {
+    const fallbacks = producto.imagenFallbacks || []
+    if (imgFallbackIdx < fallbacks.length) {
+      setImgSrc(fallbacks[imgFallbackIdx])
+      setImgFallbackIdx(prev => prev + 1)
+    } else {
+      setImgSrc('')
+    }
+  }
 
   const tamano = extraerTamano(producto.nombre)
   const preciosValidos = producto.precios
@@ -93,11 +105,31 @@ export function VistaDetalle({
   }
 
   const relacionados = useMemo(() =>
-    calcularBombas()
-      .filter(b => b.sector === producto.sector && b.id !== producto.id)
-      .slice(0, 8),
+    productos
+      .filter(p => p.sector === producto.sector && p.id !== producto.id && p.precios.some(pr => pr.precio > 0))
+      .sort((a, b) => {
+        const abcOrder: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
+        const aAbc = abcOrder[a.abc ?? ''] ?? 4
+        const bAbc = abcOrder[b.abc ?? ''] ?? 4
+        if (aAbc !== bAbc) return aAbc - bAbc
+        return b.precios.filter(p => p.precio > 0).length - a.precios.filter(p => p.precio > 0).length
+      })
+      .slice(0, 20),
     [producto.sector, producto.id]
   )
+
+  const semilla = useMemo(() => Math.floor(Date.now() / (1000 * 60 * 30)), [])
+  const bombasRotativas = useMemo((): ProductoBomba[] => {
+    const todas = calcularBombas().filter(b => b.id !== producto.id)
+    const indices = Array.from({ length: todas.length }, (_, i) => i)
+    let s = semilla
+    for (let i = indices.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) & 0xffffffff
+      const j = Math.abs(s) % (i + 1)
+      ;[indices[i], indices[j]] = [indices[j], indices[i]]
+    }
+    return indices.slice(0, 4).map(i => todas[i])
+  }, [semilla, producto.id])
 
   const handleGuardar = () => {
     if (!mejorPrecio) return
@@ -134,7 +166,6 @@ export function VistaDetalle({
           z-index: 6;
           padding: 28px 20px 80px;
           min-width: 0;
-          overflow-x: hidden;
           word-break: break-word;
           overflow-wrap: anywhere;
         }
@@ -180,17 +211,23 @@ export function VistaDetalle({
         .relacionados-scroll {
           display: flex;
           gap: 12px;
-          overflow-x: auto;
+          overflow-x: scroll;
           padding-bottom: 8px;
-          scrollbar-width: none;
+          scrollbar-width: thin;
+          scrollbar-color: #2a2a2a transparent;
         }
-        .relacionados-scroll::-webkit-scrollbar { display: none; }
-        .detalle-nombre-blur { margin: 0 0 24px !important; }
+        .rotativas-grid {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          overflow-x: visible !important;
+        }
+        .detalle-nombre-blur { margin: 0 0 20px !important; }
         .detalle-nombre-blur span {
-          font-family: var(--font-barlow-condensed), "Barlow Condensed", sans-serif !important;
-          font-size: 26px !important; font-weight: 800 !important;
-          text-transform: uppercase !important; letter-spacing: 0.01em !important;
-          color: #f7f7f7 !important; line-height: 1.15 !important;
+          font-family: var(--font-poppins, "Poppins"), sans-serif !important;
+          font-size: 22px !important; font-weight: 700 !important;
+          text-transform: none !important; letter-spacing: -0.01em !important;
+          color: #f7f7f7 !important; line-height: 1.25 !important;
         }
         .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         @media (min-width: 768px) {
@@ -236,14 +273,15 @@ export function VistaDetalle({
               <Share2 size={18} strokeWidth={1.8} color="#6b7280" />
             </motion.button>
           </div>
-          {producto.imageUrl ? (
+          {imgSrc ? (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
               <Image
-                src={producto.imageUrl}
+                src={imgSrc}
                 alt={producto.nombre}
                 fill
                 style={{ objectFit: 'contain', padding: '32px' }}
                 unoptimized
+                onError={handleDetalleImageError}
               />
             </div>
           ) : (
@@ -289,8 +327,8 @@ export function VistaDetalle({
           />
 
           {/* DONDE COMPRAR */}
-          <SectionLabel>DONDE COMPRAR</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+          <SectionLabel>Dónde comprar</SectionLabel>
+          <div style={{ border: '1px solid #1f1f1f', borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
             {preciosValidos.map((precio, idx) => {
               const logo = LOGOS[precio.mayorista]
               const esMejor = idx === 0
@@ -302,69 +340,59 @@ export function VistaDetalle({
                 <motion.div
                   key={precio.mayorista}
                   onClick={() => setMayoristaSel(precio.mayorista)}
-                  whileTap={{ scale: 0.99 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  whileTap={{ scale: 0.995 }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     padding: '14px 16px',
-                    borderRadius: '10px',
-                    border: `2px solid ${esSeleccionado ? '#d4a574' : esMejor ? 'rgba(212,165,116,0.3)' : '#2a2a2a'}`,
-                    background: esMejor ? '#1a1a1a' : '#141414',
+                    borderBottom: idx < preciosValidos.length - 1 ? '1px solid #1f1f1f' : 'none',
+                    background: esSeleccionado ? '#161616' : '#0f0f0f',
                     cursor: 'pointer',
-                    position: 'relative',
                   }}
                 >
-                  {/* Indicador lateral seleccionado */}
-                  {esSeleccionado && (
-                    <div style={{
-                      position: 'absolute', left: 0, top: '20%', bottom: '20%',
-                      width: '3px', borderRadius: '0 3px 3px 0',
-                      background: '#d4a574',
-                    }} />
-                  )}
-
                   {/* Logo */}
-                  <div style={{ width: '80px', height: '28px', position: 'relative', flexShrink: 0 }}>
-                    {logo ? (
-                      <Image src={logo} alt={precio.mayorista} fill style={{ objectFit: 'contain', objectPosition: 'left' }} unoptimized />
-                    ) : (
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#f7f7f7' }}>{precio.mayorista}</span>
-                    )}
+                  <div style={{ width: '72px', height: '26px', position: 'relative', flexShrink: 0 }}>
+                    {logo
+                      ? <Image src={logo} alt={precio.mayorista} fill style={{ objectFit: 'contain', objectPosition: 'left' }} unoptimized />
+                      : <span style={{ fontSize: '12px', fontWeight: 600, color: '#9ca3af' }}>{precio.mayorista}</span>
+                    }
                   </div>
 
-                  {/* Precio + info */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{
-                        fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                        fontSize: esMejor ? '24px' : '20px', fontWeight: 800,
-                        color: esMejor ? '#d4a574' : '#f7f7f7',
-                      }}>
-                        {formatearPrecio(precio.precio)}
-                      </span>
-                      {!esMejor && diferencia > 0 && (
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>
-                          +{formatearPrecio(diferencia)} ({pctDif}% más)
+                  {/* Nombre mayorista + badge */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: '#9ca3af' }}>{precio.mayorista}</span>
+                      {esMejor && (
+                        <span style={{
+                          fontSize: '10px', fontWeight: 700, color: '#16a34a',
+                          background: 'rgba(22,163,74,0.12)', padding: '1px 7px',
+                          borderRadius: '20px', border: '1px solid rgba(22,163,74,0.25)',
+                        }}>
+                          Mejor precio
                         </span>
                       )}
                     </div>
-                    {esMejor && (
-                      <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '3px',
-                        fontSize: '11px', fontWeight: 700, color: '#0a0a0a',
-                        background: '#d4a574', padding: '2px 8px', borderRadius: '20px',
-                      }}>
-                        Mejor precio
-                      </div>
-                    )}
                     {precio.fechaScraping && (
-                      <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
-                        Precio al {precio.fechaScraping}
+                      <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '1px' }}>
+                        Actualizado {precio.fechaScraping}
                       </div>
                     )}
                   </div>
 
-                  {/* Link al sitio del mayorista */}
+                  {/* Precio */}
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{
+                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                      fontSize: '20px', fontWeight: 700,
+                      color: esMejor ? '#f7f7f7' : '#9ca3af',
+                    }}>
+                      {formatearPrecio(precio.precio)}
+                    </div>
+                    {!esMejor && diferencia > 0 && (
+                      <div style={{ fontSize: '11px', color: '#4b5563' }}>+{pctDif}% más</div>
+                    )}
+                  </div>
+
+                  {/* Botón VER */}
                   {precio.link && (
                     <a
                       href={precio.link}
@@ -372,67 +400,105 @@ export function VistaDetalle({
                       rel="noopener noreferrer"
                       onClick={e => e.stopPropagation()}
                       aria-label={`Ver en ${precio.mayorista}`}
-                      title={precio.mayorista === 'MaxiCarrefour' ? 'Requiere login en comerciante.carrefour.com.ar' : `Ver en ${precio.mayorista}`}
+                      title={precio.mayorista === 'MaxiCarrefour' ? 'Requiere login' : `Ver en ${precio.mayorista}`}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 34, height: 34, borderRadius: '50%',
-                        background: '#222222', flexShrink: 0, color: '#6b7280',
-                        textDecoration: 'none',
-                        border: '1px solid #2a2a2a',
+                        padding: '6px 12px', borderRadius: '6px', flexShrink: 0,
+                        background: esSeleccionado ? '#2563eb' : '#1a1a1a',
+                        color: esSeleccionado ? '#fff' : '#6b7280',
+                        textDecoration: 'none', fontSize: '12px', fontWeight: 600,
+                        border: `1px solid ${esSeleccionado ? '#2563eb' : '#2a2a2a'}`,
+                        gap: '4px',
                       }}
                     >
-                      <ExternalLink size={15} strokeWidth={2} />
+                      Ver <ExternalLink size={11} strokeWidth={2} />
                     </a>
-                  )}
-
-                  {/* Indicador "en calculadora" */}
-                  {esSeleccionado && (
-                    <span style={{
-                      fontSize: '10px', fontWeight: 700, color: '#0a0a0a',
-                      background: '#d4a574', padding: '3px 8px', borderRadius: '20px',
-                      whiteSpace: 'nowrap', flexShrink: 0,
-                    }}>
-                      En cálculo
-                    </span>
                   )}
                 </motion.div>
               )
             })}
             {preciosValidos.length === 0 && (
               <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
-                Sin precios por ahora
+                Sin precios disponibles
               </div>
             )}
           </div>
 
-          {/* COMPARATIVA DE AHORRO */}
+          {/* PRECIO HOY */}
           {preciosValidos.length > 1 && mejorPrecio && precioMax && mejorPrecio.precio !== precioMax.precio && (
-            <div style={{ marginBottom: '28px' }}>
-              <SectionLabel>COMPARATIVA</SectionLabel>
-              <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>
-                    Ahorrás comprando en <strong style={{ color: '#f7f7f7' }}>{mejorPrecio.mayorista}</strong>
+            <motion.div
+              style={{ marginBottom: '28px' }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
+            >
+              <SectionLabel>Precio hoy</SectionLabel>
+              <div style={{ background: '#0f0f0f', border: '1px solid #1f1f1f', borderRadius: '12px', padding: '20px 16px' }}>
+                {/* Barra gradiente */}
+                <div style={{ position: 'relative', marginBottom: '28px' }}>
+                  {/* Marcadores encima de la barra */}
+                  <div style={{ position: 'relative', height: '32px' }}>
+                    {preciosValidos.map((p, idx) => {
+                      const rango = precioMax.precio - mejorPrecio.precio
+                      const pos = rango === 0 ? 0 : (p.precio - mejorPrecio.precio) / rango
+                      const esMejor = idx === 0
+                      return (
+                        <div
+                          key={p.mayorista}
+                          style={{
+                            position: 'absolute',
+                            left: `${pos * 100}%`,
+                            transform: 'translateX(-50%)',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                          }}
+                        >
+                          {/* Triángulo apuntando hacia la barra */}
+                          <div style={{
+                            width: 0, height: 0,
+                            borderLeft: '5px solid transparent',
+                            borderRight: '5px solid transparent',
+                            borderTop: `7px solid ${esMejor ? '#f7f7f7' : '#4b5563'}`,
+                            marginBottom: '2px',
+                          }} />
+                          <span style={{
+                            fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap',
+                            color: esMejor ? '#f7f7f7' : '#9ca3af',
+                            fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                          }}>
+                            {formatearPrecio(p.precio)}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
+                  {/* Barra gradiente semáforo */}
                   <div style={{
-                    fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                    fontSize: '32px', fontWeight: 800, color: '#d4a574', lineHeight: 1,
-                  }}>
-                    {formatearPrecio(precioMax.precio - mejorPrecio.precio)}
+                    height: '8px', borderRadius: '99px',
+                    background: 'linear-gradient(to right, #16a34a 0%, #eab308 50%, #dc2626 100%)',
+                  }} />
+                  {/* Labels extremos */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Más barato</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Más caro</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>vs {precioMax.mayorista}</div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Diferencia</div>
-                  <div style={{
-                    fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                    fontSize: '20px', fontWeight: 800, color: '#f7f7f7',
-                  }}>
-                    {Math.round(((precioMax.precio - mejorPrecio.precio) / precioMax.precio) * 100)}%
+                {/* Resumen ahorro */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #1f1f1f' }}>
+                  <span style={{ fontSize: '13px', color: '#9ca3af' }}>
+                    Comprando en <strong style={{ color: '#f7f7f7' }}>{mejorPrecio.mayorista}</strong> ahorrás
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                      fontSize: '20px', fontWeight: 700, color: '#16a34a',
+                    }}>
+                      {formatearPrecio(precioMax.precio - mejorPrecio.precio)}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                      ({Math.round(((precioMax.precio - mejorPrecio.precio) / precioMax.precio) * 100)}%)
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* CALCULADORA DE MARGEN */}
@@ -474,7 +540,7 @@ export function VistaDetalle({
                 </div>
                 <input
                   type="range"
-                  min={5} max={100} value={margen}
+                  min={5} max={99} value={margen}
                   onChange={e => handleSlider(Number(e.target.value))}
                   className="slider-brujula"
                   style={{ width: '100%', '--slider-pct': `${((margen - 5) / (100 - 5)) * 100}%` } as React.CSSProperties}
@@ -565,7 +631,7 @@ export function VistaDetalle({
                       whileTap={{ scale: 0.97 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       style={{
-                        width: '140px', flexShrink: 0,
+                        width: '150px', flexShrink: 0,
                         border: '1px solid #2a2a2a', borderRadius: '10px',
                         overflow: 'hidden', cursor: 'pointer',
                         background: '#141414',
@@ -609,6 +675,91 @@ export function VistaDetalle({
               </div>
             </div>
           )}
+
+          {/* TE TAMBIÉN TE PODRÍA INTERESAR — bombas rotativas */}
+          {bombasRotativas.length > 0 && (
+            <div style={{ marginTop: '32px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '10px', fontWeight: 800,
+                  background: '#d4a574', color: '#0a0a0a',
+                  padding: '3px 8px', borderRadius: '4px',
+                  letterSpacing: '0.06em', flexShrink: 0,
+                }}>TOP</span>
+                <span style={{
+                  fontSize: '11px', fontWeight: 700, color: '#d4a574',
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                }}>
+                  También te podría interesar
+                </span>
+              </div>
+              <div className="relacionados-scroll rotativas-grid">
+                  {bombasRotativas.map(rel => {
+                    const preciosRel = rel.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
+                    const logo = LOGOS[preciosRel[0]?.mayorista ?? '']
+                    const ahorro = rel.ahorroVsMaximo
+                    return (
+                      <motion.div
+                        key={rel.id}
+                        onClick={() => onVerProducto?.(rel)}
+                        whileHover={{ borderColor: '#d4a574' }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                        style={{
+                          border: '1px solid #2a2a2a', borderRadius: '10px',
+                          overflow: 'hidden', cursor: 'pointer',
+                          background: '#141414',
+                        }}
+                      >
+                        <div style={{ height: '120px', background: '#1a1a1a', position: 'relative' }}>
+                          {rel.imageUrl ? (
+                            <Image src={rel.imageUrl} alt={rel.nombre} fill style={{ objectFit: 'contain', padding: '8px' }} unoptimized />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#2a2a2a', fontSize: '24px' }}>?</div>
+                          )}
+                          {logo && (
+                            <div style={{ position: 'absolute', bottom: '4px', left: '4px', width: '40px', height: '16px', background: '#141414', borderRadius: '3px', border: '1px solid #2a2a2a', overflow: 'hidden' }}>
+                              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                                <Image src={logo} alt="" fill style={{ objectFit: 'contain' }} unoptimized />
+                              </div>
+                            </div>
+                          )}
+                          {ahorro > 0 && (
+                            <div style={{
+                              position: 'absolute', top: '4px', right: '4px',
+                              background: '#16a34a', color: '#fff',
+                              fontSize: '10px', fontWeight: 800,
+                              padding: '2px 6px', borderRadius: '8px',
+                            }}>
+                              -{ahorro}%
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ padding: '8px' }}>
+                          <div style={{
+                            fontSize: '11px', fontWeight: 600, color: '#f7f7f7',
+                            lineHeight: 1.3, marginBottom: '4px',
+                            display: '-webkit-box', WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                          }}>
+                            {rel.nombre}
+                          </div>
+                          {preciosRel[0] && (
+                            <div style={{
+                              fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                              fontSize: '14px', fontWeight: 800, color: '#d4a574',
+                            }}>
+                              {formatearPrecio(preciosRel[0].precio)}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -618,9 +769,8 @@ export function VistaDetalle({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: '11px', fontWeight: 700, color: '#6b7280',
-      letterSpacing: '0.08em', textTransform: 'uppercase',
-      marginBottom: '12px', paddingTop: '4px',
+      fontSize: '13px', fontWeight: 600, color: '#9ca3af',
+      marginBottom: '12px',
     }}>
       {children}
     </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Copy, Plus, TrendingDown, Check } from 'lucide-react'
+import { X, Copy, Plus, TrendingDown, Check, ExternalLink } from 'lucide-react'
 import { Producto, formatearPrecio, Precio } from '@/lib/data'
 
 interface ModalProductoProps {
@@ -174,6 +174,25 @@ export function ModalProducto({ isOpen, onClose, product, origen, onCalcular }: 
                       </span>
                     )}
                   </div>
+                </div>
+
+                {/* Verificar precio en vivo */}
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-body">
+                    {selectedPrice.fechaScraping
+                      ? `Actualizado ${new Date(selectedPrice.fechaScraping + 'T00:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}`
+                      : 'Precio reciente'}
+                  </span>
+                  {selectedPrice.link && (
+                    <a
+                      href={selectedPrice.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-black text-slate-500 hover:text-slate-900 transition-colors uppercase tracking-wide"
+                    >
+                      Ver en {selectedWholesaler} <ExternalLink size={10} strokeWidth={3} />
+                    </a>
+                  )}
                 </div>
               </div>
 

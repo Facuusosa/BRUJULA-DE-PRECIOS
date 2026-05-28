@@ -123,7 +123,7 @@ export function VistaCatalogo({
         .catalogo-main { padding: 24px 20px; }
         .deals-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(2, 1fr);
           gap: 1px;
           background: #2a2a2a;
           border: 1px solid #2a2a2a;
@@ -147,11 +147,10 @@ export function VistaCatalogo({
           .pill-sector { min-height: 36px; font-size: 12px; padding: 7px 13px; }
           .pill-subcat { min-height: 36px; font-size: 12px; padding: 6px 12px; }
         }
-        @media (max-width: 860px) {
-          .deals-grid { grid-template-columns: repeat(2, 1fr); }
+        @media (min-width: 860px) {
+          .deals-grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 600px) {
-          .deals-grid { grid-template-columns: repeat(2, 1fr); }
           .catalogo-main { padding: 16px 12px; }
           .mayoristas-logos { gap: 8px; }
         }
@@ -256,40 +255,6 @@ export function VistaCatalogo({
           </div>
         </div>
 
-        {/* Pills de subcategoría */}
-        {subcatsDisponibles.length > 0 && (
-          <div className="pills-wrapper" style={{ marginBottom: '20px' }}>
-            <div className="pills-row">
-              <motion.button
-                onClick={() => onSubcategoriaChange?.('')}
-                {...chipHover}
-                className="pill-subcat"
-                style={{
-                  border: `1.5px solid ${!subcategoriaInicial ? '#d4a574' : '#2a2a2a'}`,
-                  background: !subcategoriaInicial ? '#d4a574' : '#141414',
-                  color: !subcategoriaInicial ? '#0a0a0a' : '#6b7280',
-                }}
-              >
-                Todas
-              </motion.button>
-              {subcatsDisponibles.map(sub => (
-                <motion.button
-                  key={sub}
-                  onClick={() => onSubcategoriaChange?.(subcategoriaInicial === sub ? '' : sub)}
-                  {...chipHover}
-                  className="pill-subcat"
-                  style={{
-                    border: `1.5px solid ${subcategoriaInicial === sub ? '#d4a574' : '#2a2a2a'}`,
-                    background: subcategoriaInicial === sub ? '#d4a574' : '#141414',
-                    color: subcategoriaInicial === sub ? '#0a0a0a' : '#6b7280',
-                  }}
-                >
-                  {sub}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Header de resultados */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -446,7 +411,7 @@ function DealCard({ producto, mayoristaSel, onClick, isFavorito, onToggleFavorit
       onClick={onClick}
     >
       {/* Imagen */}
-      <div style={{ height: '140px', background: '#1a1a1a', position: 'relative' }}>
+      <div style={{ height: '180px', background: '#1a1a1a', position: 'relative' }}>
         {imgSrc ? (
           <Image
             src={imgSrc}

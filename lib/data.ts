@@ -436,9 +436,16 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       colorSector: scMeta.color,
       precios: preciosMapped,
       imageUrl: item.imagen,
-      imagenFallbacks: Object.values((item.fuentes as Record<string, { imagen?: string }>) || {})
-        .map(f => f.imagen || '')
-        .filter(img => img && img !== item.imagen),
+      imagenFallbacks: (() => {
+        const carrefourUrl = (item.imagen as string) || ''
+        const eanMatch = carrefourUrl.match(/imagenesPDA\/(\d+)\.jpg/)
+        const ean = eanMatch?.[1]
+        const offUrl = ean ? `https://images.openfoodfacts.org/images/products/${ean}/front_es.full.jpg` : null
+        const existingFallbacks = Object.values((item.fuentes as Record<string, { imagen?: string }>) || {})
+          .map(f => f.imagen || '')
+          .filter(img => img && img !== item.imagen)
+        return [...(offUrl ? [offUrl] : []), ...existingFallbacks]
+      })(),
       disponible: true,
       abc: item.abc || '',
     }

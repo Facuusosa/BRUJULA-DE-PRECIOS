@@ -2,9 +2,8 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { calcularBombas, productos, Producto } from '@/lib/data'
+import { calcularBombas, productos, sectores, Producto } from '@/lib/data'
 import { BombaListItem } from '@/components/bomba-list-item'
-import CircularGallery from '@/components/CircularGallery'
 import { LogoLoop } from '@/components/LogoLoop'
 import BlurText from '@/components/reactbits/TextAnimations/BlurText/BlurText'
 import CountUp from '@/components/reactbits/TextAnimations/CountUp/CountUp'
@@ -18,6 +17,7 @@ interface VistaInicioProps {
   onVerProducto: (producto: Producto) => void
   favoritos: Set<string>
   onToggleFavorito: (id: string) => void
+  onGuardar?: (producto: Producto) => void
 }
 
 const MAYORISTAS_LOOP = [
@@ -26,17 +26,19 @@ const MAYORISTAS_LOOP = [
   { src: '/mayoristas/maxicarrefour.jpg',alt: 'MaxiCarrefour', url: 'https://comerciante.carrefour.com.ar/' },
 ]
 
-const SECTORES_GALLERY = [
-  { image: '/categories/Almacen.png',         text: 'Almacen' },
-  { image: '/categories/bebidas_real.png',    text: 'Bebidas' },
-  { image: '/categories/limpieza_real.png',   text: 'Limpieza' },
-  { image: '/categories/frescos.png',         text: 'Frescos' },
-  { image: '/categories/perfumeria_real.png', text: 'Cuidado' },
-  { image: '/categories/mascotas.png',        text: 'Mascotas' },
-]
+const SECTOR_IMAGES: Record<string, string> = {
+  'Almacén':          '/categories/Almacen.png',
+  'Bebidas':          '/categories/bebidas_real.png',
+  'Limpieza':         '/categories/limpieza_real.png',
+  'Frescos':          '/categories/frescos.png',
+  'Cuidado Personal': '/categories/perfumeria_real.png',
+  'Mascotas':         '/categories/mascotas.png',
+}
 
 export function VistaInicio({
   onVerProducto,
+  onIrACompararConSector,
+  onGuardar,
 }: VistaInicioProps) {
   const bombas = useMemo(() => calcularBombas().slice(0, 50), [])
   const comparacionesCount = useMemo(() => productos.filter(p => p.precios.length >= 2).length, [])
@@ -91,6 +93,9 @@ export function VistaInicio({
           .stat-val { font-size: var(--fs-section); }
           .stats-bar { gap: 20px; }
         }
+        @media (min-width: 700px) {
+          .categoria-grid-desktop { grid-template-columns: repeat(4, 1fr) !important; }
+        }
       `}</style>
 
       <div className="inicio-wrapper">
@@ -104,7 +109,7 @@ export function VistaInicio({
 
         {/* Título animado */}
         <BlurText
-          text="Las mejores ofertas de hoy"
+          text="TOP Bombas Semanal"
           animateBy="words"
           direction="top"
           delay={80}
@@ -113,7 +118,7 @@ export function VistaInicio({
         />
 
         <p style={{ fontSize: 'var(--fs-body)', color: '#6b7280', margin: '0 0 20px', lineHeight: 'var(--lh-body)' }}>
-          Lo que mas conviene comprar hoy
+          Los productos con mayor diferencia de precio entre mayoristas
         </p>
 
         {/* Stats bar */}
@@ -162,6 +167,7 @@ export function VistaInicio({
                 bomba={heroBomba}
                 rank={1}
                 onVerProducto={() => onVerProducto(heroBomba)}
+                onGuardar={() => onGuardar?.(heroBomba)}
               />
             </SpotlightCard>
           </div>
@@ -175,6 +181,7 @@ export function VistaInicio({
               bomba={bomba}
               rank={idx + 2}
               onVerProducto={() => onVerProducto(bomba)}
+              onGuardar={() => onGuardar?.(bomba)}
             />
           ))}
           {bombas.length === 0 && (
@@ -218,25 +225,66 @@ export function VistaInicio({
           </motion.button>
         )}
 
-        {/* CircularGallery — sectores */}
+        {/* Categorias clickeables — carrusel horizontal */}
         <div style={{ marginTop: '52px' }}>
-          <BlurText
-            text="BUSCA POR CATEGORIA"
-            animateBy="words"
-            direction="top"
-            delay={100}
-            stepDuration={0.25}
-            className="seccion-label"
-          />
-          <div style={{ height: '400px', width: '100%', borderRadius: '12px', overflow: 'hidden' }}>
-            <CircularGallery
-              items={SECTORES_GALLERY}
-              bend={3}
-              textColor="#f7f7f7"
-              borderRadius={0.05}
-              font="bold 24px Poppins, sans-serif"
-              scrollSpeed={2}
-            />
+          <span className="seccion-label">EXPLORAR POR CATEGORIA</span>
+          <div style={{
+            display: 'flex',
+            gap: '10px',
+            overflowX: 'auto',
+            paddingBottom: '8px',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}>
+            {sectores.map(sector => {
+              const img = SECTOR_IMAGES[sector.nombre]
+              return (
+                <button
+                  key={sector.nombre}
+                  onClick={() => onIrACompararConSector(sector.nombre)}
+                  style={{
+                    position: 'relative',
+                    flexShrink: 0,
+                    width: '110px',
+                    height: '140px',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    border: '1px solid #2a2a2a',
+                    cursor: 'pointer',
+                    background: '#1a1a1a',
+                    padding: 0,
+                  }}
+                >
+                  {img ? (
+                    <img
+                      src={img}
+                      alt={sector.nombre}
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '32px',
+                    }}>
+                      {sector.emoji}
+                    </div>
+                  )}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)',
+                  }} />
+                  <span style={{
+                    position: 'absolute', bottom: '10px', left: '8px', right: '8px',
+                    fontSize: '12px', fontWeight: 700, color: '#f7f7f7',
+                    textAlign: 'left', lineHeight: 1.2,
+                    textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                  }}>
+                    {sector.nombre}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
 

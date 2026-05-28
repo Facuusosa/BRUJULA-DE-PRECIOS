@@ -22,6 +22,7 @@ export function AppHeader({ onBuscar, onPerfil, onFavoritos, onMenuClick, onLogo
     e.preventDefault()
     if (searchValue.trim()) {
       onBuscar?.(searchValue.trim())
+      setSearchValue('')
     }
   }
 
