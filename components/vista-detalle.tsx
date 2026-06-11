@@ -1,15 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { motion } from 'framer-motion'
-import { ChevronLeft, Heart, Share2, ExternalLink } from 'lucide-react'
-import {
-  Producto, ProductoBomba, productos, formatearPrecio, extraerTamano,
-  calcularBombas
-} from '@/lib/data'
-import BlurText from '@/components/reactbits/TextAnimations/BlurText/BlurText'
-import { btnHover, iconTap, chipHover } from '@/lib/motion-variants'
+import { ChevronLeft, Heart, Share2, ArrowUpRight } from 'lucide-react'
+import { toast } from 'sonner'
+import { Producto, productos, formatearPrecio, extraerTamano } from '@/lib/data'
+import { ShuffleValue } from '@/components/shuffle-value'
 
 interface VistaDetalleProps {
   producto: Producto
@@ -43,13 +39,15 @@ export function VistaDetalle({
   onVerProducto,
 }: VistaDetalleProps) {
   const [margen, setMargen] = useState(35)
-  const [mayoristaSel, setMayoristaSel] = useState('')
-  const [precioVentaEdit, setPrecioVentaEdit] = useState('')
-  const [gananciaEdit, setGananciaEdit] = useState('')
   const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
   const [imgFallbackIdx, setImgFallbackIdx] = useState(0)
 
-  const handleDetalleImageError = () => {
+  useEffect(() => {
+    setImgSrc(producto.imageUrl || '')
+    setImgFallbackIdx(0)
+  }, [producto.id, producto.imageUrl])
+
+  const handleImageError = () => {
     const fallbacks = producto.imagenFallbacks || []
     if (imgFallbackIdx < fallbacks.length) {
       setImgSrc(fallbacks[imgFallbackIdx])
@@ -65,44 +63,14 @@ export function VistaDetalle({
     .sort((a, b) => a.precio - b.precio)
 
   const mejorPrecio = preciosValidos[0]
-  const precioMax = preciosValidos[preciosValidos.length - 1]
+  const peorPrecio = preciosValidos[preciosValidos.length - 1]
+  const esEan = /^\d{13}$/.test(producto.id)
 
-  const mayoristaCal = mayoristaSel || mejorPrecio?.mayorista || ''
-  const precioCompra = preciosValidos.find(p => p.mayorista === mayoristaCal)?.precio ?? mejorPrecio?.precio ?? 0
+  const precioCompra = mejorPrecio?.precio ?? 0
   const precioVentaCalc = precioCompra > 0 ? precioCompra / (1 - margen / 100) : 0
   const gananciaCalc = precioVentaCalc - precioCompra
 
-  const precioVentaMostrar = precioVentaEdit || Math.round(precioVentaCalc).toString()
-  const gananciaMostrar = gananciaEdit || Math.round(gananciaCalc).toString()
-
-  const handleSlider = (val: number) => {
-    setMargen(val)
-    setPrecioVentaEdit('')
-    setGananciaEdit('')
-  }
-
-  const handlePrecioVentaManual = (val: string) => {
-    const limpio = val.replace(/[^0-9]/g, '')
-    setPrecioVentaEdit(limpio)
-    const pv = parseInt(limpio, 10)
-    if (!isNaN(pv) && pv > precioCompra && precioCompra > 0) {
-      const nuevoMargen = (1 - precioCompra / pv) * 100
-      setMargen(Math.min(100, Math.max(5, Math.round(nuevoMargen))))
-      setGananciaEdit('')
-    }
-  }
-
-  const handleGananciaManual = (val: string) => {
-    const limpio = val.replace(/[^0-9]/g, '')
-    setGananciaEdit(limpio)
-    const g = parseInt(limpio, 10)
-    if (!isNaN(g) && g > 0 && precioCompra > 0) {
-      const pv = precioCompra + g
-      const nuevoMargen = (1 - precioCompra / pv) * 100
-      setMargen(Math.min(100, Math.max(5, Math.round(nuevoMargen))))
-      setPrecioVentaEdit('')
-    }
-  }
+  const ahorroUnidad = preciosValidos.length >= 2 ? peorPrecio.precio - mejorPrecio.precio : 0
 
   const relacionados = useMemo(() =>
     productos
@@ -114,665 +82,466 @@ export function VistaDetalle({
         if (aAbc !== bAbc) return aAbc - bAbc
         return b.precios.filter(p => p.precio > 0).length - a.precios.filter(p => p.precio > 0).length
       })
-      .slice(0, 20),
+      .slice(0, 10),
     [producto.sector, producto.id]
   )
-
-  const semilla = useMemo(() => Math.floor(Date.now() / (1000 * 60 * 30)), [])
-  const bombasRotativas = useMemo((): ProductoBomba[] => {
-    const todas = calcularBombas().filter(b => b.id !== producto.id)
-    const indices = Array.from({ length: todas.length }, (_, i) => i)
-    let s = semilla
-    for (let i = indices.length - 1; i > 0; i--) {
-      s = (s * 1664525 + 1013904223) & 0xffffffff
-      const j = Math.abs(s) % (i + 1)
-      ;[indices[i], indices[j]] = [indices[j], indices[i]]
-    }
-    return indices.slice(0, 4).map(i => todas[i])
-  }, [semilla, producto.id])
 
   const handleGuardar = () => {
     if (!mejorPrecio) return
     onGuardar({
       producto,
-      mayorista: mayoristaCal,
+      mayorista: mejorPrecio.mayorista,
       precioCompra,
       margen,
-      precioVenta: parseInt(precioVentaMostrar, 10) || Math.round(precioVentaCalc),
-      ganancia: parseInt(gananciaMostrar, 10) || Math.round(gananciaCalc),
+      precioVenta: Math.round(precioVentaCalc),
+      ganancia: Math.round(gananciaCalc),
     })
   }
 
+  const handleCompartir = () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({ title: producto.nombre, text: `${producto.nombre} — Brújula de Precios` }).catch(() => null)
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(producto.nombre)
+      toast.success('Nombre copiado')
+    }
+  }
+
+  // Posición del dot en la barra de rango: 3% a 97%
+  const dotPos = (precio: number) => {
+    if (preciosValidos.length < 2 || peorPrecio.precio === mejorPrecio.precio) return 50
+    return 3 + ((precio - mejorPrecio.precio) / (peorPrecio.precio - mejorPrecio.precio)) * 94
+  }
+
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100%' }}>
+    <div style={{ background: '#ffffff', minHeight: '100%', paddingBottom: '40px' }}>
       <style>{`
-        .detalle-layout {
-          display: flex;
-          flex-direction: column;
+        @keyframes det-rise { to { opacity: 1; transform: translateY(0); } }
+        .det-anim { opacity: 0; transform: translateY(10px); animation: det-rise 380ms var(--ease-out) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .det-anim { transform: none; animation-duration: 150ms; }
         }
-        .detalle-imagen-panel {
-          position: sticky;
-          top: 0;
-          z-index: 5;
-          height: 300px;
-          background: #141414;
-          flex-shrink: 0;
-        }
-        .detalle-info-panel {
-          background: #0a0a0a;
-          border-radius: 20px 20px 0 0;
-          margin-top: -20px;
+
+        .det-wrap { max-width: 1240px; margin: 0 auto; }
+        .det-cols { display: block; }
+        .det-stage {
+          margin: 16px 20px 0;
+          background: linear-gradient(180deg, var(--plate) 0%, var(--line) 100%);
+          border-radius: 6px;
+          display: flex; align-items: center; justify-content: center;
+          padding: 36px 20px;
           position: relative;
-          z-index: 6;
-          padding: 28px 20px 80px;
-          min-width: 0;
-          word-break: break-word;
-          overflow-wrap: anywhere;
         }
-        .detalle-back-btn {
-          position: absolute;
-          top: 12px;
-          left: 12px;
-          z-index: 10;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          background: rgba(10,10,10,0.85);
-          backdrop-filter: blur(8px);
-          border: 1px solid #2a2a2a;
-          border-radius: 20px;
-          padding: 10px 14px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 600;
-          color: #f7f7f7;
-          min-height: 44px;
+        .det-stage img { height: 220px; width: auto; object-fit: contain; }
+        .det-section { padding: 26px 20px 0; }
+        .det-sh { font-size: 18px; font-weight: 600; letter-spacing: -0.2px; color: var(--ink); margin: 0; }
+        .det-calc { margin: 26px 20px 0; }
+        .det-cta-row { padding: 20px 20px 0; }
+        .det-rel { padding: 30px 0 40px; }
+        .det-rel .det-sh { padding: 0 20px; }
+        .det-rel-scroll { display: flex; gap: 12px; padding: 14px 20px 0; overflow-x: auto; scrollbar-width: none; }
+        .det-rel-scroll::-webkit-scrollbar { display: none; }
+        .det-pid { padding: 14px 20px 0; }
+
+        /* Desktop: imagen GRANDE sticky izquierda; TODO lo scrolleable a la derecha.
+           OJO: ningún ancestro de .det-left con overflow hidden — mata el sticky */
+        @media (min-width: 1000px) {
+          .det-wrap { padding: 0 44px; }
+          .det-cols { display: grid; grid-template-columns: calc(50% - 32px) 1fr; gap: 64px; align-items: start; }
+          .det-left { position: sticky; top: 16px; }
+          .det-right { min-width: 0; }
+          .det-pid { padding: 14px 0 0; }
+          .det-stage { margin: 8px 0 0; padding: 30px 20px; background: none; border-radius: 0; }
+          .det-stage img { height: 500px; }
+          .det-stage .det-abc { top: 0; left: 0; }
+          .det-section { padding: 14px 0 0; }
+          .det-sh { font-size: 25.7px; }
+          .det-calc { margin: 30px 0 0; }
+          .det-cta-row { padding: 22px 0 0; }
+          .det-rel { padding-left: 0; padding-right: 0; }
+          .det-rel .det-sh { padding: 0; font-size: 20px; }
+          .det-rel-scroll { padding: 14px 0 0; }
+          .det-rel-card { width: 150px !important; }
         }
-        .detalle-actions-img {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          z-index: 10;
-          display: flex;
-          gap: 8px;
-        }
-        .detalle-action-btn {
-          background: rgba(10,10,10,0.85);
-          backdrop-filter: blur(8px);
-          border: 1px solid #2a2a2a;
-          border-radius: 50%;
-          width: 44px;
-          height: 44px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
-        .relacionados-scroll {
-          display: flex;
-          gap: 12px;
-          overflow-x: scroll;
-          padding-bottom: 8px;
-          scrollbar-width: thin;
-          scrollbar-color: #2a2a2a transparent;
-        }
-        .rotativas-grid {
-          display: grid !important;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          overflow-x: visible !important;
-        }
-        .detalle-nombre-blur { margin: 0 0 20px !important; }
-        .detalle-nombre-blur span {
-          font-family: var(--font-poppins, "Poppins"), sans-serif !important;
-          font-size: 22px !important; font-weight: 700 !important;
-          text-transform: none !important; letter-spacing: -0.01em !important;
-          color: #f7f7f7 !important; line-height: 1.25 !important;
-        }
-        .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        @media (min-width: 768px) {
-          .detalle-layout {
-            display: grid;
-            grid-template-columns: 48% 1fr;
-            min-height: 100%;
-          }
-          .detalle-imagen-panel {
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            border-radius: 0;
-            margin: 0;
-          }
-          .detalle-info-panel {
-            border-radius: 0;
-            margin: 0;
-            padding: 32px 40px 80px;
-            min-width: 0;
-          }
-          .detalle-nombre-blur span { font-size: 32px !important; }
-        }
-        @media (max-width: 380px) {
-          .detalle-nombre-blur span { font-size: 22px !important; }
-          .calc-grid { grid-template-columns: 1fr; }
+        @media (hover: hover) and (pointer: fine) {
+          .det-rel-card .ph img { transition: transform 450ms var(--ease-out); }
+          .det-rel-card:hover .ph img { transform: scale(1.05); }
         }
       `}</style>
 
-      <div className="detalle-layout">
+      <div className="det-wrap">
 
-        {/* Panel imagen (sticky) */}
-        <div className="detalle-imagen-panel">
-          <motion.button className="detalle-back-btn" onClick={onBack} {...iconTap}>
-            <ChevronLeft size={16} strokeWidth={2.5} />
+        {/* Top bar minimal */}
+        <div className="det-anim" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 4px' }}>
+          <button
+            onClick={onBack}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              fontSize: '14px', fontWeight: 500, color: 'var(--ink)',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', padding: '6px 0',
+            }}
+          >
+            <ChevronLeft size={22} strokeWidth={2} />
             Volver
-          </motion.button>
-          <div className="detalle-actions-img">
-            <motion.button className="detalle-action-btn" onClick={onToggleFavorito} aria-label="Favorito" {...iconTap}>
-              <Heart size={18} strokeWidth={1.8} color={esFavorito ? '#d4a574' : '#6b7280'} fill={esFavorito ? '#d4a574' : 'none'} />
-            </motion.button>
-            <motion.button className="detalle-action-btn" aria-label="Compartir" {...iconTap}>
-              <Share2 size={18} strokeWidth={1.8} color="#6b7280" />
-            </motion.button>
+          </button>
+          <div style={{ display: 'flex', gap: '16px', color: 'var(--ink)' }}>
+            <button
+              onClick={onToggleFavorito}
+              aria-label="Favorito"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: esFavorito ? 'var(--gold)' : 'var(--ink)', padding: '4px' }}
+            >
+              <Heart size={22} strokeWidth={1.8} fill={esFavorito ? 'var(--gold)' : 'none'} />
+            </button>
+            <button
+              onClick={handleCompartir}
+              aria-label="Compartir"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--ink)', padding: '4px' }}
+            >
+              <Share2 size={22} strokeWidth={1.8} />
+            </button>
           </div>
-          {imgSrc ? (
-            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-              <Image
-                src={imgSrc}
-                alt={producto.nombre}
-                fill
-                style={{ objectFit: 'contain', padding: '32px' }}
-                unoptimized
-                onError={handleDetalleImageError}
-              />
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#2a2a2a', fontSize: '48px' }}>?</div>
-          )}
         </div>
 
-        {/* Panel info */}
-        <div className="detalle-info-panel">
+        <div className="det-cols">
+          {/* ── Columna izquierda: identidad + imagen + acciones ── */}
+          <div className="det-left">
+            <div className="det-pid det-anim" style={{ animationDelay: '50ms' }}>
+              <h1 style={{ fontSize: '25.7px', fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--ink)', margin: 0, lineHeight: 1.25 }}>
+                {producto.nombre}
+              </h1>
+              <div style={{ fontSize: '19.3px', fontWeight: 300, lineHeight: 1.3, marginTop: '1px', color: 'var(--ink)' }}>
+                {producto.subcategoria}
+              </div>
+              {tamano && (
+                <span className="tnum" style={{
+                  display: 'inline-block', marginTop: '10px',
+                  background: 'var(--pill)', color: '#ffffff',
+                  fontSize: '12px', fontWeight: 600,
+                  borderRadius: '999px', padding: '4px 12px',
+                }}>
+                  {tamano}
+                </span>
+              )}
+            </div>
 
-          {/* Badges */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-            {tamano && (
-              <span style={{
-                background: '#222222', color: '#f7f7f7',
-                border: '1px solid #2a2a2a',
-                fontSize: '11px', fontWeight: 700, padding: '3px 8px',
-                borderRadius: '4px', letterSpacing: '0.05em',
-              }}>
-                {tamano}
-              </span>
-            )}
-            {producto.abc && (
-              <span style={{
-                background: producto.abc === 'A' ? '#d4a574' : producto.abc === 'B' ? '#2563eb' : '#2a2a2a',
-                color: producto.abc === 'A' ? '#0a0a0a' : '#f7f7f7',
-                fontSize: '11px', fontWeight: 700, padding: '3px 8px',
-                borderRadius: '4px', letterSpacing: '0.05em',
-              }}>
-                ABC {producto.abc}
-              </span>
-            )}
+            <div className="det-stage det-anim" style={{ animationDelay: '110ms' }}>
+              {producto.abc && (
+                <span className="det-abc" style={{
+                  position: 'absolute', top: '12px', left: '12px',
+                  background: 'var(--gold)', color: '#ffffff',
+                  fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
+                  borderRadius: '999px', padding: '5px 11px',
+                }}>
+                  CLASE {producto.abc}
+                </span>
+              )}
+              {imgSrc ? (
+                <Image
+                  src={imgSrc}
+                  alt={producto.nombre}
+                  width={500}
+                  height={500}
+                  className="img-plate"
+                  style={{ height: undefined, width: 'auto', objectFit: 'contain' }}
+                  unoptimized
+                  onError={handleImageError}
+                />
+              ) : (
+                <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--line)', fontSize: '48px' }}>?</div>
+              )}
+            </div>
+
+            {/* Acciones como pills grises — formato Trolley detalle */}
+            <div className="det-anim" style={{ animationDelay: '160ms', display: 'flex', justifyContent: 'center', gap: '10px', padding: '18px 0 0' }}>
+              <button
+                onClick={handleGuardar}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  background: 'var(--plate)', borderRadius: '999px',
+                  padding: '10px 18px', border: 'none', cursor: 'pointer',
+                  fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>
+                Lista
+              </button>
+              <button
+                onClick={handleCompartir}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  background: 'var(--plate)', borderRadius: '999px',
+                  padding: '10px 18px', border: 'none', cursor: 'pointer',
+                  fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="m13 5 7 7-7 7M20 12H8a5 5 0 0 0-5 5" /></svg>
+                Compartir
+              </button>
+            </div>
           </div>
 
-          {/* Nombre */}
-          <BlurText
-            text={producto.nombre}
-            animateBy="words"
-            direction="top"
-            delay={60}
-            stepDuration={0.25}
-            className="detalle-nombre-blur"
-          />
+          {/* ── Columna derecha: dónde comprar + rango + insight + calculadora + CTA + relacionados ── */}
+          <div className="det-right">
+            <section className="det-section det-anim" style={{ animationDelay: '210ms' }}>
+              <h2 className="det-sh">Dónde comprarlo</h2>
 
-          {/* DONDE COMPRAR */}
-          <SectionLabel>Dónde comprar</SectionLabel>
-          <div style={{ border: '1px solid #1f1f1f', borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
-            {preciosValidos.map((precio, idx) => {
-              const logo = LOGOS[precio.mayorista]
-              const esMejor = idx === 0
-              const esSeleccionado = precio.mayorista === mayoristaCal
-              const diferencia = precio.precio - (mejorPrecio?.precio ?? 0)
-              const pctDif = mejorPrecio ? Math.round((diferencia / mejorPrecio.precio) * 100) : 0
-
-              return (
-                <motion.div
-                  key={precio.mayorista}
-                  onClick={() => setMayoristaSel(precio.mayorista)}
-                  whileTap={{ scale: 0.995 }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    padding: '14px 16px',
-                    borderBottom: idx < preciosValidos.length - 1 ? '1px solid #1f1f1f' : 'none',
-                    background: esSeleccionado ? '#161616' : '#0f0f0f',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {/* Logo */}
-                  <div style={{ width: '72px', height: '26px', position: 'relative', flexShrink: 0 }}>
-                    {logo
-                      ? <Image src={logo} alt={precio.mayorista} fill style={{ objectFit: 'contain', objectPosition: 'left' }} unoptimized />
-                      : <span style={{ fontSize: '12px', fontWeight: 600, color: '#9ca3af' }}>{precio.mayorista}</span>
-                    }
-                  </div>
-
-                  {/* Nombre mayorista + badge */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 500, color: '#9ca3af' }}>{precio.mayorista}</span>
-                      {esMejor && (
-                        <span style={{
-                          fontSize: '10px', fontWeight: 700, color: '#16a34a',
-                          background: 'rgba(22,163,74,0.12)', padding: '1px 7px',
-                          borderRadius: '20px', border: '1px solid rgba(22,163,74,0.25)',
-                        }}>
-                          Mejor precio
-                        </span>
+              {preciosValidos.map((precio, idx) => {
+                const esMejor = idx === 0
+                const diffPct = !esMejor && mejorPrecio.precio > 0
+                  ? Math.round(((precio.precio - mejorPrecio.precio) / mejorPrecio.precio) * 100)
+                  : 0
+                return (
+                  <div
+                    key={precio.mayorista}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '14px',
+                      padding: '15px 0',
+                      borderBottom: idx === preciosValidos.length - 1 ? 'none' : '1px solid var(--line)',
+                    }}
+                  >
+                    <div style={{ width: '86px', flexShrink: 0 }}>
+                      {LOGOS[precio.mayorista] ? (
+                        <Image
+                          src={LOGOS[precio.mayorista]}
+                          alt={precio.mayorista}
+                          width={82}
+                          height={22}
+                          style={{ maxWidth: '82px', maxHeight: '22px', objectFit: 'contain', display: 'block', width: 'auto', height: 'auto' }}
+                          unoptimized
+                        />
+                      ) : (
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
                       )}
                     </div>
-                    {precio.fechaScraping && (
-                      <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '1px' }}>
-                        Actualizado {precio.fechaScraping}
+                    <div style={{ flex: 1 }}>
+                      <div className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
+                        {formatearPrecio(precio.precio)}
                       </div>
-                    )}
-                  </div>
-
-                  {/* Precio */}
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{
-                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                      fontSize: '20px', fontWeight: 700,
-                      color: esMejor ? '#f7f7f7' : '#9ca3af',
-                    }}>
-                      {formatearPrecio(precio.precio)}
+                      {esMejor ? (
+                        <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em', marginTop: '1px' }}>
+                          MÁS BARATO
+                        </div>
+                      ) : (
+                        <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
+                          +{diffPct}% vs el mejor
+                        </div>
+                      )}
                     </div>
-                    {!esMejor && diferencia > 0 && (
-                      <div style={{ fontSize: '11px', color: '#4b5563' }}>+{pctDif}% más</div>
+                    {precio.link && (
+                      <a
+                        href={precio.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          border: '1.5px solid var(--ink)', background: '#ffffff',
+                          borderRadius: '999px', padding: '8px 16px',
+                          fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)',
+                          fontFamily: 'var(--font-sans)', textDecoration: 'none',
+                          display: 'flex', alignItems: 'center', gap: '5px',
+                        }}
+                      >
+                        Ver <ArrowUpRight size={12} strokeWidth={2.5} />
+                      </a>
                     )}
                   </div>
+                )
+              })}
 
-                  {/* Botón VER */}
-                  {precio.link && (
-                    <a
-                      href={precio.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      aria-label={`Ver en ${precio.mayorista}`}
-                      title={precio.mayorista === 'MaxiCarrefour' ? 'Requiere login' : `Ver en ${precio.mayorista}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: '6px 12px', borderRadius: '6px', flexShrink: 0,
-                        background: esSeleccionado ? '#2563eb' : '#1a1a1a',
-                        color: esSeleccionado ? '#fff' : '#6b7280',
-                        textDecoration: 'none', fontSize: '12px', fontWeight: 600,
-                        border: `1px solid ${esSeleccionado ? '#2563eb' : '#2a2a2a'}`,
-                        gap: '4px',
-                      }}
-                    >
-                      Ver <ExternalLink size={11} strokeWidth={2} />
-                    </a>
-                  )}
-                </motion.div>
-              )
-            })}
-            {preciosValidos.length === 0 && (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
-                Sin precios disponibles
-              </div>
-            )}
-          </div>
-
-          {/* PRECIO HOY */}
-          {preciosValidos.length > 1 && mejorPrecio && precioMax && mejorPrecio.precio !== precioMax.precio && (
-            <motion.div
-              style={{ marginBottom: '28px' }}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-            >
-              <SectionLabel>Precio hoy</SectionLabel>
-              <div style={{ background: '#0f0f0f', border: '1px solid #1f1f1f', borderRadius: '12px', padding: '20px 16px' }}>
-                {/* Barra gradiente */}
-                <div style={{ position: 'relative', marginBottom: '28px' }}>
-                  {/* Marcadores encima de la barra */}
-                  <div style={{ position: 'relative', height: '32px' }}>
-                    {preciosValidos.map((p, idx) => {
-                      const rango = precioMax.precio - mejorPrecio.precio
-                      const pos = rango === 0 ? 0 : (p.precio - mejorPrecio.precio) / rango
-                      const esMejor = idx === 0
+              {/* Barra de rango de precios */}
+              {preciosValidos.length >= 2 && (
+                <div style={{ marginTop: '22px' }}>
+                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--ink)' }}>Rango de precios</div>
+                  <div style={{
+                    marginTop: '26px',
+                    height: '6px', borderRadius: '99px',
+                    background: 'linear-gradient(90deg, var(--green) 0%, var(--gold) 55%, #c0392b 100%)',
+                    opacity: 0.85,
+                    position: 'relative',
+                  }}>
+                    {preciosValidos.map((precio, idx) => {
+                      // Si dos dots quedan a <20% de distancia, el label de uno baja para no pisarse
+                      const colisiona = idx > 0 && Math.abs(dotPos(precio.precio) - dotPos(preciosValidos[idx - 1].precio)) < 20
                       return (
-                        <div
-                          key={p.mayorista}
+                        <span
+                          key={precio.mayorista}
                           style={{
-                            position: 'absolute',
-                            left: `${pos * 100}%`,
-                            transform: 'translateX(-50%)',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                            position: 'absolute', top: '50%', left: `${dotPos(precio.precio)}%`,
+                            transform: 'translate(-50%, -50%)',
+                            width: idx === 0 ? '16px' : '14px',
+                            height: idx === 0 ? '16px' : '14px',
+                            borderRadius: '99px',
+                            background: '#ffffff',
+                            border: `2.5px solid ${idx === 0 ? 'var(--green)' : 'var(--ink)'}`,
                           }}
                         >
-                          {/* Triángulo apuntando hacia la barra */}
-                          <div style={{
-                            width: 0, height: 0,
-                            borderLeft: '5px solid transparent',
-                            borderRight: '5px solid transparent',
-                            borderTop: `7px solid ${esMejor ? '#f7f7f7' : '#4b5563'}`,
-                            marginBottom: '2px',
-                          }} />
-                          <span style={{
-                            fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap',
-                            color: esMejor ? '#f7f7f7' : '#9ca3af',
-                            fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
+                          <span className="tnum" style={{
+                            position: 'absolute',
+                            ...(colisiona ? { top: '16px', background: '#ffffff', padding: '0 4px', zIndex: 1 } : { bottom: '16px' }),
+                            left: '50%', transform: 'translateX(-50%)',
+                            fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap',
+                            color: idx === 0 ? 'var(--green)' : 'var(--ink)',
                           }}>
-                            {formatearPrecio(p.precio)}
+                            {formatearPrecio(precio.precio)}
                           </span>
-                        </div>
+                        </span>
                       )
                     })}
                   </div>
-                  {/* Barra gradiente semáforo */}
-                  <div style={{
-                    height: '8px', borderRadius: '99px',
-                    background: 'linear-gradient(to right, #16a34a 0%, #eab308 50%, #dc2626 100%)',
-                  }} />
-                  {/* Labels extremos */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Más barato</span>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Más caro</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 400 }}>Más barato</span>
+                    <span style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 400 }}>Más caro</span>
                   </div>
-                </div>
-                {/* Resumen ahorro */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #1f1f1f' }}>
-                  <span style={{ fontSize: '13px', color: '#9ca3af' }}>
-                    Comprando en <strong style={{ color: '#f7f7f7' }}>{mejorPrecio.mayorista}</strong> ahorrás
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                      fontSize: '20px', fontWeight: 700, color: '#16a34a',
-                    }}>
-                      {formatearPrecio(precioMax.precio - mejorPrecio.precio)}
-                    </span>
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                      ({Math.round(((precioMax.precio - mejorPrecio.precio) / precioMax.precio) * 100)}%)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* CALCULADORA DE MARGEN */}
-          {preciosValidos.length > 0 && (
-            <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '20px', marginBottom: '28px' }}>
-              <SectionLabel>CALCULADORA DE MARGEN</SectionLabel>
-
-              {/* Selector mayorista */}
-              {preciosValidos.length > 1 && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                  {preciosValidos.map(p => (
-                    <motion.button
-                      key={p.mayorista}
-                      onClick={() => setMayoristaSel(p.mayorista)}
-                      {...chipHover}
-                      style={{
-                        padding: '5px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600,
-                        border: `1.5px solid ${mayoristaCal === p.mayorista ? '#d4a574' : '#2a2a2a'}`,
-                        background: mayoristaCal === p.mayorista ? '#d4a574' : '#1a1a1a',
-                        color: mayoristaCal === p.mayorista ? '#0a0a0a' : '#f7f7f7',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {p.mayorista}
-                    </motion.button>
-                  ))}
                 </div>
               )}
 
-              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px' }}>
-                Comprando en <strong style={{ color: '#f7f7f7' }}>{mayoristaCal}</strong>: {formatearPrecio(precioCompra)}
+              {/* Insight de precio auto-generado (reemplaza valoraciones vacías) */}
+              <div style={{ marginTop: '14px' }}>
+                <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--green)', fontWeight: 500 }}>
+                  {esEan ? `EAN ${producto.id} · ` : ''}{producto.abc ? `Clase ${producto.abc} · ` : ''}{preciosValidos.length} mayorista{preciosValidos.length !== 1 ? 's' : ''} lo {preciosValidos.length !== 1 ? 'venden' : 'vende'}
+                </div>
+                {ahorroUnidad > 0 && (
+                  <p className="tnum" style={{ marginTop: '8px', fontSize: '14px', fontWeight: 300, lineHeight: 1.55, color: 'var(--ink)' }}>
+                    Comprando en {mejorPrecio.mayorista} ahorrás <b style={{ fontWeight: 600 }}>{formatearPrecio(ahorroUnidad)}</b> por
+                    unidad contra {peorPrecio.mayorista} — en una caja de 6 son <b style={{ fontWeight: 600 }}>{formatearPrecio(ahorroUnidad * 6)}</b>.
+                  </p>
+                )}
               </div>
+            </section>
 
-              {/* Slider margen */}
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#f7f7f7' }}>Margen</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#d4a574' }}>{margen}%</span>
+            {/* Calculadora de margen */}
+            {mejorPrecio && (
+              <div className="det-calc det-anim" style={{
+                animationDelay: '260ms',
+                border: '1px solid var(--line)',
+                borderRadius: '10px',
+                padding: '20px',
+              }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 600, letterSpacing: '-0.2px', color: 'var(--ink)', margin: 0 }}>
+                  Calculadora de margen
+                </h2>
+                <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '3px' }}>
+                  Comprando en {mejorPrecio.mayorista} a <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{formatearPrecio(precioCompra)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '18px' }}>
+                  <span style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)' }}>Tu margen</span>
+                  <span className="tnum" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--gold)' }}>{margen}%</span>
                 </div>
                 <input
                   type="range"
-                  min={5} max={99} value={margen}
-                  onChange={e => handleSlider(Number(e.target.value))}
                   className="slider-brujula"
-                  style={{ width: '100%', '--slider-pct': `${((margen - 5) / (100 - 5)) * 100}%` } as React.CSSProperties}
+                  min={5} max={99} value={margen}
+                  onChange={e => setMargen(parseInt(e.target.value, 10))}
+                  aria-label="Margen de ganancia"
+                  style={{ marginTop: '8px', '--slider-pct': `${((margen - 5) / (99 - 5)) * 100}%` } as React.CSSProperties}
                 />
-              </div>
-
-              {/* Resultados — editables */}
-              <div className="calc-grid">
-                <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px' }}>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Precio venta</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                      fontSize: '18px', fontWeight: 800, color: '#d4a574',
-                    }}>$</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={precioVentaMostrar}
-                      onChange={e => handlePrecioVentaManual(e.target.value)}
-                      style={{
-                        fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                        fontSize: '28px', fontWeight: 800, color: '#d4a574',
-                        border: 'none', background: 'transparent', outline: 'none',
-                        width: '100%', minWidth: 0, padding: 0,
-                      }}
+                <div style={{ display: 'flex', gap: '12px', marginTop: '22px' }}>
+                  <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '8px', padding: '14px 16px' }}>
+                    <div style={{ fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase' }}>
+                      Precio venta
+                    </div>
+                    <ShuffleValue
+                      value={formatearPrecio(Math.round(precioVentaCalc))}
+                      style={{ fontSize: '24px', fontWeight: 600, marginTop: '3px', color: 'var(--ink)', display: 'block' }}
                     />
                   </div>
-                </div>
-                <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px' }}>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ganancia</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                      fontSize: '18px', fontWeight: 800, color: '#6b7280',
-                    }}>$</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={gananciaMostrar}
-                      onChange={e => handleGananciaManual(e.target.value)}
-                      style={{
-                        fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                        fontSize: '28px', fontWeight: 800, color: '#f7f7f7',
-                        border: 'none', background: 'transparent', outline: 'none',
-                        width: '100%', minWidth: 0, padding: 0,
-                      }}
+                  <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '8px', padding: '14px 16px' }}>
+                    <div style={{ fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase' }}>
+                      Ganancia
+                    </div>
+                    <ShuffleValue
+                      value={formatearPrecio(Math.round(gananciaCalc))}
+                      style={{ fontSize: '24px', fontWeight: 600, marginTop: '3px', color: 'var(--green)', display: 'block' }}
                     />
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* CTA */}
+            <div className="det-cta-row det-anim" style={{ animationDelay: '300ms' }}>
+              <button
+                onClick={handleGuardar}
+                style={{
+                  width: '100%',
+                  background: 'var(--pill)', color: '#ffffff',
+                  border: 'none', borderRadius: '999px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '15px', fontWeight: 500,
+                  padding: '15px 0', cursor: 'pointer',
+                }}
+              >
+                Guardar en mi lista
+              </button>
             </div>
-          )}
 
-          {/* Guardar */}
-          {preciosValidos.length > 0 && (
-            <motion.button
-              onClick={handleGuardar}
-              {...btnHover}
-              style={{
-                width: '100%', padding: '14px',
-                background: '#d4a574', color: '#0a0a0a',
-                touchAction: 'manipulation',
-                border: 'none', borderRadius: '8px',
-                fontSize: '15px', fontWeight: 700,
-                cursor: 'pointer', marginBottom: '32px',
-                fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                letterSpacing: '0.04em', textTransform: 'uppercase',
-              }}
-            >
-              Guardar en mi lista
-            </motion.button>
-          )}
-
-          {/* ALTERNATIVAS DEL SECTOR */}
-          {relacionados.length > 0 && (
-            <div>
-              <SectionLabel>DE LA MISMA CATEGORÍA</SectionLabel>
-              <div className="relacionados-scroll">
-                {relacionados.map(rel => {
-                  const preciosRel = rel.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
-                  const logo = LOGOS[preciosRel[0]?.mayorista ?? '']
-                  return (
-                    <motion.div
-                      key={rel.id}
-                      onClick={() => onVerProducto?.(rel)}
-                      whileHover={{ borderColor: '#d4a574' }}
-                      whileTap={{ scale: 0.97 }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                      style={{
-                        width: '150px', flexShrink: 0,
-                        border: '1px solid #2a2a2a', borderRadius: '10px',
-                        overflow: 'hidden', cursor: 'pointer',
-                        background: '#141414',
-                      }}
-                    >
-                      <div style={{ height: '100px', background: '#1a1a1a', position: 'relative' }}>
-                        {rel.imageUrl ? (
-                          <Image src={rel.imageUrl} alt={rel.nombre} fill style={{ objectFit: 'contain', padding: '8px' }} unoptimized />
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#2a2a2a', fontSize: '24px' }}>?</div>
-                        )}
-                        {logo && (
-                          <div style={{ position: 'absolute', bottom: '4px', left: '4px', width: '40px', height: '16px', background: '#141414', borderRadius: '3px', border: '1px solid #2a2a2a', overflow: 'hidden' }}>
-                            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                              <Image src={logo} alt="" fill style={{ objectFit: 'contain' }} unoptimized />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ padding: '8px' }}>
-                        <div style={{
-                          fontSize: '11px', fontWeight: 600, color: '#f7f7f7',
-                          lineHeight: 1.3, marginBottom: '4px',
-                          display: '-webkit-box', WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                        }}>
-                          {rel.nombre}
-                        </div>
-                        {preciosRel[0] && (
-                          <div style={{
-                            fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                            fontSize: '14px', fontWeight: 800, color: '#d4a574',
-                          }}>
-                            {formatearPrecio(preciosRel[0].precio)}
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* TE TAMBIÉN TE PODRÍA INTERESAR — bombas rotativas */}
-          {bombasRotativas.length > 0 && (
-            <div style={{ marginTop: '32px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <span style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: '10px', fontWeight: 800,
-                  background: '#d4a574', color: '#0a0a0a',
-                  padding: '3px 8px', borderRadius: '4px',
-                  letterSpacing: '0.06em', flexShrink: 0,
-                }}>TOP</span>
-                <span style={{
-                  fontSize: '11px', fontWeight: 700, color: '#d4a574',
-                  letterSpacing: '0.12em', textTransform: 'uppercase',
-                }}>
-                  También te podría interesar
-                </span>
-              </div>
-              <div className="relacionados-scroll rotativas-grid">
-                  {bombasRotativas.map(rel => {
-                    const preciosRel = rel.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
-                    const logo = LOGOS[preciosRel[0]?.mayorista ?? '']
-                    const ahorro = rel.ahorroVsMaximo
-                    return (
-                      <motion.div
-                        key={rel.id}
-                        onClick={() => onVerProducto?.(rel)}
-                        whileHover={{ borderColor: '#d4a574' }}
-                        whileTap={{ scale: 0.97 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                        style={{
-                          border: '1px solid #2a2a2a', borderRadius: '10px',
-                          overflow: 'hidden', cursor: 'pointer',
-                          background: '#141414',
-                        }}
-                      >
-                        <div style={{ height: '120px', background: '#1a1a1a', position: 'relative' }}>
-                          {rel.imageUrl ? (
-                            <Image src={rel.imageUrl} alt={rel.nombre} fill style={{ objectFit: 'contain', padding: '8px' }} unoptimized />
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#2a2a2a', fontSize: '24px' }}>?</div>
-                          )}
-                          {logo && (
-                            <div style={{ position: 'absolute', bottom: '4px', left: '4px', width: '40px', height: '16px', background: '#141414', borderRadius: '3px', border: '1px solid #2a2a2a', overflow: 'hidden' }}>
-                              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                                <Image src={logo} alt="" fill style={{ objectFit: 'contain' }} unoptimized />
-                              </div>
-                            </div>
-                          )}
-                          {ahorro > 0 && (
-                            <div style={{
-                              position: 'absolute', top: '4px', right: '4px',
-                              background: '#16a34a', color: '#fff',
-                              fontSize: '10px', fontWeight: 800,
-                              padding: '2px 6px', borderRadius: '8px',
-                            }}>
-                              -{ahorro}%
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ padding: '8px' }}>
-                          <div style={{
-                            fontSize: '11px', fontWeight: 600, color: '#f7f7f7',
-                            lineHeight: 1.3, marginBottom: '4px',
-                            display: '-webkit-box', WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                          }}>
-                            {rel.nombre}
-                          </div>
-                          {preciosRel[0] && (
-                            <div style={{
-                              fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                              fontSize: '14px', fontWeight: 800, color: '#d4a574',
-                            }}>
-                              {formatearPrecio(preciosRel[0].precio)}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )
-                  })}
+            {/* De la misma categoría — scrollea con la columna derecha */}
+            {relacionados.length > 0 && (
+              <div className="det-rel det-anim" style={{ animationDelay: '340ms' }}>
+                <h2 className="det-sh">De la misma categoría</h2>
+                <div className="det-rel-scroll">
+                  {relacionados.map(rel => (
+                    <RelCard key={rel.id} producto={rel} onClick={() => onVerProducto?.(rel)} />
+                  ))}
                 </div>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function RelCard({ producto, onClick }: { producto: Producto; onClick: () => void }) {
+  const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
+  const [fallbackIdx, setFallbackIdx] = useState(0)
+  const preciosValidos = producto.precios.filter(p => p.precio > 0)
+  const mejor = preciosValidos.length ? Math.min(...preciosValidos.map(p => p.precio)) : 0
+
+  const handleError = () => {
+    const fallbacks = producto.imagenFallbacks || []
+    if (fallbackIdx < fallbacks.length) {
+      setImgSrc(fallbacks[fallbackIdx])
+      setFallbackIdx(prev => prev + 1)
+    } else {
+      setImgSrc('')
+    }
+  }
+
   return (
-    <div style={{
-      fontSize: '13px', fontWeight: 600, color: '#9ca3af',
-      marginBottom: '12px',
-    }}>
-      {children}
+    <div className="det-rel-card" onClick={onClick} style={{ flexShrink: 0, width: '124px', cursor: 'pointer' }}>
+      <div className="ph" style={{
+        height: '110px', background: 'var(--plate)', borderRadius: '6px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
+        {imgSrc ? (
+          <Image
+            src={imgSrc}
+            alt={producto.nombre}
+            width={92}
+            height={92}
+            className="img-plate"
+            style={{ maxHeight: '92px', maxWidth: '86%', objectFit: 'contain', width: 'auto', height: 'auto' }}
+            unoptimized
+            onError={handleError}
+          />
+        ) : (
+          <span style={{ color: 'var(--line)', fontSize: '24px' }}>?</span>
+        )}
+      </div>
+      <div className="line-clamp-1" style={{ fontSize: '13px', fontWeight: 600, marginTop: '8px', color: 'var(--ink)' }}>
+        {producto.nombre}
+      </div>
+      {mejor > 0 && (
+        <div className="tnum" style={{ fontSize: '14px', fontWeight: 500, marginTop: '1px', color: 'var(--ink)' }}>
+          {formatearPrecio(mejor)}
+        </div>
+      )}
     </div>
   )
 }

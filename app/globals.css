@@ -1,90 +1,57 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-/* El drawer hamburger solo existe en mobile — en desktop el hamburger controla el sidebar */
-@media (min-width: 700px) {
-  .mobile-only-drawer { display: none !important; }
-}
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
   /* ── Layout ── */
-  --sidebar-width:   200px;
-  --header-height:   82px;
-  --bottom-nav-h:    64px;
+  --bottom-nav-h: 64px;
 
-  /* ── Dark Mode — 4 niveles por luminance ── */
-  --bg-canvas:       #0a0a0a;   /* fondo base — Off-Black con calor */
-  --bg-surface:      #141414;   /* cards, list items */
-  --bg-raised:       #1a1a1a;   /* hero, modales, elementos elevados */
-  --bg-overlay:      #222222;   /* drawers, bottom sheets, menús */
-  --c-border-dark:   #2a2a2a;   /* bordes estructurales en dark */
-  --c-ghost-border:  rgba(255,255,255,0.06); /* bordes ultra-sutiles */
+  /* ── Diseño v2 — paleta clara (Trolley) ── */
+  --ink:       #1a1a1a;   /* texto principal */
+  --gray:      #808080;   /* texto secundario (ÚNICO gris de texto) */
+  --line:      #ececec;   /* hairlines, borders */
+  --plate:     #f6f5f3;   /* placas de imagen de producto */
+  --gold:      #c89055;   /* acento único (saturado para fondo claro) */
+  --gold-deep: #b07a3f;   /* gradiente de CTA dorado */
+  --green:     #15803d;   /* SOLO ahorro/éxito */
+  --pill:      #111111;   /* pills negras */
+  --ease-out:  cubic-bezier(0.23, 1, 0.32, 1);  /* easing global (Emil) */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* drawer categorías 400ms */
 
-  /* ── Acento único — Caramel Gold ── */
-  --c-gold:          #d4a574;   /* EL acento: CTAs, rank #1, badges, chips activos */
-  --c-gold-text:     #0a0a0a;   /* texto sobre gold */
-
-  /* ── Success — solo para estados de éxito ── */
-  --c-green:         #16a34a;   /* guardado, confirmado, descuento badge */
-  --c-green-h:       #15803d;   /* hover */
-
-  /* ── Texto en dark ── */
-  --c-text-primary:  #f7f7f7;   /* texto primario */
-  --c-text-meta:     #6b7280;   /* texto secundario, labels, metadata */
-
-  /* ── Legacy — mantener para compatibilidad durante migración ── */
-  --c-dark:          #0a0a0a;
-  --c-hover:         #1a1a1a;
-  --c-badge:         #d4a574;   /* badge tamaño → gold */
-  --c-badge-text:    #0a0a0a;
-  --c-soft:          #141414;   /* fondo cards → dark surface */
-  --c-border:        #2a2a2a;   /* bordes → dark */
-  --c-text2:         #6b7280;
-  --c-link:          #d4a574;   /* links → gold */
-  --c-best:          #d4a574;   /* badge Mejor Precio → gold */
-  --c-best-text:     #0a0a0a;
-  --c-cream:         #1a1a1a;
-  --c-img-bg:        #141414;   /* fondo imagen producto → dark */
-
-  /* ── Aliases Tailwind/shadcn — actualizados a dark ── */
-  --background:            #0a0a0a;
-  --foreground:            #f7f7f7;
-  --card:                  #141414;
-  --card-foreground:       #f7f7f7;
-  --popover:               #1a1a1a;
-  --popover-foreground:    #f7f7f7;
-  --primary:               #d4a574;
-  --primary-foreground:    #0a0a0a;
-  --secondary:             #141414;
-  --secondary-foreground:  #f7f7f7;
-  --muted:                 #1a1a1a;
-  --muted-foreground:      #6b7280;
-  --accent:                #d4a574;
-  --accent-foreground:     #0a0a0a;
-  --destructive:           #ef4444;
+  /* ── Aliases Tailwind/shadcn — paleta clara ── */
+  --background:            #ffffff;
+  --foreground:            #1a1a1a;
+  --card:                  #ffffff;
+  --card-foreground:       #1a1a1a;
+  --popover:               #ffffff;
+  --popover-foreground:    #1a1a1a;
+  --primary:               #1a1a1a;
+  --primary-foreground:    #ffffff;
+  --secondary:             #f6f5f3;
+  --secondary-foreground:  #1a1a1a;
+  --muted:                 #f6f5f3;
+  --muted-foreground:      #808080;
+  --accent:                #c89055;
+  --accent-foreground:     #ffffff;
+  --destructive:           #dc2626;
   --destructive-foreground:#ffffff;
-  --border:                #2a2a2a;
-  --input:                 #141414;
-  --ring:                  #d4a574;
+  --border:                #ececec;
+  --input:                 #f6f5f3;
+  --ring:                  #c89055;
 
-  /* ── Tipografía ── */
+  /* ── Tipografía — Poppins única familia ── */
   --font-sans: var(--font-poppins), 'Poppins', sans-serif;
-  --font-display: var(--font-barlow-condensed), 'Barlow Condensed', sans-serif;
 
   /* ── Escala tipográfica (medida exacta de Trolley con F12) ── */
   --fs-xs:      10.72px;    /* labels, badges */
   --fs-sm:      11.79px;    /* subtexto, precio/unidad */
   --fs-body:    15px;       /* body, nav, texto secundario */
-  --fs-product: 21.44px;    /* nombre producto — brand name Trolley */
-  --fs-section: 23.584px;   /* titulo de seccion "Today's Top Deals" */
-  --fs-h1:      25.728px;   /* H1 pagina "Cravendale", "Where To Buy" */
-
-  --lh-xs:      15.33px;
-  --lh-body:    19.51px;
-  --lh-product: 27px;
-  --lh-section: 30px;
+  --fs-pill:    13.9px;     /* pills 600 */
+  --fs-product: 19.3px;     /* nombre producto 300-400 */
+  --fs-brand:   21.44px;    /* marca 600 */
+  --fs-section: 23.584px;   /* título de sección 600 */
+  --fs-h1:      25.728px;   /* H1 página 600 */
 
   /* ── Border radius ── */
   --radius:    0.75rem;
@@ -140,11 +107,15 @@
     font-size: 15px;
     -webkit-font-smoothing: antialiased;
   }
+  /* Press feedback global (Emil): todo lo tocable responde */
   button {
-    transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+    transition: background 0.15s ease, transform 160ms var(--ease-out), opacity 0.15s ease, box-shadow 0.15s ease;
   }
   button:active {
     transform: scale(0.97);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button:active { transform: none; }
   }
 }
 
@@ -173,59 +144,14 @@
   overflow: hidden;
 }
 
-.active\:scale-98:active { transform: scale(0.98); }
-.active\:scale-95:active { transform: scale(0.95); }
-
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0);
+/* Precios siempre con dígitos tabulares */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
 
-/* ──────────────────────────────────────────────
-   ANIMACIONES
-────────────────────────────────────────────── */
-
-@keyframes barra-fill {
-  from { width: 0; }
-  to   { width: var(--bar-width, 100%); }
-}
-.animate-barra {
-  animation: barra-fill 0.6s ease-out forwards;
-}
-
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in-up {
-  animation: fade-in-up 0.3s ease-out forwards;
-}
-
-@keyframes slide-in-right {
-  from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
-}
-.animate-slide-in-right {
-  animation: slide-in-right 0.25s ease-out forwards;
-}
-
-/* Card hover legacy — Framer Motion whileHover reemplaza esto en componentes migrados */
-.card-hover {
-  transition: transform 0.2s ease, background 0.15s ease;
-}
-.card-hover:hover {
-  transform: translateY(-2px);
-}
-
-/* Skeleton shimmer — dark mode */
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
-.skeleton {
-  background: linear-gradient(90deg, #141414 25%, #1a1a1a 50%, #141414 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 6px;
+/* Fotos de producto sobre placa --plate: en blanco se integran solas */
+.img-plate {
+  mix-blend-mode: multiply;
 }
 
 /* ──────────────────────────────────────────────
@@ -247,39 +173,39 @@ input[type='range'].slider-brujula::-webkit-slider-thumb {
   height: 22px;
   margin-top: -8px;
   border-radius: 50%;
-  background: var(--c-gold);
-  border: 2px solid #0a0a0a;
+  background: var(--gold);
+  border: 2px solid #ffffff;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(212, 165, 116, 0.4);
+  box-shadow: 0 2px 8px rgba(200, 144, 85, 0.4);
 }
 input[type='range'].slider-brujula::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(
     to right,
-    var(--c-gold) 0%,
-    var(--c-gold) var(--slider-pct, 35%),
-    var(--c-border) var(--slider-pct, 35%),
-    var(--c-border) 100%
+    var(--gold) 0%,
+    var(--gold) var(--slider-pct, 35%),
+    var(--line) var(--slider-pct, 35%),
+    var(--line) 100%
   );
 }
 input[type='range'].slider-brujula::-moz-range-thumb {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--c-gold);
-  border: 2px solid #0a0a0a;
+  background: var(--gold);
+  border: 2px solid #ffffff;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(212, 165, 116, 0.4);
+  box-shadow: 0 2px 8px rgba(200, 144, 85, 0.4);
 }
 input[type='range'].slider-brujula::-moz-range-track {
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(
     to right,
-    var(--c-gold) 0%,
-    var(--c-gold) var(--slider-pct, 35%),
-    var(--c-border) var(--slider-pct, 35%),
-    var(--c-border) 100%
+    var(--gold) 0%,
+    var(--gold) var(--slider-pct, 35%),
+    var(--line) var(--slider-pct, 35%),
+    var(--line) 100%
   );
 }

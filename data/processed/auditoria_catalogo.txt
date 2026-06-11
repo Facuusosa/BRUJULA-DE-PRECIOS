@@ -1,0 +1,215 @@
+AUDITORIA CATALOGO BRUJULA DE PRECIOS -- 27/05/2026
+======================================================================
+
+## 1. RESUMEN EJECUTIVO
+
+  Total productos en catalogo:       18,092
+  Con 1 sola fuente (sin comparar):  15,080 (83.4%)
+  Con 2 fuentes comparables:         2,376 (13.1%)
+  Con 3 fuentes comparables:         636 (3.5%)
+  Sin EAN real (ID interno):         5,496 (30.4%)
+
+  Tasa de matching efectivo: 16.6% (productos con 2+ precios comparables)
+  Estado general: ACEPTABLE para MVP. Sin precios imposibles en rango.
+
+## 2. COBERTURA POR MAYORISTA
+
+  yaguar            : 7,310 productos con precio | 10,782 entradas en cero
+  maxicarrefour     : 5,088 productos con precio | 13,004 entradas en cero
+  maxiconsumo       : 9,342 productos con precio | 8,750 entradas en cero
+
+  Productos ABC=A total:             306
+  ABC=A con 3 precios:               71 (23.2% cobertura top SKUs)
+  ABC=A con solo 1 precio:           102 -- OPORTUNIDAD DE MEJORA
+
+## 3. PRECIOS SOSPECHOSOS (rango fuera de mercado mayorista AR 2026)
+
+  Criterio: precio menor $300 o mayor $300.000 por unidad
+  Resultado: 0 productos fuera de rango en el catalogo ACTUAL.
+  El catalogo activo no tiene precios imposibles por unidad.
+
+  Ratio maximo actual: 3.03x (Cepillo Dental ORAL-B Indicator X2 u)
+    Yaguar=5829.0 | MaxiCF=7569.0 | Maxiconsumo=2499.896301
+  Solo 1 producto con ratio >3x en el catalogo actual. Estado: LIMPIO.
+
+## 4. HISTORIAL MATCHES INCORRECTOS (auditoria_matches.json)
+
+  Total matches sospechosos registrados:         46
+  Con ratio >10x (criticos):                     33
+  Patron Maxiconsumo deflado (<$100 vs >$500):   11
+  Patron Yaguar inflado (>$50.000 vs <$500):     4
+
+  NOTA: estos matches son de scrapers ANTERIORES al catalogo actual.
+  El catalogo ya tiene precios corregidos en la mayoria de casos.
+  auditoria_matches.json documenta el patron para prevencion futura.
+
+  Top 10 peores matches historicos:
+
+  1. [1297.55x] Turron de Mani MISKY X25 g
+     Confianza match: exacto_ean
+     Precios: yaguar=$191,000.00 | maxicarrefour=$147.20 | maxiconsumo=$159.90
+     Nombre en maxicarrefour: 'Turron De Mani Misky X 25 Grs'
+     Nombre en yaguar: 'TURRON MISKY 27GR'
+     Nombre en maxiconsumo: 'TURRON MISKY 27 GR'
+
+  2. [1152.22x] Acond PANTENE Restaura Sachet X10 ml
+     Confianza match: exacto_ean
+     Precios: yaguar=$190,000.00 | maxiconsumo=$164.90
+     Nombre en yaguar: 'CREMA DE ENJUAGE PANTENE SACHET RESTORING 10ML'
+     Nombre en maxiconsumo: 'ACONDICIONADOR PANTENE RESTAURACION 10 ML'
+
+  3. [964.22x] Shampoo PANTENE Restaura Sachet X10 ml
+     Confianza match: exacto_ean
+     Precios: yaguar=$159,000.00 | maxiconsumo=$164.90
+     Nombre en yaguar: 'SHAMPOO PANTENE SACHET RESTAURACION 10ML'
+     Nombre en maxiconsumo: 'SHAMPOO PANTENE RESTAURACION 10 ML'
+
+  4. [930.51x] Alfajor FULBITO Chocolate X30g
+     Confianza match: exacto_ean
+     Precios: yaguar=$186,000.00 | maxiconsumo=$199.89
+     Nombre en yaguar: 'ALFAJOR FULBITO NEGRO 25GR'
+     Nombre en maxiconsumo: 'ALFAJOR FULBITO CHOCOLATE 30 GR'
+
+  5. [528.28x] Vino ESMERALDA Malbec X750 ml
+     Confianza match: exacto_ean
+     Precios: maxicarrefour=$7,025.00 | maxiconsumo=$13.30
+     Nombre en maxicarrefour: 'Vino Tinto Malbec Esmeralda X 750 Cc'
+     Nombre en maxiconsumo: 'VINO ESMERALDA FERNANDEZ MALBEC 750 CC'
+
+  6. [466.73x] Mermelada ARCOR Damasco Light X390 g
+     Confianza match: exacto_ean
+     Precios: yaguar=$3,332.00 | maxicarrefour=$2,469.60 | maxiconsumo=$7.14
+     Nombre en maxicarrefour: 'Mermelada Damasco Light Arcor X 390 Grs'
+     Nombre en yaguar: 'MERMELADA ARCOR LIGHT DAMASCO FRASCO 390GR'
+     Nombre en maxiconsumo: 'MERMELADA ARCOR DAMASCO LIGHT 390 gr'
+
+  7. [106.67x] Vino BIANCHI Famiglia Malbec X750 ml
+     Confianza match: exacto_ean
+     Precios: maxicarrefour=$7,744.00 | maxiconsumo=$72.60
+     Nombre en maxicarrefour: 'Vino Tinto Malbec Famiglia Bianchi X 750 Cc'
+     Nombre en maxiconsumo: 'VINO ELSA BIANCHI MALBEC 750 CC'
+
+  8. [67.77x] CHOCOLATE BOCADITO MARROC 14 g
+     Confianza match: exacto_ean
+     Precios: yaguar=$664.00 | maxiconsumo=$44,999.90
+     Nombre en yaguar: 'CHOCOLATE BOCADITO MARROC 14GR'
+     Nombre en maxiconsumo: 'BOCADITO MARROC 60 UN'
+
+  9. [59.53x] Gaseosa MANAOS Lima/limon X2.25 L
+     Confianza match: exacto_ean
+     Precios: yaguar=$1,836.00 | maxicarrefour=$1,704.00 | maxiconsumo=$30.84
+     Nombre en maxicarrefour: 'Gaseosa Lima Limon Regular Manaos X 2.25 Lt'
+     Nombre en yaguar: 'GASEOSA TALCA LIMA LIMON 2,25LT'
+     Nombre en maxiconsumo: 'GASEOSA MOCORETA LIMA LIMON 2,25 LT'
+
+  10. [51.83x] Papas Fritas SNACKO X200 g
+     Confianza match: fuzzy
+     Precios: yaguar=$4,823.00 | maxiconsumo=$93.05
+     Nombre en yaguar: 'PAPAS FRITAS SNACKO 200GR'
+     Nombre en maxiconsumo: 'PAPAS FRITAS SNACKO CLASICA 200 GR'
+
+  PATRONES DETECTADOS:
+
+  a) Yaguar precio de CAJA/DISPLAY: productos sachet/unitarios donde Yaguar
+     tiene precio 500-1300x mayor al de otros mayoristas con EAN exacto.
+     Ejemplos: PANTENE sachet 10ml ($190k vs $165), TURRON MISKY ($191k vs $148).
+     Causa probable: Yaguar vende por display completo, no por unidad.
+
+  b) Maxiconsumo precio parcial: 12 productos con precios < $100 cuando
+     deberian costar entre $1.000 y $2.000.
+     Ejemplos: Coca Cola 600ml a $41, Manaos 2.25L a $31, Salsa CICA a $31.
+     Causa probable: scraper raspo precio sin IVA, precio de promo, o cifra parcial.
+
+## 5. DUPLICADOS POR NOMBRE
+
+  Pares con similitud >=92% y distintas fuentes/precios: 1841
+
+  La mayoria son duplicados LEGITIMOS (mismo producto, diferente tamano).
+  Ejemplo: 'Sedal 10ml' vs 'Sedal 190ml' son productos distintos.
+  Ejemplo: 'Dogui Cachorros 1.5kg' vs 'Dogui Cachorros 15kg' son distintos.
+
+  Casos problematicos reales identificados:
+
+  a) GUANTES TASK Tradicional Grande
+     EAN 7794321006553: Yaguar $3717 (solo Yaguar)
+     EAN 7794321006119: Maxiconsumo $1499 (solo Maxiconsumo)
+     Posible: mismo producto con EAN alternativo. Consolidar en CODIGOS.xlsx.
+
+  b) ANTITRANSPIRANTE REXONA XTRA COOL vs XTRACOOL
+     Ambos de Maxiconsumo, mismo precio (~$3200). Typo en normalizacion.
+     Fix: agregar normalizacion 'XTRA COOL' -> 'XTRACOOL' en norm_nombre().
+
+  c) PANALES BABYSEC ULTRA XX GRANDE vs X GRANDE
+     Mismo precio ($2299). Posiblemente el mismo talle scrapeado dos veces.
+     Verificar si Maxiconsumo tiene ambas variantes reales en su catalogo.
+
+## 6. DISTRIBUCION ABC Y SECTORES
+
+  Distribucion ABC:
+    A (estrella)          : 306
+    B (importante)        : 1,177
+    C (regular)           : 1,678
+    D (bajo)              : 2,818
+    E (minimo)            : 98
+    (sin clasificar)      : 12,015
+
+  ALERTA: 12.015 productos (66.4%) sin clasificacion ABC.
+  Impacto: la funcion Top Bombas solo opera sobre el 33.6% del catalogo.
+  Causa: productos que no pasaron por el Listado Maestro de clasificacion.
+
+  Top 10 sectores por volumen de productos:
+    Almacén                           : 5,166
+    Cuidado Personal                  : 3,362
+    Limpieza                          : 2,492
+    Bebidas                           : 2,164
+    Frescos                           : 2,005
+    Kiosco                            : 856
+    Bazar                             : 827
+    Desayuno y Merienda               : 594
+    Mascotas                          : 300
+    Congelados                        : 276
+
+## 7. RECOMENDACIONES CONCRETAS (por impacto)
+
+  [ALTA] 1. Investigar patron Yaguar precio-caja
+         Revisar en Yaguar.com.ar si PANTENE sachet, DOVE sachet, TURRON MISKY
+         se venden por display. Si es asi, agregar campo 'unidades_por_caja'
+         en el scraper y dividir el precio antes de guardar.
+         Archivos: targets/yaguar/scraper_pro.py + actualizar_catalogo.py
+
+  [ALTA] 2. Investigar patron Maxiconsumo precio-parcial
+         Levantar manualmente los 12 productos con precio <$100 en la web.
+         Verificar si el precio real esta en otro elemento del DOM.
+         Archivo: targets/maxiconsumo/scraper_pro.py (selector de precio)
+
+  [MEDIA] 3. Clasificar ABC los 12.015 sin clasificar
+           Correr el Listado Maestro contra estos productos.
+           Impacto directo en la pantalla Top Bombas.
+
+  [MEDIA] 4. ABC=A sin comparativa (102 productos)
+           Son los SKUs mas importantes sin precio comparado.
+           Accion: verificar si tienen EAN en CODIGOS.xlsx. Si no, agregarlo.
+
+  [BAJA] 5. Fix norm_nombre(): 'XTRA COOL' -> 'XTRACOOL'
+          Una linea en el unificador elimina un duplicado falso de Rexona.
+
+  [BAJA] 6. Consolidar GUANTES TASK en CODIGOS.xlsx
+          Mapear EAN 7794321006553 -> 7794321006119 para unificar el producto.
+
+## 8. ESTADO DE SALUD GENERAL DEL CATALOGO
+
+  Precios imposibles en catalogo activo:      0        OK
+  Ratio maximo en catalogo activo:            3.03x    OK (1 caso)
+  EAN duplicados (conflictos de ID):          0        OK
+  Matches criticos historicos sin resolver:   33       PENDIENTE
+  Productos sin clasificacion ABC:            12.015   IMPORTANTE
+  Tasa de matching efectivo (2+ precios):     16.6%   MEJORABLE
+  ABC=A sin comparativa:                      102      IMPORTANTE
+
+  Veredicto: catalogo en condicion ACEPTABLE para produccion.
+  Los errores criticos en auditoria_matches.json son historicos y no impactan
+  el display actual. El patron Yaguar-caja puede reaparecer en el proximo
+  scraping si no se investiga y corrige en el scraper.
+
+======================================================================
+Generado por: agente auditor-catalogo | 27/05/2026

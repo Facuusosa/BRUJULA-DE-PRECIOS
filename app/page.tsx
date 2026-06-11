@@ -2,19 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { AppHeader } from '@/components/header'
-import { SidebarNav } from '@/components/sidebar-nav'
+import { CategoryDrawer } from '@/components/category-drawer'
 import { DesktopSidebar } from '@/components/desktop-sidebar'
 import { BottomNav } from '@/components/bottom-nav'
 import { VistaInicio } from '@/components/vista-inicio'
 import { VistaCatalogo } from '@/components/vista-catalogo'
-import { VistaOfertas } from '@/components/vista-ofertas'
 import { VistaDetalle } from '@/components/vista-detalle'
-import { VistaComparativa } from '@/components/vista-comparativa'
 import { VistaLista } from '@/components/vista-lista'
 import { VistaCuenta } from '@/components/vista-cuenta'
+import { VistaPlanes } from '@/components/vista-planes'
 import { ItemLista, Lista, Producto, calcularBombas } from '@/lib/data'
 
-export type Vista = 'inicio' | 'ofertas' | 'catalogo' | 'detalle' | 'comparativa' | 'herramientas' | 'perfil'
+export type Vista = 'inicio' | 'catalogo' | 'detalle' | 'herramientas' | 'perfil' | 'planes'
 
 const uuid = () => (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2))
 
@@ -31,7 +30,6 @@ export default function BrujulaMayorista() {
   const [textoBusqueda, setTextoBusqueda] = useState<string>('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [subcategoriaActiva, setSubcategoriaActiva] = useState<string>('')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const mainRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -218,28 +216,17 @@ export default function BrujulaMayorista() {
     }))
   }
 
-  const handleBuscar = (texto: string) => {
-    setTextoBusqueda(texto)
-    if (texto.trim()) navegarA('catalogo', vistaActiva)
-  }
-
-  const isDrillDown = vistaActiva === 'detalle' || vistaActiva === 'comparativa'
+  const isDrillDown = vistaActiva === 'detalle' || vistaActiva === 'planes'
   const isNavVisible = !isDrillDown
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#ffffff' }}>
       {/* Header — siempre visible */}
       <AppHeader
-        onBuscar={handleBuscar}
+        onSearchClick={() => navegarA('catalogo', vistaActiva)}
         onPerfil={() => navegarA('perfil', vistaActiva)}
         onFavoritos={() => navegarA('catalogo', vistaActiva)}
-        onMenuClick={() => {
-          if (window.innerWidth >= 700) {
-            setSidebarCollapsed(prev => !prev)
-          } else {
-            setDrawerOpen(true)
-          }
-        }}
+        onMenuClick={() => setDrawerOpen(true)}
         onLogoClick={() => navegarA('inicio')}
       />
 
@@ -247,16 +234,7 @@ export default function BrujulaMayorista() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar desktop persistente */}
         {isNavVisible && (
-          <DesktopSidebar
-            vistaActiva={vistaActiva}
-            onChange={(v) => navegarA(v)}
-            sectorActivo={sectorActivo}
-            onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva(''); navegarA('catalogo') }}
-            subcategoriaActiva={subcategoriaActiva}
-            onSubcategoriaChange={setSubcategoriaActiva}
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={() => setSidebarCollapsed(prev => !prev)}
-          />
+          <DesktopSidebar vistaActiva={vistaActiva} onChange={(v) => navegarA(v)} />
         )}
         {/* Main content area */}
         <main ref={mainRef} style={{
@@ -284,14 +262,6 @@ export default function BrujulaMayorista() {
             />
           )}
 
-          {vistaActiva === 'ofertas' && (
-            <VistaOfertas
-              onVerProducto={(producto) => handleVerProducto(producto, 'ofertas')}
-              favoritos={favoritos}
-              onToggleFavorito={handleToggleFavorito}
-            />
-          )}
-
           {vistaActiva === 'catalogo' && (
             <VistaCatalogo
               sectorActivo={sectorActivo}
@@ -313,21 +283,10 @@ export default function BrujulaMayorista() {
               producto={productoSeleccionado}
               onBack={handleBack}
               onGuardar={handleGuardarEnLista}
-              onVerComparativa={() => {
-                setVistaAnterior('detalle')
-                setVistaActiva('comparativa')
-              }}
+              onVerComparativa={() => {}}
               esFavorito={favoritos.has(productoSeleccionado.id)}
               onToggleFavorito={() => handleToggleFavorito(productoSeleccionado.id)}
               onVerProducto={(producto) => handleVerProducto(producto, 'detalle')}
-            />
-          )}
-
-          {vistaActiva === 'comparativa' && productoSeleccionado && (
-            <VistaComparativa
-              producto={productoSeleccionado}
-              onBack={handleBack}
-              onGuardar={handleGuardarEnLista}
             />
           )}
 
@@ -346,7 +305,11 @@ export default function BrujulaMayorista() {
           )}
 
           {vistaActiva === 'perfil' && (
-            <VistaCuenta />
+            <VistaCuenta onIrAPlanes={() => navegarA('planes', 'perfil')} />
+          )}
+
+          {vistaActiva === 'planes' && (
+            <VistaPlanes onBack={() => navegarA('perfil')} />
           )}
         </main>
       </div>
@@ -356,66 +319,31 @@ export default function BrujulaMayorista() {
         <BottomNav vistaActiva={vistaActiva} onChange={(v) => navegarA(v)} listaCount={itemsActivos.length} />
       )}
 
-      {/* Drawer nav — solo mobile (<700px). En desktop el hamburger controla el sidebar. */}
-      <div className="mobile-only-drawer">
-        {/* Backdrop */}
-        <div
-          onClick={() => setDrawerOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            zIndex: 200,
-            opacity: drawerOpen ? 1 : 0,
-            pointerEvents: drawerOpen ? 'auto' : 'none',
-            transition: 'opacity 0.25s ease',
-          }}
-        />
-        {/* Drawer panel */}
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: '260px',
-            background: '#ffffff',
-            zIndex: 201,
-            transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: drawerOpen ? '4px 0 24px rgba(0,0,0,0.12)' : 'none',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <SidebarNav
-            vistaActiva={vistaActiva}
-            onChange={(v) => navegarA(v)}
-            onClose={() => setDrawerOpen(false)}
-            sectorActivo={sectorActivo}
-            onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva('') }}
-            subcategoriaActiva={subcategoriaActiva}
-            onSubcategoriaChange={setSubcategoriaActiva}
-          />
-        </div>
-      </div>
+      {/* Drawer de categorías — hamburguesa, mobile y desktop */}
+      <CategoryDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva(''); setTextoBusqueda(''); setMayoristaBuscado('') }}
+        onSubcategoriaChange={setSubcategoriaActiva}
+        onNavegar={(v) => navegarA(v, vistaActiva)}
+      />
 
       {/* Selector de lista — aparece cuando hay múltiples listas y el usuario toca + */}
       {sheetLista !== null && (
         <>
           <div
             onClick={() => setSheetLista(null)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.4)', zIndex: 300 }}
           />
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 301,
             background: '#ffffff', borderRadius: '20px 20px 0 0',
             padding: '24px 20px 36px', boxShadow: '0 -8px 32px rgba(0,0,0,0.15)',
           }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '0 0 6px' }}>
+            <p style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--gray)', textTransform: 'uppercase', letterSpacing: '0.14em', margin: '0 0 6px' }}>
               Agregar a
             </p>
-            <p style={{ fontSize: '15px', fontWeight: 700, color: '#0a0a0a', margin: '0 0 20px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ink)', margin: '0 0 20px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {sheetLista.nombreProducto}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -425,13 +353,13 @@ export default function BrujulaMayorista() {
                   onClick={() => sheetLista.onConfirmar(lista.id)}
                   style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    background: lista.id === listaActivaId ? '#f0fdf4' : '#f9fafb',
-                    border: `1.5px solid ${lista.id === listaActivaId ? '#16a34a' : '#e5e7eb'}`,
+                    background: lista.id === listaActivaId ? 'var(--plate)' : '#ffffff',
+                    border: `1.5px solid ${lista.id === listaActivaId ? 'var(--ink)' : 'var(--line)'}`,
                     borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', textAlign: 'left',
                   }}
                 >
-                  <span style={{ fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>{lista.nombre}</span>
-                  <span style={{ fontSize: '12px', color: '#6b7280' }}>{lista.items.length} productos</span>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)' }}>{lista.nombre}</span>
+                  <span className="tnum" style={{ fontSize: '12px', color: 'var(--gray)' }}>{lista.items.length} productos</span>
                 </button>
               ))}
             </div>

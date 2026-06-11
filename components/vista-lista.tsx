@@ -1,11 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Trash2, ShoppingCart, TrendingDown, Plus, X } from 'lucide-react'
 import Image from 'next/image'
+import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { ItemLista, Lista, formatearPrecio } from '@/lib/data'
-import { iconTap } from '@/lib/motion-variants'
 
 interface VistaListaProps {
   listas: Lista[]
@@ -21,50 +19,129 @@ interface VistaListaProps {
 
 const MAYORISTAS = ['Yaguar', 'MaxiCarrefour', 'Maxiconsumo'] as const
 
+const LOGOS: Record<string, string> = {
+  'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
+  'Yaguar':        '/mayoristas/yaguar.png',
+  'MaxiCarrefour': '/mayoristas/maxicarrefour.jpg',
+}
+
+function mejorPrecioDe(item: ItemLista) {
+  const validos = item.producto.precios.filter(p => p.precio > 0)
+  if (validos.length === 0) return null
+  return validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
+}
+
 function calcularTotalMix(items: ItemLista[]): number {
   return items.reduce((sum, item) => {
-    const validos = item.producto.precios.filter(p => p.precio > 0)
-    if (validos.length === 0) return sum
-    return sum + Math.min(...validos.map(p => p.precio)) * (item.cantidad ?? 1)
+    const mejor = mejorPrecioDe(item)
+    return mejor ? sum + mejor.precio * (item.cantidad ?? 1) : sum
   }, 0)
 }
 
 function calcularOpcionMayorista(items: ItemLista[], mayorista: string) {
   let total = 0
-  let productosConPrecioPropio = 0
+  let cubre = 0
   for (const item of items) {
     const cant = item.cantidad ?? 1
-    const precioPropio = item.producto.precios.find(p => p.mayorista === mayorista && p.precio > 0)
-    if (precioPropio) {
-      total += precioPropio.precio * cant
-      productosConPrecioPropio++
+    const propio = item.producto.precios.find(p => p.mayorista === mayorista && p.precio > 0)
+    if (propio) {
+      total += propio.precio * cant
+      cubre++
     } else {
-      const validos = item.producto.precios.filter(p => p.precio > 0)
-      if (validos.length > 0) total += Math.min(...validos.map(p => p.precio)) * cant
+      const mejor = mejorPrecioDe(item)
+      if (mejor) total += mejor.precio * cant
     }
   }
-  return { total, cubre: productosConPrecioPropio, total_items: items.length }
+  return { total, cubre, total_items: items.length }
 }
 
 interface GrupoMayorista {
   mayorista: string
-  productos: { nombre: string; precio: number }[]
+  productos: { nombre: string; precio: number; cantidad: number }[]
+  unidades: number
   total: number
 }
 
 function calcularMixDetallado(items: ItemLista[]): GrupoMayorista[] {
   const grupos: Record<string, GrupoMayorista> = {}
   for (const item of items) {
-    const validos = item.producto.precios.filter(p => p.precio > 0)
-    if (validos.length === 0) continue
-    const mejor = validos.reduce((a, b) => a.precio <= b.precio ? a : b)
+    const mejor = mejorPrecioDe(item)
+    if (!mejor) continue
+    const cant = item.cantidad ?? 1
     if (!grupos[mejor.mayorista]) {
-      grupos[mejor.mayorista] = { mayorista: mejor.mayorista, productos: [], total: 0 }
+      grupos[mejor.mayorista] = { mayorista: mejor.mayorista, productos: [], unidades: 0, total: 0 }
     }
-    grupos[mejor.mayorista].productos.push({ nombre: item.producto.nombre, precio: mejor.precio })
-    grupos[mejor.mayorista].total += mejor.precio
+    grupos[mejor.mayorista].productos.push({ nombre: item.producto.nombre, precio: mejor.precio, cantidad: cant })
+    grupos[mejor.mayorista].unidades += cant
+    grupos[mejor.mayorista].total += mejor.precio * cant
   }
   return Object.values(grupos).sort((a, b) => b.total - a.total)
+}
+
+function fechaCorta(iso: string): string {
+  const d = new Date(iso)
+  const hoy = new Date()
+  if (d.toDateString() === hoy.toDateString()) return 'hoy'
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+}
+
+function ItemThumb({ item }: { item: ItemLista }) {
+  const [imgSrc, setImgSrc] = useState(item.producto.imageUrl || '')
+  const [fallbackIdx, setFallbackIdx] = useState(0)
+  const handleError = () => {
+    const fallbacks = item.producto.imagenFallbacks || []
+    if (fallbackIdx < fallbacks.length) {
+      setImgSrc(fallbacks[fallbackIdx])
+      setFallbackIdx(prev => prev + 1)
+    } else {
+      setImgSrc('')
+    }
+  }
+  return (
+    <div style={{
+      width: '46px', height: '46px', flexShrink: 0,
+      background: 'var(--plate)', borderRadius: '6px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      {imgSrc ? (
+        <Image
+          src={imgSrc}
+          alt={item.producto.nombre}
+          width={38}
+          height={38}
+          className="img-plate"
+          style={{ width: '38px', height: '38px', objectFit: 'contain' }}
+          unoptimized
+          onError={handleError}
+        />
+      ) : (
+        <span style={{ color: 'var(--line)', fontSize: '18px' }}>?</span>
+      )}
+    </div>
+  )
+}
+
+function ChipMayorista({ mayorista, w = 64, h = 28 }: { mayorista: string; w?: number; h?: number }) {
+  return (
+    <div style={{
+      width: `${w}px`, height: `${h}px`, borderRadius: '6px',
+      border: '1px solid var(--line)', background: '#ffffff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    }}>
+      {LOGOS[mayorista] ? (
+        <Image
+          src={LOGOS[mayorista]}
+          alt={mayorista}
+          width={w - 10}
+          height={h - 10}
+          style={{ maxWidth: `${w - 10}px`, maxHeight: `${h - 10}px`, objectFit: 'contain', width: 'auto', height: 'auto' }}
+          unoptimized
+        />
+      ) : (
+        <span style={{ fontSize: '9px', fontWeight: 600 }}>{mayorista}</span>
+      )}
+    </div>
+  )
 }
 
 export function VistaLista({
@@ -78,28 +155,36 @@ export function VistaLista({
   onCambiarCantidad,
   onIrAComparar,
 }: VistaListaProps) {
+  const [modo, setModo] = useState<'productos' | 'plan'>('productos')
   const [creandoLista, setCreandoLista] = useState(false)
   const [nombreNueva, setNombreNueva] = useState('')
-  const [renombrandoId, setRenombrandoId] = useState<string | null>(null)
+  const [renombrando, setRenombrando] = useState(false)
   const [nombreRename, setNombreRename] = useState('')
   const inputNuevaRef = useRef<HTMLInputElement>(null)
   const inputRenameRef = useRef<HTMLInputElement>(null)
-  const [nombreNegocio, setNombreNegocio] = useState('')
-
-  useEffect(() => {
-    const saved = localStorage.getItem('brujula_perfil')
-    if (saved) {
-      try { setNombreNegocio(JSON.parse(saved).nombre ?? '') } catch {}
-    }
-  }, [])
 
   useEffect(() => {
     if (creandoLista) inputNuevaRef.current?.focus()
   }, [creandoLista])
 
   useEffect(() => {
-    if (renombrandoId) inputRenameRef.current?.focus()
-  }, [renombrandoId])
+    if (renombrando) inputRenameRef.current?.focus()
+  }, [renombrando])
+
+  const listaActiva = listas.find(l => l.id === listaActivaId) ?? null
+  const items = listaActiva?.items ?? []
+
+  const totalMix = calcularTotalMix(items)
+  const mixDetallado = calcularMixDetallado(items)
+  const unidadesTotal = items.reduce((s, i) => s + (i.cantidad ?? 1), 0)
+
+  const opciones = MAYORISTAS
+    .map(m => ({ mayorista: m, ...calcularOpcionMayorista(items, m) }))
+    .sort((a, b) => a.total - b.total)
+  const mejorOpcionIndividual = opciones.length ? opciones[0].total : 0
+  // Ahorro real del mix: contra la MEJOR opción de un solo mayorista
+  const ahorroMix = Math.max(0, mejorOpcionIndividual - totalMix)
+  const ahorroMixPct = mejorOpcionIndividual > 0 ? Math.round((ahorroMix / mejorOpcionIndividual) * 100) : 0
 
   const handleConfirmarNueva = () => {
     const nombre = nombreNueva.trim()
@@ -108,354 +193,468 @@ export function VistaLista({
     setNombreNueva('')
   }
 
-  const handleCancelarNueva = () => {
-    setCreandoLista(false)
-    setNombreNueva('')
-  }
-
   const handleConfirmarRename = () => {
     const nombre = nombreRename.trim()
-    if (nombre && renombrandoId) onRenombrarLista(renombrandoId, nombre)
-    setRenombrandoId(null)
+    if (nombre && listaActivaId) onRenombrarLista(listaActivaId, nombre)
+    setRenombrando(false)
     setNombreRename('')
   }
 
-  const listaActiva = listas.find(l => l.id === listaActivaId) ?? null
-  const items = listaActiva?.items ?? []
+  const handleWhatsApp = () => {
+    const lineas: string[] = [`*${listaActiva?.nombre ?? 'Mi lista'}* — Brújula de Precios`, '']
+    for (const grupo of mixDetallado) {
+      lineas.push(`*${grupo.mayorista}* — ${formatearPrecio(grupo.total)}`)
+      for (const p of grupo.productos) {
+        lineas.push(`  • ${p.nombre} ×${p.cantidad} — ${formatearPrecio(p.precio * p.cantidad)}`)
+      }
+      lineas.push('')
+    }
+    lineas.push(`TOTAL: ${formatearPrecio(totalMix)}`)
+    if (ahorroMix > 0) lineas.push(`Ahorrás ${formatearPrecio(ahorroMix)} comprando en varios lugares`)
+    window.open(`https://wa.me/?text=${encodeURIComponent(lineas.join('\n'))}`, '_blank')
+  }
 
-  const totalMix = calcularTotalMix(items)
-  const mixDetallado = calcularMixDetallado(items)
-  const gananciaTotal = items.reduce((sum, item) => sum + item.ganancia, 0)
-  const margenPromedio = items.length > 0 ? Math.round(items.reduce((s, i) => s + i.margen, 0) / items.length) : 0
-
-  const opciones = MAYORISTAS.map(m => ({ mayorista: m, ...calcularOpcionMayorista(items, m) }))
-  const opcionMasCara = Math.max(...opciones.map(o => o.total), 0)
-  const ahorroMix = opcionMasCara - totalMix
-  const ahorroMixPct = opcionMasCara > 0 ? Math.round((ahorroMix / opcionMasCara) * 100) : 0
-  const mejorOpcionIndividual = Math.min(...opciones.map(o => o.total))
-  const mixEsMejor = items.length > 0 && totalMix < mejorOpcionIndividual - 1
+  const tabStyle = (activa: boolean): React.CSSProperties => ({
+    border: `1px solid ${activa ? 'var(--pill)' : 'var(--line)'}`,
+    borderRadius: '999px',
+    padding: '9px 16px',
+    fontSize: '13.5px', fontWeight: 500,
+    whiteSpace: 'nowrap',
+    background: activa ? 'var(--pill)' : '#ffffff',
+    color: activa ? '#ffffff' : 'var(--ink)',
+    cursor: 'pointer', flexShrink: 0,
+    fontFamily: 'var(--font-sans)',
+  })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: '#0a0a0a' }}>
+    <div style={{ background: '#ffffff', minHeight: '100%' }}>
+      <style>{`
+        @keyframes lista-rise { to { opacity: 1; transform: translateY(0); } }
+        .lista-anim { opacity: 0; transform: translateY(10px); animation: lista-rise 380ms var(--ease-out) forwards; }
+        .lista-view { animation: lista-rise 280ms var(--ease-out); }
+        @media (prefers-reduced-motion: reduce) {
+          .lista-anim, .lista-view { transform: none; animation-duration: 150ms; }
+        }
+        .lista-wrap { max-width: 760px; margin: 0 auto; }
+        @media (min-width: 1000px) {
+          .lista-wrap { padding: 0 44px; }
+          .lista-th-name { font-size: 23px !important; }
+          .lista-th-total { font-size: 25.7px !important; }
+        }
+      `}</style>
 
-      {/* SELECTOR DE LISTAS */}
-      <div style={{ background: '#0a0a0a', padding: '20px 20px 18px' }}>
-        <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '0 0 14px' }}>
-          Mis Listas
-        </p>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {listas.map(lista => {
-            const isActive = lista.id === listaActivaId
-            const isRenaming = renombrandoId === lista.id
-            return (
-              <div
-                key={lista.id}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  background: isActive ? '#ffffff' : 'rgba(255,255,255,0.1)',
-                  borderRadius: '20px', padding: '7px 8px 7px 13px',
-                }}
-              >
-                {isRenaming ? (
-                  <input
-                    ref={inputRenameRef}
-                    value={nombreRename}
-                    onChange={e => setNombreRename(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleConfirmarRename()
-                      if (e.key === 'Escape') { setRenombrandoId(null); setNombreRename('') }
-                    }}
-                    onBlur={handleConfirmarRename}
-                    style={{
-                      background: 'none', border: 'none', outline: 'none',
-                      fontSize: '13px', fontWeight: 700, color: '#0a0a0a',
-                      width: `${Math.max(60, nombreRename.length * 8)}px`,
-                    }}
-                  />
-                ) : (
-                  <span
-                    onClick={() => {
-                      if (!isActive) {
-                        onSeleccionarLista(lista.id)
-                      } else {
-                        setRenombrandoId(lista.id)
-                        setNombreRename(lista.nombre)
-                      }
-                    }}
-                    style={{
-                      fontSize: '13px', fontWeight: 700,
-                      color: isActive ? '#0a0a0a' : 'rgba(255,255,255,0.85)',
-                      cursor: 'pointer', userSelect: 'none',
-                    }}
-                  >
-                    {lista.nombre}
-                    {lista.items.length > 0 && (
-                      <span style={{ marginLeft: '4px', fontSize: '11px', fontWeight: 400, opacity: 0.55 }}>
-                        ({lista.items.length})
-                      </span>
-                    )}
-                  </span>
-                )}
-                <button
-                  onClick={e => { e.stopPropagation(); onEliminarLista(lista.id) }}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '2px', display: 'flex', marginLeft: '2px',
-                    color: isActive ? '#9ca3af' : 'rgba(255,255,255,0.35)',
-                  }}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            )
-          })}
+      <div className="lista-wrap">
 
+        {/* Selector de listas */}
+        <div className="lista-anim scrollbar-hide" style={{ display: 'flex', gap: '9px', padding: '10px 20px 0', overflowX: 'auto' }}>
+          {listas.map(lista => (
+            <button key={lista.id} style={tabStyle(lista.id === listaActivaId)} onClick={() => onSeleccionarLista(lista.id)}>
+              {lista.nombre}
+            </button>
+          ))}
           {creandoLista ? (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '4px',
-              background: 'rgba(255,255,255,0.12)', borderRadius: '20px',
-              padding: '7px 10px 7px 13px', border: '1.5px solid rgba(255,255,255,0.25)',
-            }}>
+            <span style={{ ...tabStyle(false), display: 'flex', alignItems: 'center', gap: '6px', cursor: 'default' }}>
               <input
                 ref={inputNuevaRef}
                 value={nombreNueva}
                 onChange={e => setNombreNueva(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleConfirmarNueva()
-                  if (e.key === 'Escape') handleCancelarNueva()
+                  if (e.key === 'Escape') { setCreandoLista(false); setNombreNueva('') }
                 }}
-                onBlur={() => { if (nombreNueva.trim()) handleConfirmarNueva(); else handleCancelarNueva() }}
-                placeholder="Nombre..."
-                style={{
-                  background: 'none', border: 'none', outline: 'none',
-                  fontSize: '13px', color: '#ffffff', width: '90px',
-                }}
+                placeholder="Nombre de la lista"
+                style={{ border: 'none', outline: 'none', fontSize: '13.5px', width: '130px', fontFamily: 'var(--font-sans)', background: 'transparent', color: 'var(--ink)' }}
               />
-            </div>
+              <Check size={14} style={{ cursor: 'pointer', color: 'var(--green)' }} onClick={handleConfirmarNueva} />
+              <X size={14} style={{ cursor: 'pointer', color: 'var(--gray)' }} onClick={() => { setCreandoLista(false); setNombreNueva('') }} />
+            </span>
           ) : (
             <button
+              style={{ ...tabStyle(false), borderStyle: 'dashed', color: 'var(--gray)', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={() => setCreandoLista(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '5px',
-                background: 'none', border: '1.5px dashed rgba(255,255,255,0.25)',
-                borderRadius: '20px', padding: '6px 13px', cursor: 'pointer',
-                color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontWeight: 600,
-              }}
             >
-              <Plus size={12} />
+              <Plus size={13} strokeWidth={2.5} />
               Nueva
             </button>
           )}
         </div>
-      </div>
 
-      {/* ANÁLISIS */}
-      {items.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '16px', textAlign: 'center', padding: '40px 20px' }}>
-          <ShoppingCart size={48} color="#2a2a2a" strokeWidth={1.5} />
-          <div>
-            <p style={{ fontSize: '16px', fontWeight: 700, color: '#f7f7f7', margin: '0 0 6px' }}>
-              {listas.length === 0 ? 'Todavía no armaste ninguna lista' : `"${listaActiva?.nombre ?? 'Esta lista'}" está vacía`}
-            </p>
-            <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
-              Usá el botón + en el catálogo para agregar productos
-            </p>
-          </div>
-          <motion.button
-            onClick={onIrAComparar}
-            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            style={{ background: '#d4a574', color: '#0a0a0a', border: 'none', borderRadius: '12px', padding: '14px 28px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
-          >
-            Ir al catálogo
-          </motion.button>
-        </div>
-      ) : (
-        <>
-          {/* HERO */}
-          <div style={{ background: '#1a1a1a', padding: '22px 20px 26px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '0 0 6px' }}>
-              {listaActiva?.nombre} · {items.length} {items.length === 1 ? 'producto' : 'productos'}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '38px', fontWeight: 900, color: '#ffffff', lineHeight: 1, fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif' }}>
-                {formatearPrecio(totalMix)}
-              </span>
-            </div>
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
-              {mixEsMejor ? 'Comprando donde más conviene por producto' : 'Comprando todo en el lugar más barato'}
-            </p>
-            {ahorroMix > 50 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', background: 'rgba(212,165,116,0.15)', borderRadius: '8px', padding: '6px 10px', width: 'fit-content' }}>
-                <TrendingDown size={14} color="#d4a574" />
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#d4a574' }}>
-                  Ahorrás {formatearPrecio(ahorroMix)} comprando inteligente
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-            {/* PRODUCTOS */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                  Productos ({items.length})
-                </span>
-                <motion.button
-                  onClick={onIrAComparar}
-                  {...iconTap}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: '1.5px solid #2a2a2a', borderRadius: '20px', padding: '5px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#f7f7f7' }}
-                >
-                  <Plus size={12} />
-                  Agregar
-                </motion.button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {items.map((item, index) => {
-                  const validos = item.producto.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
-                  const precioMejor = validos[0]?.precio ?? 0
-                  const cantidad = item.cantidad ?? 1
-                  return (
-                    <div key={index} style={{ background: '#141414', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #2a2a2a' }}>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: '#1a1a1a', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {item.producto.imageUrl ? (
-                          <Image src={item.producto.imageUrl} alt={item.producto.nombre} width={44} height={44} style={{ objectFit: 'contain' }} unoptimized />
-                        ) : (
-                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#2a2a2a' }} />
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#f7f7f7', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.producto.nombre}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
-                          <strong style={{ color: '#d4a574' }}>{formatearPrecio(precioMejor)}</strong>
-                          {cantidad > 1 && <strong style={{ color: '#d4a574' }}> × {cantidad} = {formatearPrecio(precioMejor * cantidad)}</strong>}
-                          {validos[0] && <span style={{ color: '#6b7280' }}> · {validos[0].mayorista}</span>}
-                        </p>
-                      </div>
-                      {/* Controles de cantidad */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                        <motion.button
-                          onClick={() => {
-                            if (cantidad <= 1) onEliminarItem(index)
-                            else onCambiarCantidad?.(index, cantidad - 1)
-                          }}
-                          {...iconTap}
-                          style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #2a2a2a', background: '#1a1a1a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: '#f7f7f7', lineHeight: 1 }}
-                        >
-                          −
-                        </motion.button>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#f7f7f7', minWidth: '20px', textAlign: 'center' }}>
-                          {cantidad}
-                        </span>
-                        <motion.button
-                          onClick={() => onCambiarCantidad?.(index, cantidad + 1)}
-                          {...iconTap}
-                          style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #d4a574', background: '#d4a574', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: '#0a0a0a', lineHeight: 1 }}
-                        >
-                          +
-                        </motion.button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* COMPARATIVA POR MAYORISTA */}
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.12em', display: 'block', marginBottom: '12px' }}>
-                Si comprás todo en el mismo lugar
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {opciones
-                  .sort((a, b) => a.total - b.total)
-                  .map(({ mayorista, total, cubre, total_items }) => {
-                    const esMejor = total === Math.min(...opciones.map(o => o.total))
-                    const diferencia = total - Math.min(...opciones.map(o => o.total))
-                    return (
-                      <div key={mayorista} style={{
-                        background: '#141414', borderRadius: '12px',
-                        borderLeft: `4px solid ${esMejor ? '#d4a574' : '#2a2a2a'}`,
-                        padding: '14px 16px', display: 'flex',
-                        justifyContent: 'space-between', alignItems: 'center',
+        {listaActiva && items.length > 0 ? (
+          <>
+            {/* Header sticky del ticket — el total nunca desaparece */}
+            <div className="lista-anim" style={{
+              animationDelay: '100ms',
+              position: 'sticky', top: 0, zIndex: 10,
+              background: 'rgba(255,255,255,0.94)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+              padding: '16px 20px 12px',
+              borderBottom: '1px solid var(--line)',
+              marginTop: '12px',
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  {renombrando ? (
+                    <input
+                      ref={inputRenameRef}
+                      value={nombreRename}
+                      onChange={e => setNombreRename(e.target.value)}
+                      onBlur={handleConfirmarRename}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleConfirmarRename()
+                        if (e.key === 'Escape') { setRenombrando(false); setNombreRename('') }
+                      }}
+                      style={{
+                        fontSize: '19px', fontWeight: 600, letterSpacing: '-0.3px',
+                        border: 'none', borderBottom: '1.5px solid var(--gold)', outline: 'none',
+                        fontFamily: 'var(--font-sans)', color: 'var(--ink)', background: 'transparent',
+                        width: '100%', minWidth: 0,
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <h1 className="lista-th-name" style={{
+                        fontSize: '19px', fontWeight: 600, letterSpacing: '-0.3px', margin: 0,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--ink)',
                       }}>
-                        <div>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: esMejor ? '#d4a574' : '#6b7280', textTransform: 'uppercase' }}>
-                            {mayorista}
-                            {esMejor && <span style={{ marginLeft: '6px', fontSize: '10px', background: '#d4a574', color: '#0a0a0a', padding: '2px 6px', borderRadius: '4px' }}>Más barato</span>}
-                          </span>
-                          {cubre < total_items && (
-                            <p style={{ fontSize: '11px', color: '#6b7280', margin: '2px 0 0' }}>
-                              Cubre {cubre} de {total_items} productos · resto al mejor precio disponible
-                            </p>
-                          )}
-                          {!esMejor && diferencia > 0 && (
-                            <p style={{ fontSize: '11px', color: '#6b7280', margin: '2px 0 0' }}>
-                              +{formatearPrecio(diferencia)} más caro
-                            </p>
-                          )}
+                        {listaActiva.nombre}
+                      </h1>
+                      <button
+                        onClick={() => { setNombreRename(listaActiva.nombre); setRenombrando(true) }}
+                        aria-label="Renombrar lista"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--gray)', padding: '2px', flexShrink: 0 }}
+                      >
+                        <Pencil size={15} strokeWidth={2} />
+                      </button>
+                      <button
+                        onClick={() => onEliminarLista(listaActiva.id)}
+                        aria-label="Eliminar lista"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--gray)', padding: '2px', flexShrink: 0 }}
+                      >
+                        <Trash2 size={15} strokeWidth={2} />
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
+                  {items.length} producto{items.length !== 1 ? 's' : ''} · {unidadesTotal} unidad{unidadesTotal !== 1 ? 'es' : ''} · {fechaCorta(listaActiva.creadaEn)}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div className="lista-th-total tnum" style={{ fontSize: '21.4px', fontWeight: 700, color: 'var(--ink)' }}>
+                  {formatearPrecio(totalMix)}
+                </div>
+                {ahorroMix > 0 && (
+                  <span className="tnum" style={{
+                    display: 'inline-flex',
+                    background: 'rgba(21,128,61,0.1)', color: 'var(--green)',
+                    fontSize: '11px', fontWeight: 600,
+                    borderRadius: '999px', padding: '3px 10px',
+                    marginTop: '3px',
+                  }}>
+                    Ahorrás {formatearPrecio(ahorroMix)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Toggle de modo */}
+            <div className="lista-anim" style={{
+              animationDelay: '130ms',
+              display: 'flex', margin: '14px 20px 0',
+              background: 'var(--plate)', borderRadius: '999px', padding: '4px',
+            }}>
+              <button
+                onClick={() => setModo('productos')}
+                style={{
+                  flex: 1, border: 'none',
+                  background: modo === 'productos' ? 'var(--pill)' : 'none',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '13px', fontWeight: modo === 'productos' ? 600 : 500,
+                  color: modo === 'productos' ? '#ffffff' : 'var(--gray)',
+                  padding: '9px 0', borderRadius: '999px', cursor: 'pointer',
+                  transition: 'background 180ms var(--ease-out), color 180ms var(--ease-out)',
+                }}
+              >
+                Productos
+              </button>
+              <button
+                onClick={() => setModo('plan')}
+                style={{
+                  flex: 1, border: 'none',
+                  background: modo === 'plan' ? 'var(--pill)' : 'none',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '13px', fontWeight: modo === 'plan' ? 600 : 500,
+                  color: modo === 'plan' ? '#ffffff' : 'var(--gray)',
+                  padding: '9px 0', borderRadius: '999px', cursor: 'pointer',
+                  transition: 'background 180ms var(--ease-out), color 180ms var(--ease-out)',
+                }}
+              >
+                Dónde comprar
+              </button>
+            </div>
+
+            {modo === 'productos' ? (
+              <div className="lista-view" key="productos">
+                {/* Ticket: items con su mayorista en cada fila */}
+                <div style={{ padding: '4px 20px 0' }}>
+                  {items.map((item, idx) => {
+                    const mejor = mejorPrecioDe(item)
+                    const cant = item.cantidad ?? 1
+                    if (!mejor) return null
+                    return (
+                      <div key={item.producto.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '12px',
+                        padding: '14px 0',
+                        borderBottom: idx === items.length - 1 ? 'none' : '1px solid var(--line)',
+                      }}>
+                        <ItemThumb item={item} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--ink)' }}>
+                            {item.producto.nombre}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '9px' }}>
+                              <button
+                                onClick={() => cant > 1 ? onCambiarCantidad?.(idx, cant - 1) : onEliminarItem(idx)}
+                                aria-label={cant > 1 ? 'Restar unidad' : 'Quitar producto'}
+                                style={{
+                                  width: '21px', height: '21px', borderRadius: '99px',
+                                  border: '1.2px solid var(--line)', background: '#ffffff',
+                                  fontSize: '12px', lineHeight: 1, color: 'var(--ink)',
+                                  fontFamily: 'var(--font-sans)', cursor: 'pointer',
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                }}
+                              >
+                                −
+                              </button>
+                              <b className="tnum" style={{ fontWeight: 600, color: 'var(--ink)', fontSize: '12.5px' }}>{cant}</b>
+                              <button
+                                onClick={() => onCambiarCantidad?.(idx, cant + 1)}
+                                aria-label="Sumar unidad"
+                                style={{
+                                  width: '21px', height: '21px', borderRadius: '99px',
+                                  border: '1.2px solid var(--line)', background: '#ffffff',
+                                  fontSize: '12px', lineHeight: 1, color: 'var(--ink)',
+                                  fontFamily: 'var(--font-sans)', cursor: 'pointer',
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                }}
+                              >
+                                +
+                              </button>
+                            </span>
+                            <span className="tnum">× {formatearPrecio(mejor.precio)}</span>
+                          </div>
                         </div>
-                        <span style={{ fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif', fontSize: '22px', fontWeight: 800, color: '#f7f7f7', flexShrink: 0 }}>
-                          {formatearPrecio(total)}
-                        </span>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div className="tnum" style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--ink)' }}>
+                            {formatearPrecio(mejor.precio * cant)}
+                          </div>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            fontSize: '9.5px', fontWeight: 600, letterSpacing: '0.06em',
+                            color: '#ffffff', background: 'var(--pill)',
+                            borderRadius: '999px', padding: '2.5px 9px',
+                            marginTop: '4px', textTransform: 'uppercase',
+                          }}>
+                            {mejor.mayorista}
+                          </span>
+                        </div>
                       </div>
                     )
                   })}
-              </div>
-            </div>
-
-            {/* PLAN DE COMPRA MIXTA */}
-            {mixEsMejor && mixDetallado.length > 1 && (
-              <div style={{ background: '#141414', borderRadius: '16px', border: '1.5px solid #d4a574', padding: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                  <div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#d4a574', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Comprá en varios para ahorrar más
-                    </span>
-                    <p style={{ fontSize: '13px', color: '#6b7280', margin: '3px 0 0' }}>
-                      Ahorrás {formatearPrecio(ahorroMix)} comprando en varios lugares
-                    </p>
-                  </div>
-                  <span style={{ fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif', fontSize: '22px', fontWeight: 800, color: '#f7f7f7' }}>{formatearPrecio(totalMix)}</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+                {/* Pie del ticket — divisor punteado como un recibo */}
+                <div style={{ padding: '0 20px' }}>
+                  <div style={{ borderTop: '2px dashed var(--line)', margin: '16px 0 0' }} />
+
                   {mixDetallado.map(grupo => (
-                    <div key={grupo.mayorista}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid #2a2a2a' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#f7f7f7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                          {grupo.mayorista}
+                    <div key={grupo.mayorista} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 0 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                        <ChipMayorista mayorista={grupo.mayorista} w={58} h={26} />
+                        <span className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300 }}>
+                          {grupo.productos.length} producto{grupo.productos.length !== 1 ? 's' : ''} · {grupo.unidades} unidad{grupo.unidades !== 1 ? 'es' : ''}
                         </span>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#f7f7f7' }}>{formatearPrecio(grupo.total)}</span>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        {grupo.productos.map((p, i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '12px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                              {p.nombre}
-                            </span>
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#d4a574', flexShrink: 0 }}>{formatearPrecio(p.precio)}</span>
-                          </div>
-                        ))}
+                      <span className="tnum" style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--ink)' }}>
+                        {formatearPrecio(grupo.total)}
+                      </span>
+                    </div>
+                  ))}
+
+                  <div style={{ borderTop: '2px dashed var(--line)', marginTop: '16px' }} />
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '16px 0 0' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.14em', color: 'var(--ink)' }}>TOTAL</span>
+                    <span className="tnum" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--ink)' }}>{formatearPrecio(totalMix)}</span>
+                  </div>
+                  {ahorroMix > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--gray)', fontWeight: 300 }}>vs. comprar todo en un solo mayorista</span>
+                      <span className="tnum" style={{ color: 'var(--green)', fontWeight: 600 }}>−{formatearPrecio(ahorroMix)} ({ahorroMixPct}%)</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="lista-view" key="plan">
+                {/* Ranking un-solo-lugar */}
+                <div style={{
+                  padding: '22px 20px 0',
+                  fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.14em',
+                  color: 'var(--gray)', textTransform: 'uppercase',
+                }}>
+                  Si comprás todo en el mismo lugar
+                </div>
+                <div style={{ padding: '6px 20px 0' }}>
+                  {opciones.map((op, idx) => (
+                    <div key={op.mayorista} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                      padding: '13px 0',
+                      borderBottom: idx === opciones.length - 1 ? 'none' : '1px solid var(--line)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <ChipMayorista mayorista={op.mayorista} w={64} h={28} />
+                        {idx === 0 ? (
+                          <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em' }}>MÁS BARATO</span>
+                        ) : (
+                          <span className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300 }}>
+                            +{formatearPrecio(op.total - opciones[0].total)} más caro
+                          </span>
+                        )}
                       </div>
+                      <span className="tnum" style={{ fontSize: '16.5px', fontWeight: idx === 0 ? 600 : 500, color: 'var(--ink)' }}>
+                        {formatearPrecio(op.total)}
+                      </span>
                     </div>
                   ))}
                 </div>
+
+                {/* Card del mix — borde dorado */}
+                {mixDetallado.length > 1 && ahorroMix > 0 && (
+                  <div style={{
+                    margin: '22px 20px 0',
+                    border: '1.5px solid var(--gold)',
+                    borderRadius: '12px',
+                    padding: '18px 18px 8px',
+                    position: 'relative',
+                  }}>
+                    <span style={{
+                      position: 'absolute', top: '-11px', left: '16px',
+                      background: 'var(--gold)', color: '#ffffff',
+                      fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.1em',
+                      borderRadius: '999px', padding: '4px 12px',
+                    }}>
+                      COMPRÁ EN VARIOS PARA AHORRAR MÁS
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: '4px' }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--ink)' }}>
+                        {mixDetallado.length} mayoristas
+                      </span>
+                      <span className="tnum" style={{ fontSize: '23px', fontWeight: 700, color: 'var(--ink)' }}>
+                        {formatearPrecio(totalMix)}
+                      </span>
+                    </div>
+                    <div className="tnum" style={{ fontSize: '12.5px', color: 'var(--green)', fontWeight: 600, marginTop: '2px' }}>
+                      Ahorrás {formatearPrecio(ahorroMix)} comprando en varios lugares
+                    </div>
+
+                    {mixDetallado.map(grupo => (
+                      <div key={grupo.mayorista} style={{ marginTop: '16px' }}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 0',
+                          borderBottom: '1px solid var(--line)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                            <ChipMayorista mayorista={grupo.mayorista} w={60} h={26} />
+                            <span className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300 }}>
+                              {grupo.productos.length} producto{grupo.productos.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <span className="tnum" style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--ink)' }}>
+                            {formatearPrecio(grupo.total)}
+                          </span>
+                        </div>
+                        {grupo.productos.map(p => (
+                          <div key={p.nombre} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '9px 0 9px 4px',
+                            borderBottom: '1px solid var(--plate)',
+                          }}>
+                            <span className="line-clamp-1" style={{ fontSize: '13px', fontWeight: 300, color: 'var(--ink)', paddingRight: '12px' }}>
+                              {p.nombre} <span className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)' }}>×{p.cantidad}</span>
+                            </span>
+                            <span className="tnum" style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)', flexShrink: 0 }}>
+                              {formatearPrecio(p.precio * p.cantidad)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {gananciaTotal > 0 && (
-              <p style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center' }}>
-                Con margen {margenPromedio}%: <strong style={{ color: '#d4a574' }}>{formatearPrecio(gananciaTotal)}</strong> de ganancia estimada
-              </p>
-            )}
-
+            {/* CTA */}
+            <div style={{ padding: '22px 20px 40px', display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleWhatsApp}
+                aria-label="Compartir"
+                style={{
+                  background: '#ffffff', color: 'var(--ink)',
+                  border: '1.5px solid var(--ink)', borderRadius: '999px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '14.5px', fontWeight: 500,
+                  padding: '14px 22px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '7px', flexShrink: 0,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" /></svg>
+                Compartir
+              </button>
+              <button
+                onClick={() => modo === 'productos' ? setModo('plan') : handleWhatsApp()}
+                style={{
+                  flex: 1,
+                  background: 'var(--pill)', color: '#ffffff',
+                  border: 'none', borderRadius: '999px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '14.5px', fontWeight: 500,
+                  padding: '14px 0', cursor: 'pointer',
+                }}
+              >
+                {modo === 'productos' ? 'Ver dónde comprar' : 'Enviar por WhatsApp'}
+              </button>
+            </div>
+          </>
+        ) : (
+          /* Empty state */
+          <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '17px', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>
+              {listas.length === 0 ? 'Todavía no tenés listas' : 'Esta lista está vacía'}
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--gray)', fontWeight: 300, marginBottom: '24px', lineHeight: 1.5 }}>
+              Agregá productos desde el catálogo con el botón +<br />y armá tu pedido al mejor precio
+            </div>
+            <button
+              onClick={onIrAComparar}
+              style={{
+                background: 'var(--pill)', color: '#ffffff',
+                border: 'none', borderRadius: '999px',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '14.5px', fontWeight: 500,
+                padding: '14px 28px', cursor: 'pointer',
+              }}
+            >
+              Explorar el catálogo
+            </button>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   )
 }

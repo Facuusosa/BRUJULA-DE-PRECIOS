@@ -1,13 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Lock, MessageCircle, Building2, User, CreditCard } from 'lucide-react'
-import { PricingSection } from './pricing-section'
-import { btnHover, iconTap, chipHover } from '@/lib/motion-variants'
+import { useState, useEffect, useMemo } from 'react'
+import Image from 'next/image'
+import { User, Store, Star, Lock, Bell, MessageCircle, HelpCircle, FileText, ChevronRight, ArrowRight } from 'lucide-react'
+import { productos } from '@/lib/data'
+import CountUp from '@/components/reactbits/TextAnimations/CountUp/CountUp'
 
 const WHATSAPP_NUMERO = '541168079566'
-const WHATSAPP_MSG = encodeURIComponent('Hola Facundo, quiero activar el plan Pro de Brujula de Precios')
+const WHATSAPP_MSG_SUGERIR = encodeURIComponent('Hola! Quiero sugerir un producto o mayorista para Brújula de Precios: ')
+
+interface VistaCuentaProps {
+  onIrAPlanes?: () => void
+}
 
 interface BrujulaPerfil {
   nombre: string
@@ -16,366 +20,463 @@ interface BrujulaPerfil {
 interface BrujulaConfig {
   nombreNegocio: string
   rubro: 'Almacen' | 'Kiosco' | 'Minimercado' | 'Otro'
-  mayoristasPreferidos: string[]
+  avisosBombas?: boolean
 }
 
-const MAYORISTAS = ['Yaguar', 'Maxiconsumo', 'MaxiCarrefour']
-const RUBROS = ['Almacen', 'Kiosco', 'Minimercado', 'Otro'] as const
+const LOGOS: Record<string, string> = {
+  'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
+  'Yaguar':        '/mayoristas/yaguar.png',
+  'MaxiCarrefour': '/mayoristas/maxicarrefour.jpg',
+}
 
-const TABS = [
-  { id: 'perfil',      label: 'Perfil',       icon: User },
-  { id: 'negocio',     label: 'Mi negocio',   icon: Building2 },
-  { id: 'facturacion', label: 'Facturación',  icon: CreditCard },
-] as const
+function diasDesde(fecha: string): string {
+  const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000)
+  if (dias <= 0) return 'Actualizado hoy'
+  if (dias === 1) return 'Actualizado ayer'
+  return `Actualizado hace ${dias} días`
+}
 
-type TabId = typeof TABS[number]['id']
+function Switch({ on, locked, onToggle }: { on: boolean; locked?: boolean; onToggle?: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={locked}
+      aria-checked={on}
+      role="switch"
+      style={{
+        width: '44px', height: '26px', borderRadius: '99px',
+        background: on ? 'var(--green)' : 'var(--line)',
+        position: 'relative', flexShrink: 0,
+        border: 'none',
+        cursor: locked ? 'default' : 'pointer',
+        opacity: locked ? 0.45 : 1,
+        transition: 'background 200ms ease',
+        padding: 0,
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: '3px', left: '3px',
+        width: '20px', height: '20px', borderRadius: '99px', background: '#ffffff',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        transform: on ? 'translateX(18px)' : 'translateX(0)',
+        transition: 'transform 200ms var(--ease-out)',
+        display: 'block',
+      }} />
+    </button>
+  )
+}
 
-export function VistaCuenta() {
-  const [tabActiva, setTabActiva] = useState<TabId>('perfil')
+export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
   const [perfil, setPerfil] = useState<BrujulaPerfil>({ nombre: '' })
-  const [config, setConfig] = useState<BrujulaConfig>({
-    nombreNegocio: '',
-    rubro: 'Almacen',
-    mayoristasPreferidos: ['Yaguar', 'Maxiconsumo', 'MaxiCarrefour'],
-  })
-  const [guardadoPerfil, setGuardadoPerfil] = useState(false)
-  const [guardadoNegocio, setGuardadoNegocio] = useState(false)
+  const [config, setConfig] = useState<BrujulaConfig>({ nombreNegocio: '', rubro: 'Kiosco', avisosBombas: true })
+  const [listasCount, setListasCount] = useState(0)
+  const [editandoNombre, setEditandoNombre] = useState(false)
+  const [expandida, setExpandida] = useState<string | null>(null)
+  const [cargado, setCargado] = useState(false)
 
   useEffect(() => {
     const savedPerfil = localStorage.getItem('brujula_perfil')
     if (savedPerfil) { try { setPerfil(JSON.parse(savedPerfil)) } catch {} }
     const savedConfig = localStorage.getItem('brujula_config')
-    if (savedConfig) { try { setConfig(JSON.parse(savedConfig)) } catch {} }
+    if (savedConfig) { try { setConfig(prev => ({ ...prev, ...JSON.parse(savedConfig) })) } catch {} }
+    const savedListas = localStorage.getItem('brujula_listas')
+    if (savedListas) { try { setListasCount(JSON.parse(savedListas).length) } catch {} }
+    setCargado(true)
   }, [])
 
-  const handleGuardarPerfil = () => {
-    localStorage.setItem('brujula_perfil', JSON.stringify(perfil))
-    setGuardadoPerfil(true)
-    setTimeout(() => setGuardadoPerfil(false), 2000)
+  useEffect(() => {
+    if (cargado) localStorage.setItem('brujula_perfil', JSON.stringify(perfil))
+  }, [perfil, cargado])
+
+  useEffect(() => {
+    if (cargado) localStorage.setItem('brujula_config', JSON.stringify(config))
+  }, [config, cargado])
+
+  const comparados = useMemo(() => productos.filter(p => p.precios.filter(pr => pr.precio > 0).length >= 2).length, [])
+
+  const ahorroTotal = useMemo(() =>
+    productos.reduce((sum, p) => {
+      const validos = p.precios.filter(pr => pr.precio > 0)
+      if (validos.length < 2) return sum
+      const min = Math.min(...validos.map(v => v.precio))
+      const max = Math.max(...validos.map(v => v.precio))
+      return sum + (max - min)
+    }, 0), []
+  )
+
+  // Productos donde Maxiconsumo (el mayorista PRO) tiene el mejor precio
+  const perdidasMaxiconsumo = useMemo(() =>
+    productos.filter(p => {
+      const validos = p.precios.filter(pr => pr.precio > 0)
+      if (validos.length < 2) return false
+      const mejor = validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
+      return mejor.mayorista === 'Maxiconsumo'
+    }).length, []
+  )
+
+  const fechaDatos = useMemo(() => {
+    let max = ''
+    for (const p of productos) {
+      for (const pr of p.precios) {
+        if (pr.fechaScraping && pr.fechaScraping > max) max = pr.fechaScraping
+      }
+    }
+    return max ? new Date(max).toLocaleDateString('es-AR') : ''
+  }, [])
+
+  const ultimaActualizacion = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const p of productos) {
+      for (const pr of p.precios) {
+        if (pr.fechaScraping && (!out[pr.mayorista] || pr.fechaScraping > out[pr.mayorista])) {
+          out[pr.mayorista] = pr.fechaScraping
+        }
+      }
+    }
+    return out
+  }, [])
+
+  const inicial = (perfil.nombre || 'B').trim().charAt(0).toUpperCase()
+
+  const handleBorrarDatos = () => {
+    if (window.confirm('¿Borrar todas tus listas, favoritos y datos de perfil de este dispositivo?')) {
+      localStorage.clear()
+      window.location.reload()
+    }
   }
 
-  const handleGuardarNegocio = () => {
-    localStorage.setItem('brujula_config', JSON.stringify(config))
-    setGuardadoNegocio(true)
-    setTimeout(() => setGuardadoNegocio(false), 2000)
+  const grStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '12px',
+    minHeight: '54px',
+    padding: '8px 16px',
+    borderBottom: '1px solid var(--plate)',
+    background: '#ffffff',
+    width: '100%', textAlign: 'left',
   }
 
-  const toggleMayorista = (m: string) => {
-    setConfig(prev => ({
-      ...prev,
-      mayoristasPreferidos: prev.mayoristasPreferidos.includes(m)
-        ? prev.mayoristasPreferidos.filter(x => x !== m)
-        : [...prev.mayoristasPreferidos, m],
-    }))
+  const groupLabelStyle: React.CSSProperties = {
+    padding: '28px 20px 8px',
+    fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.14em',
+    color: 'var(--gray)', textTransform: 'uppercase',
   }
 
-  const iniciales = perfil.nombre
-    ? perfil.nombre.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
-    : '?'
+  const groupStyle: React.CSSProperties = {
+    margin: '0 20px',
+    border: '1px solid var(--line)', borderRadius: '12px', overflow: 'hidden',
+  }
 
-  const tabIndex = TABS.findIndex(t => t.id === tabActiva)
+  const proPillStyle: React.CSSProperties = {
+    fontSize: '9.5px', fontWeight: 600, letterSpacing: '0.08em',
+    color: 'var(--gold)', border: '1px solid var(--gold)',
+    borderRadius: '999px', padding: '2px 8px', flexShrink: 0,
+  }
 
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100%', paddingBottom: '40px' }}>
+    <div style={{ background: '#ffffff', minHeight: '100%', paddingBottom: '40px' }}>
       <style>{`
-        .cuenta-input {
-          width: 100%;
-          padding: 12px 14px;
-          border: 1.5px solid #2a2a2a;
-          border-radius: 8px;
-          font-size: 14px;
-          color: #f7f7f7;
-          background: #141414;
-          outline: none;
-          box-sizing: border-box;
-          font-family: inherit;
-          transition: border-color 0.2s;
+        @keyframes perfil-rise { to { opacity: 1; transform: translateY(0); } }
+        .perfil-anim { opacity: 0; transform: translateY(10px); animation: perfil-rise 380ms var(--ease-out) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .perfil-anim { transform: none; animation-duration: 150ms; }
         }
-        .cuenta-input:focus { border-color: #d4a574; }
-        .cuenta-input option { background: #141414; color: #f7f7f7; }
-        .cuenta-label {
-          font-size: 11px;
-          font-weight: 700;
-          color: #6b7280;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          margin-bottom: 6px;
-          display: block;
+        .perfil-wrap { max-width: 700px; margin: 0 auto; }
+        .perfil-gr-press { cursor: pointer; border: none; font-family: var(--font-sans); }
+        @media (hover: hover) and (pointer: fine) {
+          .perfil-gr-press:hover { background: #fafafa !important; }
         }
-        .cuenta-label-muted {
-          font-size: 11px;
-          font-weight: 700;
-          color: #6b7280;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          margin-bottom: 6px;
-          display: block;
-          opacity: 0.6;
-        }
-        @keyframes borderPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.4); }
-          50%       { box-shadow: 0 0 0 8px rgba(212, 165, 116, 0); }
-        }
-        .pro-pulse { animation: borderPulse 2.5s ease-in-out infinite; }
       `}</style>
 
-      {/* Tab bar sticky */}
-      <div style={{ position: 'sticky', top: 0, background: '#0a0a0a', zIndex: 10, borderBottom: '1px solid #2a2a2a' }}>
-        <div style={{ maxWidth: '500px', margin: '0 auto', position: 'relative' }}>
-          <div style={{ display: 'flex' }}>
-            {TABS.map(tab => {
-              const Icon = tab.icon
-              const isActive = tabActiva === tab.id
-              return (
-                <motion.button
-                  key={tab.id}
-                  onClick={() => setTabActiva(tab.id)}
-                  whileHover={!isActive ? { backgroundColor: 'rgba(212,165,116,0.06)' } : {}}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  style={{
-                    flex: 1,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    padding: '14px 8px',
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? '#d4a574' : '#6b7280',
-                    borderRadius: '0',
-                  }}
-                >
-                  <Icon size={15} />
-                  {tab.label}
-                </motion.button>
-              )
-            })}
-          </div>
-          {/* Underline deslizante */}
+      <div className="perfil-wrap">
+
+        {/* Identidad */}
+        <div className="perfil-anim" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px 20px 0' }}>
           <div style={{
-            position: 'absolute', bottom: 0, left: 0,
-            width: `${100 / TABS.length}%`,
-            height: '2px', background: '#d4a574',
-            transform: `translateX(${tabIndex * 100}%)`,
-            transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-          }} />
+            width: '60px', height: '60px', borderRadius: '999px',
+            background: 'var(--plate)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '25px', fontWeight: 600, color: 'var(--gold)',
+            flexShrink: 0,
+          }}>
+            {inicial}
+          </div>
+          <div>
+            <h1 style={{ fontSize: '21.4px', fontWeight: 600, letterSpacing: '-0.3px', margin: 0, color: 'var(--ink)' }}>
+              {perfil.nombre || 'Tu negocio'}
+            </h1>
+            <div style={{ fontSize: '12.5px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
+              {config.rubro === 'Almacen' ? 'Almacén' : config.rubro} · Buenos Aires
+            </div>
+            <span style={{
+              display: 'inline-flex', marginTop: '6px',
+              background: 'var(--pill)', color: '#ffffff',
+              fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.1em',
+              borderRadius: '999px', padding: '3px 11px',
+            }}>
+              PLAN FREE
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Contenido tabs */}
-      <div style={{ maxWidth: '500px', margin: '0 auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-        {/* ── TAB PERFIL ── */}
-        {tabActiva === 'perfil' && (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '28px 0 16px' }}>
-              <div style={{
-                width: '72px', height: '72px', borderRadius: '50%',
-                background: '#d4a574', color: '#0a0a0a',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '24px', fontWeight: 800, letterSpacing: '0.02em',
-                userSelect: 'none',
-              }}>
-                {iniciales}
-              </div>
-              {perfil.nombre && (
-                <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f7f7f7' }}>{perfil.nombre}</p>
-              )}
+        {/* Stats con CountUp */}
+        <div className="perfil-anim" style={{ animationDelay: '100ms', display: 'flex', gap: '10px', padding: '18px 20px 0' }}>
+          <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
+            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+              {cargado ? <CountUp from={0} to={comparados} duration={0.9} separator="." /> : comparados.toLocaleString('es-AR')}
             </div>
-
-            <div style={{ background: '#141414', borderRadius: '12px', border: '1px solid #2a2a2a', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <label className="cuenta-label" htmlFor="perfil-nombre">¿Cómo te llamás?</label>
-                <input
-                  id="perfil-nombre"
-                  className="cuenta-input"
-                  placeholder="Tu nombre o apodo"
-                  value={perfil.nombre}
-                  onChange={e => setPerfil({ nombre: e.target.value })}
-                />
-              </div>
-
-              {/* Email bloqueado */}
-              <div>
-                <label className="cuenta-label-muted">Email (disponible en PRO)</label>
-                <motion.div
-                  onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`, '_blank')}
-                  whileHover={{ borderColor: '#d4a574' }}
-                  transition={{ duration: 0.15 }}
-                  style={{
-                    padding: '12px 14px',
-                    background: '#1a1a1a',
-                    border: '1.5px solid #2a2a2a',
-                    borderRadius: '8px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Lock size={14} color="#6b7280" />
-                    <span style={{ fontSize: '14px', color: '#6b7280' }}>tu@email.com</span>
-                  </div>
-                  <span style={{ background: '#d4a574', color: '#0a0a0a', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>PRO</span>
-                </motion.div>
-              </div>
-
-              {/* Contraseña bloqueada */}
-              <div>
-                <label className="cuenta-label-muted">Contraseña (disponible en PRO)</label>
-                <motion.div
-                  onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`, '_blank')}
-                  whileHover={{ borderColor: '#d4a574' }}
-                  transition={{ duration: 0.15 }}
-                  style={{
-                    padding: '12px 14px',
-                    background: '#1a1a1a',
-                    border: '1.5px solid #2a2a2a',
-                    borderRadius: '8px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Lock size={14} color="#6b7280" />
-                    <span style={{ fontSize: '14px', color: '#6b7280' }}>••••••••</span>
-                  </div>
-                  <span style={{ background: '#d4a574', color: '#0a0a0a', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>PRO</span>
-                </motion.div>
-              </div>
-
-              <motion.button
-                onClick={handleGuardarPerfil}
-                {...btnHover}
-                style={{
-                  background: guardadoPerfil ? '#16a34a' : '#d4a574',
-                  color: '#0a0a0a', border: 'none', borderRadius: '6px',
-                  padding: '12px', fontSize: '14px', fontWeight: 700,
-                  cursor: 'pointer',
-                  letterSpacing: '0.05em',
-                  fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {guardadoPerfil ? 'Guardado' : 'Guardar'}
-              </motion.button>
+            <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
+              productos comparados
             </div>
-          </>
-        )}
+          </div>
+          <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
+            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--green)' }}>
+              {cargado ? <CountUp from={0} to={Math.round(ahorroTotal / 1000000)} duration={0.9} prefix="$" suffix=" M" separator="." /> : `$${Math.round(ahorroTotal / 1000000)} M`}
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
+              ahorro detectado en catálogo
+            </div>
+          </div>
+          <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
+            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+              {cargado ? <CountUp from={0} to={listasCount} duration={0.5} /> : listasCount}
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
+              listas activas
+            </div>
+          </div>
+        </div>
 
-        {/* ── TAB MI NEGOCIO ── */}
-        {tabActiva === 'negocio' && (
-          <div style={{ background: '#141414', borderRadius: '12px', border: '1px solid #2a2a2a', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
-              Estos datos personalizan tu experiencia en la app
-            </p>
+        {/* Banner de upgrade → Planes */}
+        <button
+          className="perfil-anim perfil-gr-press"
+          onClick={onIrAPlanes}
+          style={{
+            animationDelay: '150ms',
+            margin: '18px 20px 0',
+            width: 'calc(100% - 40px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+            border: '1.5px solid var(--gold)', borderRadius: '12px',
+            padding: '14px 16px',
+            background: 'linear-gradient(100deg, rgba(200,144,85,0.07), transparent 70%)',
+            cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
+              Te estás perdiendo el más barato
+            </div>
+            <div className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px' }}>
+              Maxiconsumo tuvo el mejor precio en {perdidasMaxiconsumo.toLocaleString('es-AR')} productos
+            </div>
+          </div>
+          <span style={{
+            flexShrink: 0,
+            width: '34px', height: '34px', borderRadius: '99px',
+            background: 'var(--gold)', color: '#ffffff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <ArrowRight size={16} strokeWidth={2.5} />
+          </span>
+        </button>
 
-            <div>
-              <label className="cuenta-label" htmlFor="nombre-negocio">Nombre del negocio</label>
+        {/* Mi negocio */}
+        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '180ms' }}>Mi negocio</div>
+        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '180ms' }}>
+          <div style={grStyle}>
+            <User size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Nombre</div>
+            </div>
+            {editandoNombre ? (
               <input
-                id="nombre-negocio"
-                className="cuenta-input"
-                placeholder="Tu almacen, kiosco, negocio..."
-                value={config.nombreNegocio}
-                onChange={e => setConfig(prev => ({ ...prev, nombreNegocio: e.target.value }))}
+                autoFocus
+                value={perfil.nombre}
+                onChange={e => setPerfil({ nombre: e.target.value })}
+                onBlur={() => setEditandoNombre(false)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditandoNombre(false) }}
+                placeholder="Tu nombre"
+                style={{
+                  fontSize: '13px', color: 'var(--ink)', textAlign: 'right',
+                  border: 'none', borderBottom: '1.5px solid var(--gold)', outline: 'none',
+                  fontFamily: 'var(--font-sans)', background: 'transparent', width: '140px',
+                }}
               />
-            </div>
+            ) : (
+              <>
+                <span
+                  onClick={() => setEditandoNombre(true)}
+                  style={{ fontSize: '13px', color: 'var(--gray)', fontWeight: 300, cursor: 'pointer' }}
+                >
+                  {perfil.nombre || 'Agregar'}
+                </span>
+                <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => setEditandoNombre(true)} />
+              </>
+            )}
+          </div>
 
-            <div>
-              <label className="cuenta-label" htmlFor="rubro">Rubro</label>
-              <select
-                id="rubro"
-                className="cuenta-input"
-                value={config.rubro}
-                onChange={e => setConfig(prev => ({ ...prev, rubro: e.target.value as BrujulaConfig['rubro'] }))}
-                style={{ cursor: 'pointer' }}
-              >
-                {RUBROS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+          <div style={grStyle}>
+            <Store size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Rubro</div>
             </div>
-
-            <div>
-              <span className="cuenta-label">Mayoristas que usás</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {MAYORISTAS.map(m => (
-                  <motion.label
-                    key={m}
-                    whileHover={{ backgroundColor: 'rgba(212,165,116,0.06)' }}
-                    transition={{ duration: 0.15 }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '10px',
-                      cursor: 'pointer', padding: '8px 10px', borderRadius: '8px',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={config.mayoristasPreferidos.includes(m)}
-                      onChange={() => toggleMayorista(m)}
-                      style={{ width: '18px', height: '18px', accentColor: '#d4a574', cursor: 'pointer' }}
-                    />
-                    <span style={{ fontSize: '14px', color: '#f7f7f7', fontWeight: 500, flex: 1 }}>{m}</span>
-                    {m === 'MaxiCarrefour' && (
-                      <span style={{ background: '#d4a574', color: '#0a0a0a', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>
-                        PRO
-                      </span>
-                    )}
-                  </motion.label>
-                ))}
-              </div>
-            </div>
-
-            <motion.button
-              onClick={handleGuardarNegocio}
-              {...btnHover}
+            <select
+              value={config.rubro}
+              onChange={e => setConfig(prev => ({ ...prev, rubro: e.target.value as BrujulaConfig['rubro'] }))}
+              aria-label="Rubro del negocio"
               style={{
-                background: guardadoNegocio ? '#16a34a' : '#d4a574',
-                color: '#0a0a0a', border: 'none', borderRadius: '6px',
-                padding: '12px', fontSize: '14px', fontWeight: 700,
-                cursor: 'pointer',
-                letterSpacing: '0.05em',
-                fontFamily: 'var(--font-barlow-condensed), "Barlow Condensed", sans-serif',
-                textTransform: 'uppercase',
+                fontSize: '13px', color: 'var(--gray)', fontWeight: 300,
+                border: 'none', outline: 'none', background: 'transparent',
+                fontFamily: 'var(--font-sans)', cursor: 'pointer', textAlign: 'right',
               }}
             >
-              {guardadoNegocio ? 'Guardado' : 'Guardar'}
-            </motion.button>
+              <option value="Kiosco">Kiosco</option>
+              <option value="Almacen">Almacén</option>
+              <option value="Minimercado">Minimercado</option>
+              <option value="Otro">Otro</option>
+            </select>
           </div>
-        )}
 
-        {/* ── TAB FACTURACIÓN ── */}
-        {tabActiva === 'facturacion' && (
-          <>
-            <PricingSection
-              onWhatsApp={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`, '_blank')}
-            />
-
-            {/* Contacto */}
-            <div style={{ background: '#141414', borderRadius: '12px', border: '1px solid #2a2a2a', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#f7f7f7' }}>¿Preguntas?</p>
-                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>Escribinos por WhatsApp</p>
-                </div>
-                <motion.button
-                  onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMERO}`, '_blank')}
-                  {...btnHover}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    background: '#d4a574', color: '#0a0a0a',
-                    border: 'none', borderRadius: '6px',
-                    padding: '8px 14px', fontSize: '13px', fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <MessageCircle size={16} />
-                  Escribir
-                </motion.button>
-              </div>
-              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #2a2a2a' }}>
-                <p style={{ margin: 0, fontSize: '11px', color: '#6b7280', textAlign: 'center' }}>Brujula de Precios v1.0</p>
-              </div>
+          <button className="perfil-gr-press" style={grStyle} onClick={onIrAPlanes}>
+            <Star size={20} strokeWidth={1.7} color="var(--gold)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Mi plan</div>
+              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Gratis · 2 de 3 mayoristas</div>
             </div>
-          </>
-        )}
+            <span style={proPillStyle}>VER PLANES</span>
+            <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0 }} />
+          </button>
 
+          <div style={{ ...grStyle, borderBottom: 'none' }}>
+            <Lock size={20} strokeWidth={1.7} color="var(--gray)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Email y contraseña</div>
+              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Accedé desde cualquier dispositivo</div>
+            </div>
+            <span style={proPillStyle}>PRO</span>
+          </div>
+        </div>
+
+        {/* Mis mayoristas */}
+        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '210ms' }}>Mis mayoristas</div>
+        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '210ms' }}>
+          {(['MaxiCarrefour', 'Yaguar', 'Maxiconsumo'] as const).map((m, idx) => {
+            const esPro = m === 'Maxiconsumo'
+            return (
+              <div key={m} style={{ ...grStyle, borderBottom: idx === 2 ? 'none' : '1px solid var(--plate)' }}>
+                <span style={{
+                  width: '56px', height: '24px', borderRadius: '5px',
+                  border: '1px solid var(--line)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <Image
+                    src={LOGOS[m]}
+                    alt={m}
+                    width={46}
+                    height={15}
+                    style={{ maxWidth: '46px', maxHeight: '15px', objectFit: 'contain', width: 'auto', height: 'auto' }}
+                    unoptimized
+                  />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>{m}</div>
+                  <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
+                    {esPro ? 'Desbloquealo con PRO' : (ultimaActualizacion[m] ? diasDesde(ultimaActualizacion[m]) : 'Precios incluidos')}
+                  </div>
+                </div>
+                {esPro && <span style={proPillStyle}>PRO</span>}
+                <Switch on={!esPro} locked={esPro} />
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Avisos */}
+        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '240ms' }}>Avisos</div>
+        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '240ms' }}>
+          <div style={{ ...grStyle, borderBottom: 'none' }}>
+            <Bell size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Avisarme de bombas nuevas</div>
+              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Cuando un producto tuyo baje fuerte</div>
+            </div>
+            <Switch
+              on={config.avisosBombas !== false}
+              onToggle={() => setConfig(prev => ({ ...prev, avisosBombas: prev.avisosBombas === false }))}
+            />
+          </div>
+        </div>
+
+        {/* Ayuda */}
+        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '270ms' }}>Ayuda</div>
+        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '270ms' }}>
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG_SUGERIR}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="perfil-gr-press"
+            style={{ ...grStyle, textDecoration: 'none' }}
+          >
+            <MessageCircle size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Sugerir un producto o mayorista</div>
+              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Por WhatsApp, te respondemos en el día</div>
+            </div>
+            <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0 }} />
+          </a>
+
+          <button
+            className="perfil-gr-press"
+            style={grStyle}
+            onClick={() => setExpandida(expandida === 'precios' ? null : 'precios')}
+          >
+            <HelpCircle size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Cómo funcionan los precios</div>
+              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>De dónde salen y cada cuánto se actualizan</div>
+            </div>
+            <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0, transform: expandida === 'precios' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms var(--ease-out)' }} />
+          </button>
+          {expandida === 'precios' && (
+            <div style={{ padding: '4px 16px 14px 48px', fontSize: '12.5px', color: 'var(--gray)', fontWeight: 300, lineHeight: 1.5, background: '#ffffff', borderBottom: '1px solid var(--plate)' }}>
+              Los precios salen directo de las webs de cada mayorista y se actualizan cada semana.
+              Si un precio tiene más de 30 días, lo marcamos como desactualizado.
+            </div>
+          )}
+
+          <button
+            className="perfil-gr-press"
+            style={{ ...grStyle, borderBottom: 'none' }}
+            onClick={() => setExpandida(expandida === 'terminos' ? null : 'terminos')}
+          >
+            <FileText size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Términos y privacidad</div>
+            </div>
+            <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0, transform: expandida === 'terminos' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms var(--ease-out)' }} />
+          </button>
+          {expandida === 'terminos' && (
+            <div style={{ padding: '4px 16px 14px 48px', fontSize: '12.5px', color: 'var(--gray)', fontWeight: 300, lineHeight: 1.5, background: '#ffffff' }}>
+              Tus datos (listas, perfil, favoritos) se guardan solo en este dispositivo.
+              Los precios son informativos y pueden variar en el mayorista. Brújula no vende productos ni intermedia compras.
+            </div>
+          )}
+        </div>
+
+        {/* Danger zone */}
+        <div className="perfil-anim" style={{ animationDelay: '300ms', padding: '30px 20px 0' }}>
+          <button
+            onClick={handleBorrarDatos}
+            style={{
+              fontSize: '13px', color: 'var(--destructive)', fontWeight: 400,
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            Borrar mis datos de este dispositivo
+          </button>
+          <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', marginTop: '8px', fontWeight: 300 }}>
+            Brújula de precios · v1.0{fechaDatos ? ` · datos actualizados ${fechaDatos}` : ''}
+          </div>
+        </div>
       </div>
     </div>
   )

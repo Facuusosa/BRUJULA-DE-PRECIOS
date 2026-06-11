@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Poppins, Barlow_Condensed } from 'next/font/google'
+import { Poppins } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
@@ -7,13 +7,6 @@ const poppins = Poppins({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-poppins',
-  display: 'block',
-})
-
-const barlowCondensed = Barlow_Condensed({
-  subsets: ['latin'],
-  weight: ['800'],
-  variable: '--font-barlow-condensed',
   display: 'block',
 })
 
@@ -26,7 +19,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#006d38',
+  themeColor: '#ffffff',
 }
 
 export default function RootLayout({
@@ -36,7 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${poppins.variable} ${barlowCondensed.variable} antialiased`}>
+      {/* poppins.className además de .variable: en prod --font-sans computaba vacía
+          (conflicto :root vs @theme de Tailwind v4) y caía a fuente de sistema */}
+      <body className={`${poppins.variable} ${poppins.className} antialiased`}>
         {children}
         <Analytics />
       </body>

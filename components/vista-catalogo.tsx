@@ -1,15 +1,20 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { motion } from 'framer-motion'
-import { Search, X, Heart, Plus, Check, ChevronLeft, ChevronRight } from 'lucide-react'
-import { productos, sectores, Producto, formatearPrecio, extraerTamano, calcularPrecioPorUnidad } from '@/lib/data'
-import { AnimatedList } from '@/components/AnimatedList'
-import SpotlightCard from '@/components/reactbits/Components/SpotlightCard/SpotlightCard'
-import { iconTap, chipHover } from '@/lib/motion-variants'
+import { Search, X, Check, Plus, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { productos, sectores, Producto, formatearPrecio, extraerTamano } from '@/lib/data'
 
 const ITEMS_POR_PAGINA = 24
+
+type Orden = 'relevancia' | 'ahorro' | 'precio-asc' | 'precio-desc'
+
+const ORDEN_LABELS: Record<Orden, string> = {
+  'relevancia':  'Relevancia',
+  'ahorro':      'Mayor ahorro',
+  'precio-asc':  'Menor precio',
+  'precio-desc': 'Mayor precio',
+}
 
 interface VistaCatalogoProps {
   sectorActivo?: string
@@ -27,13 +32,45 @@ interface VistaCatalogoProps {
 }
 
 const MAYORISTAS_FILTER = [
-  { nombre: 'Maxiconsumo',   logo: '/mayoristas/maxiconsumo.webp' },
-  { nombre: 'Yaguar',        logo: '/mayoristas/yaguar.png' },
   { nombre: 'MaxiCarrefour', logo: '/mayoristas/maxicarrefour.jpg' },
+  { nombre: 'Yaguar',        logo: '/mayoristas/yaguar.png' },
+  { nombre: 'Maxiconsumo',   logo: '/mayoristas/maxiconsumo.webp' },
 ]
+
+const fmt = new Intl.NumberFormat('es-AR')
 
 function normalizar(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+}
+
+function ahorroPct(p: Producto): number {
+  const validos = p.precios.filter(pr => pr.precio > 0)
+  if (validos.length < 2) return 0
+  const min = Math.min(...validos.map(v => v.precio))
+  const max = Math.max(...validos.map(v => v.precio))
+  return Math.round(((max - min) / max) * 100)
+}
+
+function precioMin(p: Producto): number {
+  const validos = p.precios.filter(pr => pr.precio > 0)
+  return validos.length ? Math.min(...validos.map(v => v.precio)) : 0
+}
+
+/* Click Spark (ReactBits) — chispa dorada al agregar a lista. Feedback, no decoración. */
+function clickSpark(el: HTMLElement) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const r = el.getBoundingClientRect()
+  const gold = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#c89055'
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement('span')
+    const a = (i / 6) * Math.PI * 2
+    s.style.cssText = `position:fixed;left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px;width:4px;height:4px;border-radius:99px;background:${gold};pointer-events:none;z-index:99;`
+    document.body.appendChild(s)
+    s.animate([
+      { transform: 'translate(0,0) scale(1)', opacity: 1 },
+      { transform: `translate(${Math.cos(a) * 24}px, ${Math.sin(a) * 24}px) scale(0.3)`, opacity: 0 },
+    ], { duration: 320, easing: 'cubic-bezier(0.23,1,0.32,1)' }).onfinish = () => s.remove()
+  }
 }
 
 export function VistaCatalogo({
@@ -42,8 +79,6 @@ export function VistaCatalogo({
   textoBusquedaInicial = '',
   subcategoriaActiva: subcategoriaInicial = '',
   onVerProducto,
-  favoritos,
-  onToggleFavorito,
   onSectorChange,
   onSubcategoriaChange,
   onAgregarALista,
@@ -52,14 +87,26 @@ export function VistaCatalogo({
   const [busqueda, setBusqueda] = useState(textoBusquedaInicial)
   const [mayoristaSel, setMayoristaSel] = useState(mayoristaBuscadoInicial || '')
   const [sectorSel, setSectorSel] = useState(sectorInicial !== 'Todos' ? sectorInicial : '')
+  const [soloComparables, setSoloComparables] = useState(false)
+  const [orden, setOrden] = useState<Orden>('relevancia')
+  const [dropdownAbierto, setDropdownAbierto] = useState<'orden' | 'mayorista' | null>(null)
   const [paginaActual, setPaginaActual] = useState(0)
 
-  const handleSector = (s: string) => {
-    const nuevo = sectorSel === s ? '' : s
-    setSectorSel(nuevo)
-    onSectorChange?.(nuevo || 'Todos')
+  // El catálogo es navegable desde el drawer/sidebar: sincronizar el sector externo
+  useEffect(() => {
+    setSectorSel(sectorInicial !== 'Todos' ? sectorInicial : '')
+  }, [sectorInicial])
+
+  const handleQuitarSector = () => {
+    setSectorSel('')
+    onSectorChange?.('Todos')
     onSubcategoriaChange?.('')
   }
+
+  const comparablesCount = useMemo(() =>
+    productos.filter(p => p.precios.filter(pr => pr.precio > 0).length >= 2).length,
+    []
+  )
 
   const productosFiltrados = useMemo(() => {
     let lista = productos.filter(p => p.precios.some(pr => pr.precio > 0))
@@ -73,6 +120,9 @@ export function VistaCatalogo({
     if (subcategoriaInicial) {
       lista = lista.filter(p => p.subcategoria === subcategoriaInicial)
     }
+    if (soloComparables) {
+      lista = lista.filter(p => p.precios.filter(pr => pr.precio > 0).length >= 2)
+    }
     if (busqueda.trim()) {
       const palabras = normalizar(busqueda).split(/\s+/).filter(Boolean)
       lista = lista.filter(p => {
@@ -81,16 +131,21 @@ export function VistaCatalogo({
       })
     }
 
-    return lista.sort((a, b) => {
+    const porRelevancia = (a: Producto, b: Producto) => {
       const abcOrder: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
       const aAbc = abcOrder[a.abc ?? 'D'] ?? 3
       const bAbc = abcOrder[b.abc ?? 'D'] ?? 3
       if (aAbc !== bAbc) return aAbc - bAbc
-      const aPrecios = a.precios.filter(p => p.precio > 0).length
-      const bPrecios = b.precios.filter(p => p.precio > 0).length
-      return bPrecios - aPrecios
-    })
-  }, [busqueda, mayoristaSel, sectorSel, subcategoriaInicial])
+      return b.precios.filter(p => p.precio > 0).length - a.precios.filter(p => p.precio > 0).length
+    }
+
+    switch (orden) {
+      case 'ahorro':      return [...lista].sort((a, b) => ahorroPct(b) - ahorroPct(a))
+      case 'precio-asc':  return [...lista].sort((a, b) => precioMin(a) - precioMin(b))
+      case 'precio-desc': return [...lista].sort((a, b) => precioMin(b) - precioMin(a))
+      default:            return [...lista].sort(porRelevancia)
+    }
+  }, [busqueda, mayoristaSel, sectorSel, subcategoriaInicial, soloComparables, orden])
 
   const totalPaginas = Math.ceil(productosFiltrados.length / ITEMS_POR_PAGINA)
   const productosVisibles = productosFiltrados.slice(
@@ -98,250 +153,309 @@ export function VistaCatalogo({
     (paginaActual + 1) * ITEMS_POR_PAGINA
   )
 
-  const filterKey = `${mayoristaSel}-${sectorSel}-${subcategoriaInicial}-${busqueda}`
+  const filterKey = `${mayoristaSel}-${sectorSel}-${subcategoriaInicial}-${busqueda}-${soloComparables}-${orden}`
 
   useEffect(() => {
     setPaginaActual(0)
   }, [filterKey])
 
-  const sectoresDisponibles = useMemo(() =>
-    sectores.filter(s => productos.some(p => p.sector === s.nombre && p.precios.some(pr => pr.precio > 0))),
-    []
-  )
+  const tituloActivo = subcategoriaInicial || sectorSel || mayoristaSel || 'Ofertas del día'
 
-  const subcatsDisponibles = useMemo(() => {
-    if (!sectorSel) return []
-    const sectorData = sectores.find(s => s.nombre === sectorSel)
-    return sectorData?.subcategorias ?? []
-  }, [sectorSel])
-
-  const tituloActivo = subcategoriaInicial || sectorSel || mayoristaSel || ''
+  const chipStyle = (activo: boolean): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: '7px',
+    border: `1px solid ${activo ? 'var(--pill)' : 'var(--line)'}`,
+    borderRadius: '999px',
+    padding: '9px 16px',
+    fontSize: '13.5px', fontWeight: 500,
+    whiteSpace: 'nowrap',
+    background: activo ? 'var(--pill)' : '#ffffff',
+    color: activo ? '#ffffff' : 'var(--ink)',
+    cursor: 'pointer',
+    flexShrink: 0,
+  })
 
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100%', paddingBottom: '60px' }}>
+    <div className="catalogo" style={{ background: '#ffffff', minHeight: '100%', paddingBottom: '60px' }} onClick={() => setDropdownAbierto(null)}>
       <style>{`
-        .catalogo-main { padding: 24px 20px; }
-        .deals-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 1px;
-          background: #2a2a2a;
-          border: 1px solid #2a2a2a;
-          border-radius: 12px;
-          overflow: hidden;
+        @keyframes cat-rise { to { opacity: 1; transform: translateY(0); } }
+        .cat-anim { opacity: 0; transform: translateY(10px); animation: cat-rise 380ms var(--ease-out) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .cat-anim { transform: none; animation-duration: 150ms; }
         }
-        .deal-card {
-          cursor: pointer;
-          border-radius: 0 !important;
-          border: none !important;
-          background: #141414 !important;
-          overflow: hidden;
-        }
-        .mayoristas-logos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 28px; }
-        .pill-sector { padding: 9px 16px; border-radius: 20px; white-space: nowrap; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 40px; border: 1.5px solid transparent; }
-        .pill-subcat { padding: 8px 14px; border-radius: 20px; white-space: nowrap; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 40px; border: 1.5px solid transparent; }
-        .pills-wrapper { position: relative; }
-        .pills-row { display: flex; flex-wrap: wrap; gap: 10px; padding-bottom: 4px; }
 
-        @media (max-width: 700px) {
-          .pill-sector { min-height: 36px; font-size: 12px; padding: 7px 13px; }
-          .pill-subcat { min-height: 36px; font-size: 12px; padding: 6px 12px; }
+        .cat-content { max-width: 1500px; margin: 0 auto; }
+        .cat-search { margin: 4px 20px 0; }
+        .cat-filters { display: flex; gap: 9px; padding: 14px 20px 0; overflow-x: auto; scrollbar-width: none; }
+        .cat-filters::-webkit-scrollbar { display: none; }
+        .cat-meta { padding: 16px 20px 4px; display: flex; align-items: baseline; justify-content: space-between; }
+        .cat-meta h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; margin: 0; color: var(--ink); }
+        .cat-stores { display: none; }
+
+        /* Grid 2 col — celdas divididas por hairlines, sin cards */
+        .cat-grid { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10px; }
+        .cat-cell {
+          padding: 18px 16px 20px;
+          border-top: 1px solid var(--line);
+          position: relative;
+          cursor: pointer;
         }
-        @media (min-width: 860px) {
-          .deals-grid { grid-template-columns: repeat(3, 1fr); }
+        .cat-cell:nth-child(odd) { border-right: 1px solid var(--line); }
+        .cat-ph {
+          height: 130px;
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 12px;
         }
-        @media (max-width: 600px) {
-          .catalogo-main { padding: 16px 12px; }
-          .mayoristas-logos { gap: 8px; }
+
+        @media (hover: hover) and (pointer: fine) {
+          .cat-cell { transition: background 150ms ease; }
+          .cat-cell:hover { background: #fafafa; }
+        }
+
+        /* Desktop estilo Trolley /deals/: grid de placas con aire */
+        @media (min-width: 1000px) {
+          .cat-search { margin: 4px 0 0; max-width: 640px; }
+          .cat-content { padding: 0 44px; }
+          .cat-stores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 26px; }
+          .cat-filters { padding: 22px 0 0; }
+          .cat-meta { padding: 28px 0 4px; }
+          .cat-meta h2 { font-size: 25.7px; }
+          .cat-grid { grid-template-columns: repeat(4, 1fr); gap: 34px 24px; margin-top: 18px; }
+          .cat-cell { border: none !important; padding: 0; }
+          .cat-cell:hover { background: transparent; }
+          .cat-ph {
+            background: var(--plate); border-radius: 4px;
+            height: 280px; margin-bottom: 16px;
+            position: relative;
+          }
+        }
+        @media (max-width: 999px) {
+          .cat-content { padding: 0; }
         }
       `}</style>
 
-      <div className="catalogo-main">
+      <div className="cat-content">
 
-        {/* Buscador */}
-        <div style={{
+        {/* Búsqueda — UNA sola */}
+        <div className="cat-search cat-anim" style={{
           display: 'flex', alignItems: 'center', gap: '10px',
-          background: '#141414', borderRadius: '12px',
-          padding: '12px 14px', marginBottom: '20px',
-          minHeight: '48px', border: '1px solid #2a2a2a',
+          background: 'var(--plate)',
+          borderRadius: '999px',
+          padding: '13px 18px',
         }}>
-          <Search size={18} color="#6b7280" strokeWidth={2} />
+          <Search size={17} color="var(--gray)" strokeWidth={2} style={{ flexShrink: 0 }} />
           <input
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
-            placeholder="Buscar producto..."
+            placeholder={`Buscar entre ${fmt.format(productos.length)} productos`}
             style={{
               flex: 1, border: 'none', background: 'transparent',
-              fontSize: '16px', color: '#f7f7f7', outline: 'none',
+              fontSize: '14px', color: 'var(--ink)', outline: 'none', minWidth: 0,
+              fontFamily: 'var(--font-sans)',
             }}
           />
           {busqueda && (
-            <motion.button
+            <button
               onClick={() => setBusqueda('')}
-              {...iconTap}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex' }}
+              aria-label="Limpiar búsqueda"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', color: 'var(--gray)' }}
             >
-              <X size={16} color="#6b7280" strokeWidth={2} />
-            </motion.button>
+              <X size={16} strokeWidth={2} />
+            </button>
           )}
         </div>
 
-        {/* Filtrar por mayorista */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{
-            fontSize: '11px', fontWeight: 700, color: '#6b7280',
-            letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px',
-          }}>
-            FILTRAR POR MAYORISTA
-          </div>
-          <div className="mayoristas-logos">
-            {MAYORISTAS_FILTER.map(m => {
-              const isActive = mayoristaSel === m.nombre
-              return (
-                <motion.button
-                  key={m.nombre}
-                  onClick={() => setMayoristaSel(isActive ? '' : m.nombre)}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '16px 12px', height: '88px',
-                    border: `2px solid ${isActive ? '#d4a574' : '#2a2a2a'}`,
-                    borderRadius: '8px',
-                    background: isActive ? '#1a1a1a' : '#141414',
-                    cursor: 'pointer',
-                    position: 'relative',
-                  }}
-                >
-                  <div style={{ position: 'relative', width: '100%', height: '48px' }}>
-                    <Image src={m.logo} alt={m.nombre} fill style={{ objectFit: 'contain' }} unoptimized />
-                  </div>
-                </motion.button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Pills de sector */}
-        <div className="pills-wrapper" style={{ marginBottom: subcatsDisponibles.length > 0 ? '8px' : '16px' }}>
-          <div className="pills-row">
-            <motion.button
-              onClick={() => { setSectorSel(''); onSectorChange?.('Todos'); onSubcategoriaChange?.('') }}
-              {...chipHover}
-              className="pill-sector"
-              style={{
-                border: `1.5px solid ${!sectorSel ? '#d4a574' : '#2a2a2a'}`,
-                background: !sectorSel ? '#d4a574' : '#141414',
-                color: !sectorSel ? '#0a0a0a' : '#6b7280',
-              }}
-            >
-              Todos
-            </motion.button>
-            {sectoresDisponibles.map(s => (
-              <motion.button
-                key={s.nombre}
-                onClick={() => handleSector(s.nombre)}
-                {...chipHover}
-                className="pill-sector"
+        {/* Cards de mayoristas — solo desktop, "Filter by store" */}
+        <div className="cat-stores cat-anim" style={{ animationDelay: '90ms' }}>
+          {MAYORISTAS_FILTER.map(m => {
+            const activo = mayoristaSel === m.nombre
+            return (
+              <button
+                key={m.nombre}
+                onClick={() => setMayoristaSel(activo ? '' : m.nombre)}
                 style={{
-                  border: `1.5px solid ${sectorSel === s.nombre ? '#d4a574' : '#2a2a2a'}`,
-                  background: sectorSel === s.nombre ? '#d4a574' : '#141414',
-                  color: sectorSel === s.nombre ? '#0a0a0a' : '#6b7280',
+                  border: `1px solid ${activo ? 'var(--ink)' : 'var(--line)'}`,
+                  borderRadius: '4px',
+                  height: '110px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: '#ffffff', cursor: 'pointer',
                 }}
               >
-                {s.nombre}
-              </motion.button>
-            ))}
-          </div>
+                <Image
+                  src={m.logo}
+                  alt={m.nombre}
+                  width={150}
+                  height={48}
+                  style={{ maxWidth: '150px', maxHeight: '48px', objectFit: 'contain', width: 'auto', height: 'auto' }}
+                  unoptimized
+                />
+              </button>
+            )
+          })}
         </div>
 
+        {/* Filtros — chips dropdown estilo Trolley */}
+        <div className="cat-filters cat-anim" style={{ animationDelay: '120ms' }}>
+          {/* Ordenar */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              style={chipStyle(orden !== 'relevancia')}
+              onClick={(e) => { e.stopPropagation(); setDropdownAbierto(dropdownAbierto === 'orden' ? null : 'orden') }}
+            >
+              {orden === 'relevancia' ? 'Ordenar' : ORDEN_LABELS[orden]}
+              <ChevronDown size={13} strokeWidth={2.5} />
+            </button>
+            {dropdownAbierto === 'orden' && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 30,
+                background: '#ffffff', border: '1px solid var(--line)', borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.1)', padding: '6px', minWidth: '170px',
+              }}>
+                {(Object.keys(ORDEN_LABELS) as Orden[]).map(o => (
+                  <button
+                    key={o}
+                    onClick={(e) => { e.stopPropagation(); setOrden(o); setDropdownAbierto(null) }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '9px 12px', borderRadius: '8px',
+                      fontSize: '13.5px', fontWeight: orden === o ? 600 : 400,
+                      background: orden === o ? 'var(--plate)' : 'transparent',
+                      color: 'var(--ink)', border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    {ORDEN_LABELS[o]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Header de resultados */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <h2 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '22px', fontWeight: 800,
-            textTransform: 'uppercase', color: '#f7f7f7', margin: 0,
-          }}>
-            {tituloActivo || 'Ofertas del dia'}
-          </h2>
-          <span style={{ fontSize: '13px', color: '#6b7280' }}>
-            {productosFiltrados.length} productos
+          {/* Sector activo (con X para quitar) */}
+          {sectorSel && (
+            <button style={chipStyle(true)} onClick={handleQuitarSector}>
+              {subcategoriaInicial || sectorSel}
+              <X size={13} strokeWidth={2.5} />
+            </button>
+          )}
+
+          {/* Mayorista */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              style={chipStyle(!!mayoristaSel)}
+              onClick={(e) => { e.stopPropagation(); setDropdownAbierto(dropdownAbierto === 'mayorista' ? null : 'mayorista') }}
+            >
+              {mayoristaSel || 'Mayorista'}
+              {mayoristaSel
+                ? <X size={13} strokeWidth={2.5} onClick={(e) => { e.stopPropagation(); setMayoristaSel(''); setDropdownAbierto(null) }} />
+                : <ChevronDown size={13} strokeWidth={2.5} />}
+            </button>
+            {dropdownAbierto === 'mayorista' && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 30,
+                background: '#ffffff', border: '1px solid var(--line)', borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.1)', padding: '6px', minWidth: '170px',
+              }}>
+                {MAYORISTAS_FILTER.map(m => (
+                  <button
+                    key={m.nombre}
+                    onClick={(e) => { e.stopPropagation(); setMayoristaSel(mayoristaSel === m.nombre ? '' : m.nombre); setDropdownAbierto(null) }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '9px 12px', borderRadius: '8px',
+                      fontSize: '13.5px', fontWeight: mayoristaSel === m.nombre ? 600 : 400,
+                      background: mayoristaSel === m.nombre ? 'var(--plate)' : 'transparent',
+                      color: 'var(--ink)', border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    {m.nombre}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Solo comparables */}
+          <button style={chipStyle(soloComparables)} onClick={() => setSoloComparables(v => !v)}>
+            Solo comparables
+          </button>
+        </div>
+
+        {/* Meta línea */}
+        <div className="cat-meta cat-anim" style={{ animationDelay: '180ms' }}>
+          <h2>{tituloActivo}</h2>
+          <span className="tnum" style={{ fontSize: '12px', color: 'var(--gray)', fontWeight: 400 }}>
+            {soloComparables
+              ? `${fmt.format(productosFiltrados.length)} comparables`
+              : `${fmt.format(productosFiltrados.length)} productos`}
           </span>
         </div>
 
-        {/* Grid de deals */}
+        {/* Grid de celdas */}
         {productosVisibles.length > 0 ? (
           <>
-            <AnimatedList key={filterKey} className="deals-grid">
+            <div className="cat-grid cat-anim" style={{ animationDelay: '220ms' }} key={filterKey}>
               {productosVisibles.map(producto => (
-                <DealCard
+                <CatalogoCell
                   key={producto.id}
                   producto={producto}
-                  mayoristaSel={mayoristaSel}
                   onClick={() => onVerProducto(producto)}
-                  isFavorito={favoritos.has(producto.id)}
-                  onToggleFavorito={(e) => { e.stopPropagation(); onToggleFavorito(producto.id) }}
                   enLista={listaIds.has(producto.id)}
                   onAgregar={onAgregarALista ? () => onAgregarALista(producto) : undefined}
                 />
               ))}
-            </AnimatedList>
+            </div>
 
             {/* Paginación */}
             {totalPaginas > 1 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '32px', paddingBottom: '16px' }}>
-                <motion.button
+                <button
                   onClick={() => setPaginaActual(p => Math.max(0, p - 1))}
                   disabled={paginaActual === 0}
-                  whileTap={paginaActual === 0 ? {} : { scale: 0.97 }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '8px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                    border: '1.5px solid #2a2a2a',
-                    background: paginaActual === 0 ? '#0a0a0a' : '#141414',
-                    color: paginaActual === 0 ? '#2a2a2a' : '#f7f7f7',
+                    padding: '9px 16px', borderRadius: '999px', fontSize: '13.5px', fontWeight: 500,
+                    border: '1px solid var(--line)',
+                    background: '#ffffff',
+                    color: paginaActual === 0 ? 'var(--line)' : 'var(--ink)',
                     cursor: paginaActual === 0 ? 'default' : 'pointer',
                   }}
                 >
                   <ChevronLeft size={14} /> Anterior
-                </motion.button>
-                <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: 500 }}>
-                  Pag {paginaActual + 1} / {totalPaginas}
+                </button>
+                <span className="tnum" style={{ fontSize: '13px', color: 'var(--gray)', fontWeight: 400 }}>
+                  {paginaActual + 1} / {totalPaginas}
                 </span>
-                <motion.button
+                <button
                   onClick={() => setPaginaActual(p => Math.min(totalPaginas - 1, p + 1))}
                   disabled={paginaActual === totalPaginas - 1}
-                  whileTap={paginaActual === totalPaginas - 1 ? {} : { scale: 0.97 }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '8px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                    border: '1.5px solid #2a2a2a',
-                    background: paginaActual === totalPaginas - 1 ? '#0a0a0a' : '#141414',
-                    color: paginaActual === totalPaginas - 1 ? '#2a2a2a' : '#f7f7f7',
+                    padding: '9px 16px', borderRadius: '999px', fontSize: '13.5px', fontWeight: 500,
+                    border: '1px solid var(--line)',
+                    background: '#ffffff',
+                    color: paginaActual === totalPaginas - 1 ? 'var(--line)' : 'var(--ink)',
                     cursor: paginaActual === totalPaginas - 1 ? 'default' : 'pointer',
                   }}
                 >
                   Siguiente <ChevronRight size={14} />
-                </motion.button>
+                </button>
               </div>
             )}
           </>
         ) : (
-          <div style={{ padding: '60px 0', textAlign: 'center' }}>
-            <Search size={48} color="#2a2a2a" strokeWidth={1.5} style={{ marginBottom: '16px' }} />
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#f7f7f7', marginBottom: '8px' }}>
+          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>
               Nada por acá
             </div>
-            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--gray)', marginBottom: '20px' }}>
               Probá con otro filtro o búsqueda
             </div>
             <button
-              onClick={() => { setBusqueda(''); setMayoristaSel(''); setSectorSel('') }}
+              onClick={() => { setBusqueda(''); setMayoristaSel(''); handleQuitarSector(); setSoloComparables(false) }}
               style={{
-                padding: '10px 20px', borderRadius: '20px',
-                background: '#d4a574', color: '#0a0a0a',
-                border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                padding: '11px 22px', borderRadius: '999px',
+                background: 'var(--pill)', color: '#ffffff',
+                border: 'none', fontSize: '13.5px', fontWeight: 500, cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
               }}
             >
               Limpiar filtros
@@ -353,44 +467,33 @@ export function VistaCatalogo({
   )
 }
 
-// ── Card de producto ──────────────────────────────────────
-interface DealCardProps {
+// ── Celda de producto — sin logos de mayoristas: solo mejor precio + ahorro ──
+interface CatalogoCellProps {
   producto: Producto
-  mayoristaSel: string
   onClick: () => void
-  isFavorito?: boolean
-  onToggleFavorito?: (e: React.MouseEvent) => void
   enLista?: boolean
   onAgregar?: () => void
 }
 
-const MAYORISTAS_ORDER = ['Yaguar', 'MaxiCarrefour', 'Maxiconsumo']
-
-const LOGOS: Record<string, string> = {
-  'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
-  'Yaguar':        '/mayoristas/yaguar.png',
-  'MaxiCarrefour': '/mayoristas/maxicarrefour.jpg',
-}
-
-function DealCard({ producto, mayoristaSel, onClick, isFavorito, onToggleFavorito, enLista, onAgregar }: DealCardProps) {
+function CatalogoCell({ producto, onClick, enLista, onAgregar }: CatalogoCellProps) {
+  const plusRef = useRef<HTMLButtonElement>(null)
   const preciosValidos = producto.precios
     .filter(p => p.precio > 0)
     .sort((a, b) => a.precio - b.precio)
 
   const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
-  const fallbackIdx = useState(0)
+  const [fallbackIdx, setFallbackIdx] = useState(0)
 
   useEffect(() => {
     setImgSrc(producto.imageUrl || '')
-    fallbackIdx[1](0)
+    setFallbackIdx(0)
   }, [producto.id, producto.imageUrl])
 
   const handleImageError = () => {
     const fallbacks = producto.imagenFallbacks || []
-    const idx = fallbackIdx[0]
-    if (idx < fallbacks.length) {
-      setImgSrc(fallbacks[idx])
-      fallbackIdx[1](idx + 1)
+    if (fallbackIdx < fallbacks.length) {
+      setImgSrc(fallbacks[fallbackIdx])
+      setFallbackIdx(prev => prev + 1)
     } else {
       setImgSrc('')
     }
@@ -398,132 +501,89 @@ function DealCard({ producto, mayoristaSel, onClick, isFavorito, onToggleFavorit
 
   if (preciosValidos.length === 0) return null
 
-  const precioMin = preciosValidos[0].precio
-  const mejorMayorista = preciosValidos[0].mayorista
-
+  const mejorPrecio = preciosValidos[0].precio
+  const pct = ahorroPct(producto)
   const tamano = extraerTamano(producto.nombre)
-  const precioPorUnidad = tamano && precioMin ? calcularPrecioPorUnidad(precioMin, tamano) : null
+
+  const handleAgregar = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (enLista || !onAgregar) return
+    if (plusRef.current) clickSpark(plusRef.current)
+    onAgregar()
+  }
 
   return (
-    <SpotlightCard
-      className="deal-card"
-      spotlightColor="rgba(212, 165, 116, 0.08)"
-      onClick={onClick}
-    >
-      {/* Imagen */}
-      <div style={{ height: '180px', background: '#1a1a1a', position: 'relative' }}>
+    <div className="cat-cell" onClick={onClick}>
+      {/* Botón + (agregar a lista) con ClickSpark dorado */}
+      {onAgregar && (
+        <button
+          ref={plusRef}
+          onClick={handleAgregar}
+          aria-label={enLista ? 'Ya en tu lista' : 'Agregar a lista'}
+          style={{
+            position: 'absolute', top: '14px', right: '12px', zIndex: 2,
+            width: '30px', height: '30px', borderRadius: '999px',
+            border: `1.5px solid ${enLista ? 'var(--green)' : 'var(--ink)'}`,
+            background: enLista ? 'var(--green)' : '#ffffff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: enLista ? 'default' : 'pointer',
+            color: enLista ? '#ffffff' : 'var(--ink)',
+          }}
+        >
+          {enLista ? <Check size={14} strokeWidth={2.5} /> : <Plus size={14} strokeWidth={2.5} />}
+        </button>
+      )}
+
+      {/* Placa de imagen */}
+      <div className="cat-ph">
         {imgSrc ? (
           <Image
             src={imgSrc}
             alt={producto.nombre}
-            fill
-            style={{ objectFit: 'contain', padding: '12px' }}
+            width={124}
+            height={124}
+            className="img-plate"
+            style={{ maxHeight: '124px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
             unoptimized
             onError={handleImageError}
           />
         ) : (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a2a', fontSize: '32px' }}>?</div>
-        )}
-
-        {/* Botón agregar a lista */}
-        {onAgregar && (
-          <motion.button
-            onClick={(e) => { e.stopPropagation(); if (!enLista) onAgregar() }}
-            {...iconTap}
-            title={enLista ? 'Ya en tu lista' : 'Agregar a lista'}
-            style={{
-              position: 'absolute', top: '4px', left: '4px', zIndex: 3,
-              width: '32px', height: '32px', borderRadius: '50%',
-              border: `1.5px solid ${enLista ? '#16a34a' : '#2a2a2a'}`,
-              background: enLista ? '#16a34a' : '#141414',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: enLista ? 'default' : 'pointer',
-            }}
-          >
-            {enLista
-              ? <Check size={13} strokeWidth={2.5} color="#fff" />
-              : <Plus size={13} strokeWidth={2.5} color="#f7f7f7" />
-            }
-          </motion.button>
-        )}
-
-        {/* Botón favorito */}
-        <motion.button
-          onClick={(e) => { e.stopPropagation(); onToggleFavorito?.(e); }}
-          {...iconTap}
-          style={{
-            position: 'absolute', top: '4px', right: '4px', zIndex: 3,
-            width: '32px', height: '32px', borderRadius: '50%',
-            border: '1.5px solid #2a2a2a', background: '#141414',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <Heart
-            size={13}
-            strokeWidth={2}
-            fill={isFavorito ? '#d4a574' : 'none'}
-            color={isFavorito ? '#d4a574' : '#6b7280'}
-          />
-        </motion.button>
-
-        {/* Badge cantidad mayoristas */}
-        {preciosValidos.length > 1 && (
-          <div style={{
-            position: 'absolute', bottom: '6px', right: '6px',
-            background: '#d4a574', color: '#0a0a0a',
-            fontSize: '11px', fontWeight: 800,
-            padding: '3px 8px', borderRadius: '10px',
-            letterSpacing: '0.03em',
-          }}>
-            {preciosValidos.length} precios
-          </div>
+          <span style={{ color: 'var(--line)', fontSize: '32px' }}>?</span>
         )}
       </div>
 
-      {/* Info */}
-      <div style={{ padding: '12px 12px 14px' }}>
-        {/* Nombre */}
-        <div style={{
-          fontSize: '14px', fontWeight: 600, color: '#f7f7f7',
-          lineHeight: 1.4, marginBottom: '8px',
-          display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          minHeight: '40px',
+      {/* Tamaño */}
+      {tamano && (
+        <span className="tnum" style={{
+          display: 'inline-block',
+          background: 'var(--pill)', color: '#ffffff',
+          fontSize: '10.7px', fontWeight: 600,
+          borderRadius: '999px', padding: '3px 10px',
+          marginBottom: '7px',
         }}>
-          {producto.nombre}
-        </div>
+          {tamano}
+        </span>
+      )}
 
-        {/* Tabla de precios */}
-        <div style={{ borderTop: '1px solid #2a2a2a', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
-          {MAYORISTAS_ORDER.map(nombreM => {
-            const entrada = preciosValidos.find(p => p.mayorista === nombreM)
-            const esMejor = nombreM === mejorMayorista
-            return (
-              <div key={nombreM} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                <div style={{ position: 'relative', width: '48px', height: '20px', flexShrink: 0, opacity: entrada ? 1 : 0.25 }}>
-                  <Image src={LOGOS[nombreM]} alt={nombreM} fill style={{ objectFit: 'contain' }} unoptimized />
-                </div>
-                <span style={{
-                  fontSize: esMejor ? '16px' : '13px',
-                  fontFamily: esMejor ? 'var(--font-display)' : 'var(--font-sans)',
-                  fontWeight: esMejor ? 800 : 400,
-                  color: entrada ? (esMejor ? '#d4a574' : '#6b7280') : '#2a2a2a',
-                  letterSpacing: '-0.01em',
-                }}>
-                  {entrada ? formatearPrecio(entrada.precio) : '—'}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-
-        {precioPorUnidad && (
-          <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px' }}>
-            {precioPorUnidad}
-          </div>
-        )}
+      {/* Nombre */}
+      <div className="line-clamp-2" style={{
+        fontSize: '13.9px', fontWeight: 400, lineHeight: 1.35,
+        minHeight: '38px', color: 'var(--ink)',
+      }}>
+        {producto.nombre}
       </div>
-    </SpotlightCard>
+
+      {/* Mejor precio */}
+      <div className="tnum" style={{ fontSize: '20px', fontWeight: 600, marginTop: '8px', color: 'var(--ink)' }}>
+        {formatearPrecio(mejorPrecio)}
+      </div>
+
+      {/* Comparativa */}
+      <div className="tnum" style={{ fontSize: '11.8px', marginTop: '2px', color: 'var(--gray)', fontWeight: 400 }}>
+        {pct > 0
+          ? <><b style={{ color: 'var(--green)', fontWeight: 600 }}>Ahorrás {pct}%</b> · {preciosValidos.length} precios</>
+          : preciosValidos.length === 1 ? '1 precio' : `${preciosValidos.length} precios`}
+      </div>
+    </div>
   )
 }
