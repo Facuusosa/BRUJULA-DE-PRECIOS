@@ -416,6 +416,9 @@ export function VistaDetalle({
                     unidad contra {peorPrecio.mayorista} — en una caja de 6 son <b style={{ fontWeight: 600 }}>{formatearPrecio(ahorroUnidad * 6)}</b>.
                   </p>
                 )}
+                <p style={{ marginTop: '10px', marginBottom: 0, fontSize: '11px', fontWeight: 300, lineHeight: 1.5, color: 'var(--gray)' }}>
+                  Precios finales con IVA. Pueden variar levemente según tu condición fiscal (percepciones) y sucursal.
+                </p>
               </div>
             </section>
 
