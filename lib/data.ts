@@ -21,6 +21,7 @@ export interface Producto {
   imagenFallbacks?: string[]
   disponible?: boolean
   abc?: string   // Indicador de importancia del Listado Maestro: A=top, B, C, D
+  precioSospechoso?: boolean  // Pipeline flag: ahorro >60% entre fuentes = probable match incorrecto
 }
 
 export interface ProductoBomba extends Producto {
@@ -448,6 +449,7 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
       })(),
       disponible: true,
       abc: item.abc || '',
+      precioSospechoso: item.precio_sospechoso === true,
     }
   })
 
@@ -593,8 +595,14 @@ export const sectores = sectoresRaw.filter(s =>
 export function calcularBombas(): ProductoBomba[] {
   return productos
     .filter(p => {
+      // Sin sospechosos: un "ahorro" >60% entre fuentes es casi siempre un match
+      // incorrecto — mostrarlo como bomba destruye la confianza del comerciante
+      if (p.precioSospechoso) return false
       const preciosValidos = p.precios.filter(pr => pr.precio > 0)
-      return preciosValidos.length >= 2
+      if (preciosValidos.length < 2) return false
+      const min = Math.min(...preciosValidos.map(pr => pr.precio))
+      const max = Math.max(...preciosValidos.map(pr => pr.precio))
+      return min >= max * 0.4
     })
     .map(p => {
       const preciosValidos = p.precios.filter(pr => pr.precio > 0)

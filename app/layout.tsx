@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const poppins = Poppins({
@@ -33,6 +34,19 @@ export default function RootLayout({
           (conflicto :root vs @theme de Tailwind v4) y caía a fuente de sistema */}
       <body className={`${poppins.variable} ${poppins.className} antialiased`}>
         {children}
+        <Toaster
+          position="top-center"
+          duration={2200}
+          toastOptions={{
+            style: {
+              background: '#ffffff',
+              color: 'var(--ink)',
+              border: '1px solid var(--line)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '13.5px',
+            },
+          }}
+        />
         <Analytics />
       </body>
     </html>

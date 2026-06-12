@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Search, X, Check, Plus, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, X, Check, Plus, ChevronDown, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
 import { productos, sectores, Producto, formatearPrecio, extraerTamano } from '@/lib/data'
 
 const ITEMS_POR_PAGINA = 24
@@ -25,6 +25,8 @@ interface VistaCatalogoProps {
   onIrAHerramientas?: () => void
   favoritos: Set<string>
   onToggleFavorito: (id: string) => void
+  soloFavoritos?: boolean
+  onSoloFavoritosChange?: (v: boolean) => void
   onSectorChange?: (sector: string) => void
   onSubcategoriaChange?: (sub: string) => void
   onAgregarALista?: (producto: Producto) => void
@@ -79,6 +81,9 @@ export function VistaCatalogo({
   textoBusquedaInicial = '',
   subcategoriaActiva: subcategoriaInicial = '',
   onVerProducto,
+  favoritos,
+  soloFavoritos = false,
+  onSoloFavoritosChange,
   onSectorChange,
   onSubcategoriaChange,
   onAgregarALista,
@@ -123,6 +128,9 @@ export function VistaCatalogo({
     if (soloComparables) {
       lista = lista.filter(p => p.precios.filter(pr => pr.precio > 0).length >= 2)
     }
+    if (soloFavoritos) {
+      lista = lista.filter(p => favoritos.has(p.id))
+    }
     if (busqueda.trim()) {
       const palabras = normalizar(busqueda).split(/\s+/).filter(Boolean)
       lista = lista.filter(p => {
@@ -145,7 +153,7 @@ export function VistaCatalogo({
       case 'precio-desc': return [...lista].sort((a, b) => precioMin(b) - precioMin(a))
       default:            return [...lista].sort(porRelevancia)
     }
-  }, [busqueda, mayoristaSel, sectorSel, subcategoriaInicial, soloComparables, orden])
+  }, [busqueda, mayoristaSel, sectorSel, subcategoriaInicial, soloComparables, soloFavoritos, favoritos, orden])
 
   const totalPaginas = Math.ceil(productosFiltrados.length / ITEMS_POR_PAGINA)
   const productosVisibles = productosFiltrados.slice(
@@ -153,13 +161,13 @@ export function VistaCatalogo({
     (paginaActual + 1) * ITEMS_POR_PAGINA
   )
 
-  const filterKey = `${mayoristaSel}-${sectorSel}-${subcategoriaInicial}-${busqueda}-${soloComparables}-${orden}`
+  const filterKey = `${mayoristaSel}-${sectorSel}-${subcategoriaInicial}-${busqueda}-${soloComparables}-${soloFavoritos}-${orden}`
 
   useEffect(() => {
     setPaginaActual(0)
   }, [filterKey])
 
-  const tituloActivo = subcategoriaInicial || sectorSel || mayoristaSel || 'Ofertas del día'
+  const tituloActivo = subcategoriaInicial || sectorSel || mayoristaSel || (soloFavoritos ? 'Mis favoritos' : 'Ofertas del día')
 
   const chipStyle = (activo: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: '7px',
@@ -377,6 +385,12 @@ export function VistaCatalogo({
           <button style={chipStyle(soloComparables)} onClick={() => setSoloComparables(v => !v)}>
             Solo comparables
           </button>
+
+          {/* Favoritos */}
+          <button style={chipStyle(soloFavoritos)} onClick={() => onSoloFavoritosChange?.(!soloFavoritos)}>
+            <Heart size={13} strokeWidth={2.5} fill={soloFavoritos ? 'currentColor' : 'none'} />
+            Favoritos
+          </button>
         </div>
 
         {/* Meta línea */}
@@ -444,13 +458,15 @@ export function VistaCatalogo({
         ) : (
           <div style={{ padding: '60px 20px', textAlign: 'center' }}>
             <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>
-              Nada por acá
+              {soloFavoritos && favoritos.size === 0 ? 'Todavía no tenés favoritos' : 'Nada por acá'}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--gray)', marginBottom: '20px' }}>
-              Probá con otro filtro o búsqueda
+              {soloFavoritos && favoritos.size === 0
+                ? 'Tocá el corazón en cualquier producto para guardarlo acá'
+                : 'Probá con otro filtro o búsqueda'}
             </div>
             <button
-              onClick={() => { setBusqueda(''); setMayoristaSel(''); handleQuitarSector(); setSoloComparables(false) }}
+              onClick={() => { setBusqueda(''); setMayoristaSel(''); handleQuitarSector(); setSoloComparables(false); onSoloFavoritosChange?.(false) }}
               style={{
                 padding: '11px 22px', borderRadius: '999px',
                 background: 'var(--pill)', color: '#ffffff',

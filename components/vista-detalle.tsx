@@ -365,11 +365,18 @@ export function VistaDetalle({
                     {preciosValidos.map((precio, idx) => {
                       // Si dos dots quedan a <20% de distancia, el label de uno baja para no pisarse
                       const colisiona = idx > 0 && Math.abs(dotPos(precio.precio) - dotPos(preciosValidos[idx - 1].precio)) < 20
+                      const pos = dotPos(precio.precio)
+                      // Dots cerca de los bordes: anclar el label hacia adentro para que
+                      // nunca se corte fuera del viewport (en mobile la barra es angosta)
+                      const anclaLabel: React.CSSProperties =
+                        pos < 14 ? { left: '-6px' }
+                        : pos > 86 ? { right: '-6px' }
+                        : { left: '50%', transform: 'translateX(-50%)' }
                       return (
                         <span
                           key={precio.mayorista}
                           style={{
-                            position: 'absolute', top: '50%', left: `${dotPos(precio.precio)}%`,
+                            position: 'absolute', top: '50%', left: `${pos}%`,
                             transform: 'translate(-50%, -50%)',
                             width: idx === 0 ? '16px' : '14px',
                             height: idx === 0 ? '16px' : '14px',
@@ -381,7 +388,7 @@ export function VistaDetalle({
                           <span className="tnum" style={{
                             position: 'absolute',
                             ...(colisiona ? { top: '16px', background: '#ffffff', padding: '0 4px', zIndex: 1 } : { bottom: '16px' }),
-                            left: '50%', transform: 'translateX(-50%)',
+                            ...anclaLabel,
                             fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap',
                             color: idx === 0 ? 'var(--green)' : 'var(--ink)',
                           }}>

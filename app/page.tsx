@@ -11,7 +11,7 @@ import { VistaDetalle } from '@/components/vista-detalle'
 import { VistaLista } from '@/components/vista-lista'
 import { VistaCuenta } from '@/components/vista-cuenta'
 import { VistaPlanes } from '@/components/vista-planes'
-import { ItemLista, Lista, Producto, calcularBombas } from '@/lib/data'
+import { ItemLista, Lista, Producto, calcularBombas, productos } from '@/lib/data'
 
 export type Vista = 'inicio' | 'catalogo' | 'detalle' | 'herramientas' | 'perfil' | 'planes'
 
@@ -27,6 +27,7 @@ export default function BrujulaMayorista() {
   const [sectorActivo, setSectorActivo] = useState<string>('Todos')
   const [mayoristaBuscado, setMayoristaBuscado] = useState<string>('')
   const [favoritos, setFavoritos] = useState<Set<string>>(new Set())
+  const [filtroFavoritos, setFiltroFavoritos] = useState(false)
   const [textoBusqueda, setTextoBusqueda] = useState<string>('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [subcategoriaActiva, setSubcategoriaActiva] = useState<string>('')
@@ -64,7 +65,19 @@ export default function BrujulaMayorista() {
               vistos.push({ ...item, cantidad: item.cantidad ?? 1 })
             }
           }
-          return { ...lista, items: vistos }
+          // Rehidratar con el catálogo del día: el snapshot guardado queda con precios
+          // viejos cuando el cron actualiza el catálogo — los cálculos darían números stale
+          const refrescados = vistos.map(item => {
+            const actual = productos.find(p => p.id === item.producto.id)
+            if (!actual) return item
+            const precioMayorista = actual.precios.find(p => p.mayorista === item.mayorista && p.precio > 0)
+            const mejor = actual.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)[0]
+            const vigente = precioMayorista ?? mejor
+            return vigente
+              ? { ...item, producto: actual, mayorista: vigente.mayorista, precioCompra: vigente.precio }
+              : { ...item, producto: actual }
+          })
+          return { ...lista, items: refrescados }
         })
         setListas(consolidadas)
         if (consolidadas.length > 0) {
@@ -81,6 +94,21 @@ export default function BrujulaMayorista() {
   useEffect(() => {
     localStorage.setItem('brujula_listas', JSON.stringify(listas))
   }, [listas])
+
+  useEffect(() => {
+    const saved = localStorage.getItem('brujula_favoritos')
+    if (saved) {
+      try {
+        setFavoritos(new Set(JSON.parse(saved) as string[]))
+      } catch {
+        // ignore invalid localStorage data
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('brujula_favoritos', JSON.stringify([...favoritos]))
+  }, [favoritos])
 
   useEffect(() => {
     if (listaActivaId !== null) {
@@ -225,7 +253,7 @@ export default function BrujulaMayorista() {
       <AppHeader
         onSearchClick={() => navegarA('catalogo', vistaActiva)}
         onPerfil={() => navegarA('perfil', vistaActiva)}
-        onFavoritos={() => navegarA('catalogo', vistaActiva)}
+        onFavoritos={() => { setFiltroFavoritos(true); navegarA('catalogo', vistaActiva) }}
         onMenuClick={() => setDrawerOpen(true)}
         onLogoClick={() => navegarA('inicio')}
       />
@@ -234,7 +262,18 @@ export default function BrujulaMayorista() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar desktop persistente */}
         {isNavVisible && (
-          <DesktopSidebar vistaActiva={vistaActiva} onChange={(v) => navegarA(v)} />
+          <DesktopSidebar
+            vistaActiva={vistaActiva}
+            sectorActivo={sectorActivo}
+            subcategoriaActiva={subcategoriaActiva}
+            onChange={(v) => navegarA(v)}
+            onCategoria={(sector, sub) => {
+              setSectorActivo(sector)
+              setSubcategoriaActiva(sub ?? '')
+              setFiltroFavoritos(false)
+              navegarA('catalogo', vistaActiva)
+            }}
+          />
         )}
         {/* Main content area */}
         <main ref={mainRef} style={{
@@ -247,11 +286,13 @@ export default function BrujulaMayorista() {
               onIrACompararConSector={(sector) => {
                 setSectorActivo(sector)
                 setMayoristaBuscado('')
+                setFiltroFavoritos(false)
                 navegarA('catalogo', 'inicio')
               }}
               onIrAlCatalogoConMayorista={(mayorista) => {
                 setSectorActivo('Todos')
                 setMayoristaBuscado(mayorista)
+                setFiltroFavoritos(false)
                 navegarA('catalogo', 'inicio')
               }}
               onIrAlCatalogo={() => navegarA('catalogo', 'inicio')}
@@ -271,6 +312,8 @@ export default function BrujulaMayorista() {
               onVerProducto={(producto) => handleVerProducto(producto, 'catalogo')}
               favoritos={favoritos}
               onToggleFavorito={handleToggleFavorito}
+              soloFavoritos={filtroFavoritos}
+              onSoloFavoritosChange={setFiltroFavoritos}
               onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva('') }}
               onSubcategoriaChange={setSubcategoriaActiva}
               onAgregarALista={handleAgregarRapido}
@@ -323,7 +366,7 @@ export default function BrujulaMayorista() {
       <CategoryDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva(''); setTextoBusqueda(''); setMayoristaBuscado('') }}
+        onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva(''); setTextoBusqueda(''); setMayoristaBuscado(''); setFiltroFavoritos(false) }}
         onSubcategoriaChange={setSubcategoriaActiva}
         onNavegar={(v) => navegarA(v, vistaActiva)}
       />
