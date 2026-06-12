@@ -329,6 +329,14 @@ export function VistaDetalle({
                           +{diffPct}% vs el mejor
                         </div>
                       )}
+                      {/* El portal del comerciante de Carrefour suma percepciones IIBB (~3%)
+                          segun el CUIT del cliente — mostrar el equivalente evita que el
+                          usuario crea que nuestro precio esta mal al comparar con su portal */}
+                      {precio.mayorista === 'MaxiCarrefour' && (
+                        <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px' }}>
+                          ≈ {formatearPrecio(precio.precio * 1.03)} en tu portal con percepciones (3%)
+                        </div>
+                      )}
                     </div>
                     {precio.link && (
                       <a
