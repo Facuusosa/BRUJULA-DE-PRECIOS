@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { ItemLista, Lista, formatearPrecio } from '@/lib/data'
+import { FrescuraPill } from '@/components/frescura-pill'
 
 interface VistaListaProps {
   listas: Lista[]
@@ -460,6 +461,9 @@ export function VistaLista({
                           }}>
                             {mejor.mayorista}
                           </span>
+                          <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <FrescuraPill precio={mejor} compact />
+                          </div>
                         </div>
                       </div>
                     )

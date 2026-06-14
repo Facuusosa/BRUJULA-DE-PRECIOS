@@ -6,6 +6,7 @@ import { ChevronLeft, Heart, Share2, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Producto, productos, formatearPrecio, extraerTamano } from '@/lib/data'
 import { ShuffleValue } from '@/components/shuffle-value'
+import { FrescuraPill } from '@/components/frescura-pill'
 
 interface VistaDetalleProps {
   producto: Producto
@@ -337,6 +338,9 @@ export function VistaDetalle({
                           ≈ {formatearPrecio(precio.precio * 1.03)} en tu portal con percepciones (3%)
                         </div>
                       )}
+                      <div style={{ marginTop: '3px' }}>
+                        <FrescuraPill precio={precio} />
+                      </div>
                     </div>
                     {precio.link && (
                       <a

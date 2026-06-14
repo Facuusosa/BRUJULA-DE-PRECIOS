@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Search, X, Check, Plus, ChevronDown, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
 import { productos, sectores, Producto, formatearPrecio, extraerTamano } from '@/lib/data'
+import { FrescuraPill } from '@/components/frescura-pill'
 
 const ITEMS_POR_PAGINA = 24
 
@@ -599,6 +600,11 @@ function CatalogoCell({ producto, onClick, enLista, onAgregar }: CatalogoCellPro
         {pct > 0
           ? <><b style={{ color: 'var(--green)', fontWeight: 600 }}>Ahorrás {pct}%</b> · {preciosValidos.length} precios</>
           : preciosValidos.length === 1 ? '1 precio' : `${preciosValidos.length} precios`}
+      </div>
+
+      {/* Frescura del mejor precio */}
+      <div style={{ marginTop: '4px' }}>
+        <FrescuraPill precio={preciosValidos[0]} compact />
       </div>
     </div>
   )

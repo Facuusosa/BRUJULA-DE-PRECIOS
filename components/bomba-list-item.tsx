@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { ProductoBomba, formatearPrecio, extraerTamano } from '@/lib/data'
+import { FrescuraPill } from '@/components/frescura-pill'
 
 const LOGOS: Record<string, string> = {
   'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
@@ -268,6 +269,9 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                         MÁS BARATO
                       </div>
                     )}
+                    <div style={{ marginTop: '5px' }}>
+                      <FrescuraPill precio={precio} compact />
+                    </div>
                   </div>
                 ))}
               </div>

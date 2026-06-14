@@ -7,6 +7,8 @@ export interface Precio {
   tipo: 'lista' | 'oferta'
   link?: string
   fechaScraping?: string
+  precioStale?: boolean        // precio con >14 dias: mostrar como desactualizado
+  diasDesdeScraping?: number   // dias desde el scraping de esta fuente
 }
 
 export interface Producto {
@@ -203,6 +205,8 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
         tipo: 'lista' as const,
         link: item.fuentes?.[mayorista]?.link || undefined,
         fechaScraping: item.fuentes?.[mayorista]?.fecha_scraping || undefined,
+        precioStale: item.fuentes?.[mayorista]?.precio_stale || undefined,
+        diasDesdeScraping: item.fuentes?.[mayorista]?.dias_desde_scraping ?? undefined,
       }))
 
 
@@ -693,4 +697,22 @@ export function calcularPrecioPorUnidad(precio: number, tamano: string | null): 
   }
   if (unit === 'L') return `$${(precio / num).toFixed(0)} por litro`
   return null
+}
+
+// --- Frescura de precios ---
+// Indicador de cuan reciente es el precio de una fuente. Devuelve null cuando no
+// hay fecha (no afirmamos una frescura que no podemos probar). Umbral 'viejo' = 14
+// dias, alineado con precio_stale del pipeline (actualizar_catalogo.py).
+export interface Frescura {
+  label: string
+  color: string
+  nivel: 'fresco' | 'reciente' | 'viejo'
+}
+
+export function frescuraDe(precio: Precio): Frescura | null {
+  const dias = precio.diasDesdeScraping
+  if (dias === undefined || dias === null) return null
+  if (dias <= 2)  return { label: 'Hoy',           color: 'var(--green)', nivel: 'fresco' }
+  if (dias <= 14) return { label: `Hace ${dias} d`, color: 'var(--gray)',  nivel: 'reciente' }
+  return { label: `Hace ${dias} d`, color: 'var(--gold)', nivel: 'viejo' }
 }
