@@ -1,8 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
-import { X, ChevronDown } from 'lucide-react'
+import {
+  X, ChevronDown,
+  LayoutGrid, ShoppingBasket, CupSoda, Milk, SprayCan, Droplet, CookingPot,
+  Snowflake, Carrot, CakeSlice, Candy, PawPrint, Coffee, PlugZap, Shirt,
+  BookOpen, Blocks, Lightbulb, Flame, Egg, Package,
+  type LucideIcon,
+} from 'lucide-react'
 import type { Vista } from '@/app/page'
 import { productos, sectores } from '@/lib/data'
 
@@ -14,13 +19,29 @@ interface CategoryDrawerProps {
   onNavegar: (vista: Vista) => void
 }
 
-const SECTOR_IMAGES: Record<string, string> = {
-  'Almacén':          '/categories/almacen.png',
-  'Bebidas':          '/categories/bebidas_real.png',
-  'Limpieza':         '/categories/limpieza_real.png',
-  'Frescos':          '/categories/frescos.png',
-  'Cuidado Personal': '/categories/perfumeria_real.png',
-  'Mascotas':         '/categories/mascotas.png',
+// Icono de línea + tinte atenuado por sector (paleta apagada: suma escaneo sin gritar)
+type SectorIcon = { Icon: LucideIcon; bg: string; fg: string }
+const NEUTRO: SectorIcon = { Icon: Package, bg: '#eef0f2', fg: '#455a64' }
+const SECTOR_ICONS: Record<string, SectorIcon> = {
+  'Almacén':            { Icon: ShoppingBasket, bg: '#e9f3ea', fg: '#4a7c50' },
+  'Bebidas':            { Icon: CupSoda,        bg: '#faf0e4', fg: '#b56a2e' },
+  'Frescos':            { Icon: Milk,           bg: '#f1eaf3', fg: '#7a5a83' },
+  'Limpieza':           { Icon: SprayCan,       bg: '#e8f0f7', fg: '#416c98' },
+  'Cuidado Personal':   { Icon: Droplet,        bg: '#f7e9ef', fg: '#a85877' },
+  'Bazar':              { Icon: CookingPot,     bg: '#f1eaf3', fg: '#7a5a83' },
+  'Congelados':         { Icon: Snowflake,      bg: '#e7f0f6', fg: '#3f7490' },
+  'Verdulería':         { Icon: Carrot,         bg: '#e9f3ea', fg: '#4a7c50' },
+  'Quesos':             { Icon: CakeSlice,      bg: '#faf0e4', fg: '#b56a2e' },
+  'Kiosco':             { Icon: Candy,          bg: '#f7e9ef', fg: '#a85877' },
+  'Mascotas':           { Icon: PawPrint,       bg: '#e9f3ea', fg: '#4a7c50' },
+  'Desayuno y Merienda':{ Icon: Coffee,         bg: '#f7f1de', fg: '#977a2e' },
+  'Electrónica':        { Icon: PlugZap,        bg: '#e8f0f7', fg: '#416c98' },
+  'Textil':             { Icon: Shirt,          bg: '#f7e9ef', fg: '#a85877' },
+  'Librería':           { Icon: BookOpen,       bg: '#faf0e4', fg: '#b56a2e' },
+  'Juguetería':         { Icon: Blocks,         bg: '#e7f0f6', fg: '#3f7490' },
+  'Iluminación':        { Icon: Lightbulb,      bg: '#f7f1de', fg: '#977a2e' },
+  'Parrilla':           { Icon: Flame,          bg: '#f6e8e8', fg: '#a85252' },
+  'Granja':             { Icon: Egg,            bg: '#e9f3ea', fg: '#4a7c50' },
 }
 
 const fmt = new Intl.NumberFormat('es-AR')
@@ -112,12 +133,11 @@ export function CategoryDrawer({ open, onClose, onSectorChange, onSubcategoriaCh
           }}
         >
           <span style={{
-            width: '40px', height: '40px', borderRadius: '8px', flexShrink: 0,
-            background: 'var(--pill)', color: '#ffffff',
+            width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0,
+            background: NEUTRO.bg, color: NEUTRO.fg,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', fontWeight: 700,
           }}>
-            ⌂
+            <LayoutGrid size={20} strokeWidth={1.9} />
           </span>
           <span style={{ flex: 1, fontSize: '14.5px', fontWeight: 600, color: 'var(--ink)' }}>
             Todas las categorías
@@ -135,7 +155,8 @@ export function CategoryDrawer({ open, onClose, onSectorChange, onSubcategoriaCh
         {/* Sectores con thumbnail + drill-down de subcategorías */}
         {sectores.map(s => {
           const count = productos.filter(p => p.sector === s.nombre).length
-          const img = SECTOR_IMAGES[s.nombre]
+          const ic = SECTOR_ICONS[s.nombre] ?? NEUTRO
+          const SectorIco = ic.Icon
           const abierto = expandido === s.nombre
           const subcats = s.subcategorias ?? []
           return (
@@ -152,15 +173,11 @@ export function CategoryDrawer({ open, onClose, onSectorChange, onSubcategoriaCh
                 }}
               >
                 <span style={{
-                  width: '40px', height: '40px', borderRadius: '8px', flexShrink: 0,
-                  background: 'var(--plate)', overflow: 'hidden', position: 'relative',
+                  width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0,
+                  background: ic.bg, color: ic.fg,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {img ? (
-                    <Image src={img} alt="" fill sizes="40px" style={{ objectFit: 'cover' }} unoptimized />
-                  ) : (
-                    <span style={{ fontSize: '18px' }}>{s.emoji}</span>
-                  )}
+                  <SectorIco size={20} strokeWidth={1.9} />
                 </span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: '14.5px', fontWeight: abierto ? 600 : 500, color: 'var(--ink)' }}>
