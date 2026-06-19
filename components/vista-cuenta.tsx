@@ -184,13 +184,27 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
         @media (hover: hover) and (pointer: fine) {
           .perfil-gr-press:hover { background: #fafafa !important; }
         }
+        @media (min-width: 1000px) {
+          .perfil-wrap { max-width: 940px; padding: 0 32px; }
+          .perfil-identity-name { font-size: 26px !important; }
+          .perfil-avatar { width: 80px !important; height: 80px !important; font-size: 32px !important; }
+          .perfil-stat-val { font-size: 22px !important; }
+          .perfil-stat-card { padding: 18px 20px !important; }
+          .perfil-upgrade-title { font-size: 15px !important; }
+          .perfil-upgrade-sub { font-size: 13px !important; }
+          .perfil-group-row { min-height: 62px !important; padding: 12px 20px !important; }
+          .perfil-group-lbl { font-size: 15px !important; }
+          .perfil-group-sub { font-size: 12px !important; }
+          .perfil-group-wrap { margin: 0 0 !important; }
+          .perfil-section-label { padding: 28px 0 8px !important; }
+        }
       `}</style>
 
       <div className="perfil-wrap">
 
         {/* Identidad */}
         <div className="perfil-anim" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px 20px 0' }}>
-          <div style={{
+          <div className="perfil-avatar" style={{
             width: '60px', height: '60px', borderRadius: '999px',
             background: 'var(--plate)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -200,7 +214,7 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
             {inicial}
           </div>
           <div>
-            <h1 style={{ fontSize: '21.4px', fontWeight: 600, letterSpacing: '-0.3px', margin: 0, color: 'var(--ink)' }}>
+            <h1 className="perfil-identity-name" style={{ fontSize: '21.4px', fontWeight: 600, letterSpacing: '-0.3px', margin: 0, color: 'var(--ink)' }}>
               {perfil.nombre || 'Tu negocio'}
             </h1>
             <div style={{ fontSize: '12.5px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
@@ -219,24 +233,24 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
 
         {/* Stats con CountUp */}
         <div className="perfil-anim" style={{ animationDelay: '100ms', display: 'flex', gap: '10px', padding: '18px 20px 0' }}>
-          <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
-            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+          <div className="perfil-stat-card" style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
+            <div className="tnum perfil-stat-val" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
               {cargado ? <CountUp from={0} to={comparados} duration={0.9} separator="." /> : comparados.toLocaleString('es-AR')}
             </div>
             <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
               productos comparados
             </div>
           </div>
-          <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
-            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--green)' }}>
+          <div className="perfil-stat-card" style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
+            <div className="tnum perfil-stat-val" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--green)' }}>
               {cargado ? <CountUp from={0} to={Math.round(ahorroTotal / 1000000)} duration={0.9} prefix="$" suffix=" M" separator="." /> : `$${Math.round(ahorroTotal / 1000000)} M`}
             </div>
             <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
               ahorro detectado en catálogo
             </div>
           </div>
-          <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
-            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+          <div className="perfil-stat-card" style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
+            <div className="tnum perfil-stat-val" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
               {cargado ? <CountUp from={0} to={listasCount} duration={0.5} /> : listasCount}
             </div>
             <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
@@ -261,10 +275,10 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
           }}
         >
           <div>
-            <div style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
+            <div className="perfil-upgrade-title" style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
               Te estás perdiendo el más barato
             </div>
-            <div className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px' }}>
+            <div className="tnum perfil-upgrade-sub" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px' }}>
               Maxiconsumo tuvo el mejor precio en {perdidasMaxiconsumo.toLocaleString('es-AR')} productos
             </div>
           </div>
@@ -279,12 +293,12 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
         </button>
 
         {/* Mi negocio */}
-        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '180ms' }}>Mi negocio</div>
+        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '180ms' }}>Mi negocio</div>
         <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '180ms' }}>
-          <div style={grStyle}>
+          <div className="perfil-group-row" style={grStyle}>
             <User size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Nombre</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Nombre</div>
             </div>
             {editandoNombre ? (
               <input
@@ -313,10 +327,10 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
             )}
           </div>
 
-          <div style={grStyle}>
+          <div className="perfil-group-row" style={grStyle}>
             <Store size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Rubro</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Rubro</div>
             </div>
             <select
               value={config.rubro}
@@ -335,11 +349,11 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
             </select>
           </div>
 
-          <button className="perfil-gr-press" style={grStyle} onClick={onIrAPlanes}>
+          <button className="perfil-gr-press perfil-group-row" style={grStyle} onClick={onIrAPlanes}>
             <Star size={20} strokeWidth={1.7} color="var(--gold)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Mi plan</div>
-              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Gratis · 2 de 3 mayoristas</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Mi plan</div>
+              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Gratis · 2 de 3 mayoristas</div>
             </div>
             <span style={proPillStyle}>VER PLANES</span>
             <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0 }} />
@@ -348,15 +362,15 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
           <div style={{ ...grStyle, borderBottom: 'none' }}>
             <Lock size={20} strokeWidth={1.7} color="var(--gray)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Email y contraseña</div>
-              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Accedé desde cualquier dispositivo</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Email y contraseña</div>
+              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Accedé desde cualquier dispositivo</div>
             </div>
             <span style={proPillStyle}>PRO</span>
           </div>
         </div>
 
         {/* Mis mayoristas */}
-        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '210ms' }}>Mis mayoristas</div>
+        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '210ms' }}>Mis mayoristas</div>
         <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '210ms' }}>
           {(['MaxiCarrefour', 'Yaguar', 'Maxiconsumo'] as const).map((m, idx) => {
             const esPro = m === 'Maxiconsumo'
@@ -377,7 +391,7 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
                   />
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>{m}</div>
+                  <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>{m}</div>
                   <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
                     {esPro ? 'Desbloquealo con PRO' : (ultimaActualizacion[m] ? diasDesde(ultimaActualizacion[m]) : 'Precios incluidos')}
                   </div>
@@ -390,13 +404,13 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
         </div>
 
         {/* Avisos */}
-        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '240ms' }}>Avisos</div>
+        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '240ms' }}>Avisos</div>
         <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '240ms' }}>
           <div style={{ ...grStyle, borderBottom: 'none' }}>
             <Bell size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Avisarme de bombas nuevas</div>
-              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Cuando un producto tuyo baje fuerte</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Avisarme de bombas nuevas</div>
+              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Cuando un producto tuyo baje fuerte</div>
             </div>
             <Switch
               on={config.avisosBombas !== false}
@@ -406,32 +420,32 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
         </div>
 
         {/* Ayuda */}
-        <div className="perfil-anim" style={{ ...groupLabelStyle, animationDelay: '270ms' }}>Ayuda</div>
+        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '270ms' }}>Ayuda</div>
         <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '270ms' }}>
           <a
             href={`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG_SUGERIR}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="perfil-gr-press"
+            className="perfil-gr-press perfil-group-row"
             style={{ ...grStyle, textDecoration: 'none' }}
           >
             <MessageCircle size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Sugerir un producto o mayorista</div>
-              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Por WhatsApp, te respondemos en el día</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Sugerir un producto o mayorista</div>
+              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Por WhatsApp, te respondemos en el día</div>
             </div>
             <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0 }} />
           </a>
 
           <button
-            className="perfil-gr-press"
+            className="perfil-gr-press perfil-group-row"
             style={grStyle}
             onClick={() => setExpandida(expandida === 'precios' ? null : 'precios')}
           >
             <HelpCircle size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Cómo funcionan los precios</div>
-              <div style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>De dónde salen y cada cuánto se actualizan</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Cómo funcionan los precios</div>
+              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>De dónde salen y cada cuánto se actualizan</div>
             </div>
             <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0, transform: expandida === 'precios' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms var(--ease-out)' }} />
           </button>
@@ -449,7 +463,7 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
           >
             <FileText size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Términos y privacidad</div>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Términos y privacidad</div>
             </div>
             <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0, transform: expandida === 'terminos' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms var(--ease-out)' }} />
           </button>

@@ -238,9 +238,18 @@ export function VistaLista({
         }
         .lista-wrap { max-width: 760px; margin: 0 auto; }
         @media (min-width: 1000px) {
-          .lista-wrap { padding: 0 44px; }
-          .lista-th-name { font-size: 23px !important; }
-          .lista-th-total { font-size: 25.7px !important; }
+          .lista-wrap { max-width: 1020px; padding: 0 56px; }
+          .lista-th-name { font-size: 24px !important; }
+          .lista-th-total { font-size: 28px !important; }
+          .lista-tab-pill { font-size: 15px !important; padding: 11px 22px !important; }
+          .lista-item-name { font-size: 16px !important; }
+          .lista-item-price { font-size: 18px !important; }
+          .lista-item-thumb-wrap { width: 58px !important; height: 58px !important; }
+          .lista-item-thumb-img { width: 46px !important; height: 46px !important; }
+          .lista-mode-btn { font-size: 15px !important; padding: 12px 0 !important; }
+          .lista-receipt-amount { font-size: 18px !important; }
+          .lista-total-amount { font-size: 34px !important; }
+          .lista-cta-btn { font-size: 16px !important; padding: 16px 28px !important; }
         }
       `}</style>
 
@@ -368,6 +377,7 @@ export function VistaLista({
             }}>
               <button
                 onClick={() => setModo('productos')}
+                className="lista-mode-btn"
                 style={{
                   flex: 1, border: 'none',
                   background: modo === 'productos' ? 'var(--pill)' : 'none',
@@ -382,6 +392,7 @@ export function VistaLista({
               </button>
               <button
                 onClick={() => setModo('plan')}
+                className="lista-mode-btn"
                 style={{
                   flex: 1, border: 'none',
                   background: modo === 'plan' ? 'var(--pill)' : 'none',
@@ -412,7 +423,7 @@ export function VistaLista({
                       }}>
                         <ItemThumb item={item} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--ink)' }}>
+                          <div className="lista-item-name" style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--ink)' }}>
                             {item.producto.nombre}
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '7px' }}>
@@ -449,7 +460,7 @@ export function VistaLista({
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div className="tnum" style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--ink)' }}>
+                          <div className="tnum lista-item-price" style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--ink)' }}>
                             {formatearPrecio(mejor.precio * cant)}
                           </div>
                           <span style={{
@@ -482,7 +493,7 @@ export function VistaLista({
                           {grupo.productos.length} producto{grupo.productos.length !== 1 ? 's' : ''} · {grupo.unidades} unidad{grupo.unidades !== 1 ? 'es' : ''}
                         </span>
                       </div>
-                      <span className="tnum" style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--ink)' }}>
+                      <span className="tnum lista-receipt-amount" style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--ink)' }}>
                         {formatearPrecio(grupo.total)}
                       </span>
                     </div>
@@ -492,7 +503,7 @@ export function VistaLista({
 
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '16px 0 0' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.14em', color: 'var(--ink)' }}>TOTAL</span>
-                    <span className="tnum" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--ink)' }}>{formatearPrecio(totalMix)}</span>
+                    <span className="tnum lista-total-amount" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--ink)' }}>{formatearPrecio(totalMix)}</span>
                   </div>
                   {ahorroMix > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0', fontSize: '13px' }}>
@@ -608,6 +619,7 @@ export function VistaLista({
               <button
                 onClick={handleWhatsApp}
                 aria-label="Compartir"
+                className="lista-cta-btn"
                 style={{
                   background: '#ffffff', color: 'var(--ink)',
                   border: '1.5px solid var(--ink)', borderRadius: '999px',
@@ -622,6 +634,7 @@ export function VistaLista({
               </button>
               <button
                 onClick={() => modo === 'productos' ? setModo('plan') : handleWhatsApp()}
+                className="lista-cta-btn"
                 style={{
                   flex: 1,
                   background: 'var(--pill)', color: '#ffffff',
