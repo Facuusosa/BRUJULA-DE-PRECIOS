@@ -710,9 +710,19 @@ export interface Frescura {
 }
 
 export function frescuraDe(precio: Precio): Frescura | null {
-  const dias = precio.diasDesdeScraping
+  let dias = precio.diasDesdeScraping
+  // Si el valor no está en el JSON (o es undefined), calcularlo en el momento
+  // desde fechaScraping para que siempre sea exacto sin depender del pipeline
+  if ((dias === undefined || dias === null) && precio.fechaScraping) {
+    const hoy = new Date()
+    const fecha = new Date(precio.fechaScraping)
+    if (!isNaN(fecha.getTime())) {
+      dias = Math.floor((hoy.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24))
+    }
+  }
   if (dias === undefined || dias === null) return null
-  if (dias <= 2)  return { label: 'Hoy',           color: 'var(--green)', nivel: 'fresco' }
-  if (dias <= 14) return { label: `Hace ${dias} d`, color: 'var(--gray)',  nivel: 'reciente' }
-  return { label: `Hace ${dias} d`, color: 'var(--gold)', nivel: 'viejo' }
+  if (dias <= 1)  return { label: 'Hoy',           color: 'var(--green)', nivel: 'fresco' }
+  if (dias <= 3)  return { label: 'Reciente',       color: 'var(--green)', nivel: 'fresco' }
+  if (dias <= 14) return { label: `Hace ${dias} d`, color: 'var(--gold)',  nivel: 'reciente' }
+  return { label: `Hace ${dias} d`, color: '#ef4444', nivel: 'viejo' }
 }
