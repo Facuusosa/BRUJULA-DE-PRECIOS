@@ -449,7 +449,7 @@ export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any
         const existingFallbacks = Object.values((item.fuentes as Record<string, { imagen?: string }>) || {})
           .map(f => f.imagen || '')
           .filter(img => img && img !== item.imagen)
-        return [...(offUrl ? [offUrl] : []), ...existingFallbacks]
+        return [...existingFallbacks, ...(offUrl ? [offUrl] : [])]
       })(),
       disponible: true,
       abc: item.abc || '',
@@ -711,8 +711,7 @@ export interface Frescura {
 
 export function frescuraDe(precio: Precio): Frescura | null {
   let dias = precio.diasDesdeScraping
-  // Si el valor no está en el JSON (o es undefined), calcularlo en el momento
-  // desde fechaScraping para que siempre sea exacto sin depender del pipeline
+  // Si el valor no está en el JSON, calcularlo en el momento desde fechaScraping
   if ((dias === undefined || dias === null) && precio.fechaScraping) {
     const hoy = new Date()
     const fecha = new Date(precio.fechaScraping)
@@ -721,8 +720,19 @@ export function frescuraDe(precio: Precio): Frescura | null {
     }
   }
   if (dias === undefined || dias === null) return null
-  if (dias <= 1)  return { label: 'Hoy',           color: 'var(--green)', nivel: 'fresco' }
-  if (dias <= 3)  return { label: 'Reciente',       color: 'var(--green)', nivel: 'fresco' }
-  if (dias <= 14) return { label: `Hace ${dias} d`, color: 'var(--gold)',  nivel: 'reciente' }
-  return { label: `Hace ${dias} d`, color: '#ef4444', nivel: 'viejo' }
+
+  // Label: dias exactos ("Hoy", "Ayer", "2 días", "3 días", etc.)
+  let label: string
+  if (dias === 0) {
+    label = 'Hoy'
+  } else if (dias === 1) {
+    label = 'Ayer'
+  } else {
+    label = `${dias} días`
+  }
+
+  if (dias <= 1)  return { label, color: 'var(--green)', nivel: 'fresco' }
+  if (dias <= 3)  return { label, color: 'var(--green)', nivel: 'fresco' }
+  if (dias <= 14) return { label, color: 'var(--gold)',  nivel: 'reciente' }
+  return { label, color: '#ef4444', nivel: 'viejo' }
 }
