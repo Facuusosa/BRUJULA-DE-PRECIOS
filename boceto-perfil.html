@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boceto · Perfil Brújula v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a1a1a; --gray:#808080; --line:#ececec; --plate:#f6f5f3;
+    --gold:#c89055; --gold-deep:#b07a3f; --green:#15803d; --pill:#111111;
+    --ease-out:cubic-bezier(0.23,1,0.32,1);
+    --font-sans:'Poppins',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:var(--font-sans); background:#e8e8e8; color:var(--ink);
+    min-height:100vh; display:flex; justify-content:center; align-items:flex-start;
+    padding:32px 0; -webkit-font-smoothing:antialiased;
+  }
+  /* marco de teléfono para simular mobile */
+  .phone{
+    width:390px; background:#fff; border-radius:36px; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.18); padding-bottom:32px;
+    position:relative;
+  }
+  .tnum{font-variant-numeric:tabular-nums;}
+
+  /* ── entrada escalonada suave ── */
+  @keyframes rise{to{opacity:1;transform:translateY(0);}}
+  .anim{opacity:0;transform:translateY(10px);animation:rise 460ms var(--ease-out) forwards;}
+
+  /* ── HEADER identidad ── */
+  .header{display:flex;align-items:center;gap:14px;padding:28px 22px 0;}
+  .avatar{
+    width:54px;height:54px;border-radius:999px;background:var(--plate);
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;font-weight:600;color:var(--gold);flex-shrink:0;
+  }
+  .name{font-size:20px;font-weight:600;letter-spacing:-.3px;}
+  .sub{font-size:12px;color:var(--gray);font-weight:300;margin-top:1px;}
+  .pill-free{
+    display:inline-flex;margin-top:6px;background:var(--pill);color:#fff;
+    font-size:9.5px;font-weight:600;letter-spacing:.12em;border-radius:999px;padding:3px 10px;
+  }
+
+  /* ── HERO ahorro ── */
+  .hero{padding:38px 22px 30px;text-align:center;}
+  .hero-label{font-size:13px;color:var(--gray);font-weight:300;letter-spacing:.01em;}
+  .hero-num-wrap{
+    margin:10px 0 4px;
+    /* blur-in */
+    animation:blurin 900ms var(--ease-out) 200ms both;
+  }
+  @keyframes blurin{
+    from{opacity:0;filter:blur(16px);transform:translateY(8px);}
+    to{opacity:1;filter:blur(0);transform:translateY(0);}
+  }
+  .hero-num{
+    font-size:62px;font-weight:600;letter-spacing:-2px;line-height:1;
+    /* sheen dorado que cruza una vez */
+    background:linear-gradient(110deg,var(--ink) 38%,var(--gold) 50%,var(--ink) 62%);
+    background-size:250% 100%;background-position:100% 0;
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:sheen 1700ms var(--ease-out) 950ms 1 both;
+  }
+  @keyframes sheen{
+    from{background-position:100% 0;}
+    to{background-position:-40% 0;}
+  }
+  .hero-foot{font-size:12.5px;color:var(--gray);font-weight:300;margin-top:8px;}
+
+  /* ── desglose dónde está tu ahorro ── */
+  .breakdown{padding:0 22px;}
+  .bd-title{font-size:10.7px;font-weight:600;letter-spacing:.14em;color:var(--gray);text-transform:uppercase;margin-bottom:12px;}
+  .bd-row{display:flex;align-items:center;gap:12px;margin-bottom:13px;}
+  .bd-logo{font-size:13px;font-weight:500;width:104px;flex-shrink:0;}
+  .bd-bar-track{flex:1;height:8px;border-radius:99px;background:var(--plate);overflow:hidden;}
+  .bd-bar-fill{height:100%;border-radius:99px;background:var(--gold);width:0;transition:width 1100ms var(--ease-out) 700ms;}
+  .bd-val{font-size:12px;color:var(--gray);font-weight:400;width:42px;text-align:right;flex-shrink:0;}
+
+  /* ── grupos de configuración ── */
+  .group-label{padding:30px 22px 9px;font-size:10.7px;font-weight:600;letter-spacing:.14em;color:var(--gray);text-transform:uppercase;}
+  .group{margin:0 22px;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+  .row{
+    display:flex;align-items:center;gap:13px;min-height:54px;padding:8px 16px;
+    border-bottom:1px solid var(--plate);background:#fff;cursor:pointer;
+    transition:background .15s ease;
+  }
+  .row:last-child{border-bottom:none;}
+  .row:hover{background:#fafafa;}
+  .row-main{flex:1;min-width:0;}
+  .row-label{font-size:14px;font-weight:400;}
+  .row-desc{font-size:11px;color:var(--gray);font-weight:300;margin-top:1px;}
+  .row-val{font-size:12.5px;color:var(--gray);font-weight:300;}
+  .chev{color:var(--line);font-size:18px;}
+  .ico{width:20px;height:20px;flex-shrink:0;stroke:var(--ink);stroke-width:1.7;fill:none;}
+  .edit-input{font-size:13px;text-align:right;border:none;border-bottom:1.5px solid var(--gold);outline:none;font-family:var(--font-sans);background:transparent;width:130px;color:var(--ink);}
+  .edit-select{font-size:13px;color:var(--gray);font-weight:300;border:none;outline:none;background:transparent;font-family:var(--font-sans);cursor:pointer;text-align:right;}
+  .pro-pill{font-size:9.5px;font-weight:600;letter-spacing:.08em;color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:2px 8px;flex-shrink:0;}
+  .logo-chip{width:54px;height:24px;border-radius:5px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--gray);flex-shrink:0;}
+  /* switch */
+  .sw{width:44px;height:26px;border-radius:99px;background:var(--line);position:relative;flex-shrink:0;border:none;cursor:pointer;padding:0;transition:background .2s ease;}
+  .sw.on{background:var(--green);}
+  .sw.locked{opacity:.45;cursor:default;}
+  .sw span{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:99px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s var(--ease-out);}
+  .sw.on span{transform:translateX(18px);}
+  .danger{padding:30px 22px 0;}
+  .danger button{font-size:13px;color:#dc2626;font-weight:400;background:none;border:none;cursor:pointer;padding:0;font-family:var(--font-sans);}
+
+  /* ── CTA único PRO ── */
+  .cta{
+    margin:24px 22px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    border:1.5px solid var(--gold);border-radius:14px;padding:15px 17px;
+    background:linear-gradient(100deg,rgba(200,144,85,.08),transparent 70%);cursor:pointer;
+  }
+  .cta-t{font-size:13.5px;font-weight:600;line-height:1.35;}
+  .cta-s{font-size:11.5px;color:var(--gray);font-weight:300;margin-top:2px;}
+  .cta-arrow{
+    flex-shrink:0;width:34px;height:34px;border-radius:99px;background:var(--gold);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+  }
+
+  .foot{padding:30px 22px 0;text-align:center;font-size:11px;color:var(--gray);font-weight:300;}
+
+  .note{
+    max-width:390px;margin:18px auto 0;font-size:12px;color:#999;text-align:center;line-height:1.5;
+    font-family:var(--font-sans);
+  }
+</style>
+</head>
+<body>
+  <div class="phone">
+
+    <!-- HEADER -->
+    <div class="header anim" style="animation-delay:0ms">
+      <div class="avatar">K</div>
+      <div>
+        <div class="name">Kiosco Sosa</div>
+        <div class="sub">Kiosco · Buenos Aires</div>
+        <span class="pill-free">PLAN FREE</span>
+      </div>
+    </div>
+
+    <!-- HERO AHORRO -->
+    <div class="hero">
+      <div class="hero-label anim" style="animation-delay:120ms">Comprando bien ahorrás</div>
+      <div class="hero-num-wrap">
+        <div class="hero-num tnum" id="heroNum">$0</div>
+      </div>
+      <div class="hero-foot anim" style="animation-delay:1100ms">en tus 3 listas guardadas este mes</div>
+    </div>
+
+    <!-- DESGLOSE -->
+    <div class="breakdown anim" style="animation-delay:1200ms">
+      <div class="bd-title">Dónde está tu ahorro</div>
+      <div class="bd-row">
+        <div class="bd-logo">Yaguar</div>
+        <div class="bd-bar-track"><div class="bd-bar-fill" data-w="78%"></div></div>
+        <div class="bd-val tnum">18</div>
+      </div>
+      <div class="bd-row">
+        <div class="bd-logo">MaxiCarrefour</div>
+        <div class="bd-bar-track"><div class="bd-bar-fill" data-w="34%"></div></div>
+        <div class="bd-val tnum">7</div>
+      </div>
+    </div>
+
+    <!-- CTA PRO (único) -->
+    <div class="cta anim" style="animation-delay:1300ms" onclick="">
+      <div>
+        <div class="cta-t">Te falta el 3er mayorista</div>
+        <div class="cta-s tnum">Maxiconsumo tuvo el mejor precio en 41 productos tuyos</div>
+      </div>
+      <span class="cta-arrow">→</span>
+    </div>
+
+    <!-- CONFIG · MI NEGOCIO -->
+    <div class="group-label anim" style="animation-delay:1380ms">Mi negocio</div>
+    <div class="group anim" style="animation-delay:1380ms">
+      <div class="row" onclick="this.querySelector('input').focus()">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <div class="row-main"><div class="row-label">Nombre</div></div>
+        <input class="edit-input" value="Kiosco Sosa" />
+      </div>
+      <div class="row">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M3 9l1-5h16l1 5"></path><path d="M5 9v11h14V9"></path><path d="M9 20v-6h6v6"></path></svg>
+        <div class="row-main"><div class="row-label">Rubro</div></div>
+        <select class="edit-select">
+          <option>Kiosco</option><option>Almacén</option><option>Minimercado</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="row" style="border-bottom:none">
+        <svg class="ico" viewBox="0 0 24 24" style="stroke:var(--gray)"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <div class="row-main"><div class="row-label">Email y contraseña</div><div class="row-desc">Accedé desde cualquier dispositivo</div></div>
+        <span class="pro-pill">PRO</span>
+      </div>
+    </div>
+
+    <!-- CONFIG · MIS MAYORISTAS -->
+    <div class="group-label anim" style="animation-delay:1430ms">Mis mayoristas</div>
+    <div class="group anim" style="animation-delay:1430ms">
+      <div class="row">
+        <span class="logo-chip">MAXI</span>
+        <div class="row-main"><div class="row-label">MaxiCarrefour</div><div class="row-desc">Actualizado hace 2 días</div></div>
+        <button class="sw on" onclick="this.classList.toggle('on')"><span></span></button>
+      </div>
+      <div class="row">
+        <span class="logo-chip">YAG</span>
+        <div class="row-main"><div class="row-label">Yaguar</div><div class="row-desc">Actualizado hoy</div></div>
+        <button class="sw on" onclick="this.classList.toggle('on')"><span></span></button>
+      </div>
+      <div class="row" style="border-bottom:none">
+        <span class="logo-chip">MC</span>
+        <div class="row-main"><div class="row-label">Maxiconsumo</div><div class="row-desc">Desbloquealo con PRO</div></div>
+        <span class="pro-pill">PRO</span>
+        <button class="sw locked"><span></span></button>
+      </div>
+    </div>
+
+    <!-- CONFIG · AVISOS -->
+    <div class="group-label anim" style="animation-delay:1480ms">Avisos</div>
+    <div class="group anim" style="animation-delay:1480ms">
+      <div class="row" style="border-bottom:none">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+        <div class="row-main"><div class="row-label">Avisarme de bombas nuevas</div><div class="row-desc">Cuando un producto tuyo baje fuerte</div></div>
+        <button class="sw on" onclick="this.classList.toggle('on')"><span></span></button>
+      </div>
+    </div>
+
+    <!-- CONFIG · AYUDA -->
+    <div class="group-label anim" style="animation-delay:1530ms">Ayuda</div>
+    <div class="group anim" style="animation-delay:1530ms">
+      <div class="row">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <div class="row-main"><div class="row-label">Sugerir un producto o mayorista</div><div class="row-desc">Por WhatsApp, te respondemos en el día</div></div>
+        <span class="chev">›</span>
+      </div>
+      <div class="row">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12" y2="17"></line></svg>
+        <div class="row-main"><div class="row-label">Cómo funcionan los precios</div><div class="row-desc">De dónde salen y cada cuánto se actualizan</div></div>
+        <span class="chev">›</span>
+      </div>
+      <div class="row" style="border-bottom:none">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <div class="row-main"><div class="row-label">Términos y privacidad</div></div>
+        <span class="chev">›</span>
+      </div>
+    </div>
+
+    <!-- DANGER -->
+    <div class="danger anim" style="animation-delay:1580ms">
+      <button>Borrar mis datos de este dispositivo</button>
+      <div class="foot tnum" style="padding:8px 0 0;text-align:left">Brújula de precios · v1.0 · datos del 13/06</div>
+    </div>
+  </div>
+
+  <div class="note">Boceto navegable · refrescá (F5) para volver a ver el efecto del número</div>
+
+<script>
+  // count-up del número héroe
+  (function(){
+    const el = document.getElementById('heroNum');
+    const target = 12480, dur = 1400, start = performance.now(), delay = 200;
+    function fmt(n){ return '$' + Math.round(n).toLocaleString('es-AR'); }
+    function tick(now){
+      const t = Math.min(1, (now - start - delay) / dur);
+      if(t < 0){ requestAnimationFrame(tick); return; }
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      el.textContent = fmt(target * eased);
+      if(t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  })();
+  // barras del desglose
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.bd-bar-fill').forEach(b => { b.style.width = b.dataset.w; });
+  });
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { ItemLista, Lista, formatearPrecio } from '@/lib/data'
 import { FrescuraPill } from '@/components/frescura-pill'
+import { HScroll } from '@/components/h-scroll'
 
 interface VistaListaProps {
   listas: Lista[]
@@ -256,7 +257,7 @@ export function VistaLista({
       <div className="lista-wrap">
 
         {/* Selector de listas */}
-        <div className="lista-anim scrollbar-hide" style={{ display: 'flex', gap: '9px', padding: '10px 20px 0', overflowX: 'auto' }}>
+        <HScroll className="lista-anim scrollbar-hide" style={{ display: 'flex', gap: '9px', padding: '10px 20px 0', overflowX: 'auto' }} arrowOffsetY={5}>
           {listas.map(lista => (
             <button key={lista.id} style={tabStyle(lista.id === listaActivaId)} onClick={() => onSeleccionarLista(lista.id)}>
               {lista.nombre}
@@ -287,7 +288,7 @@ export function VistaLista({
               Nueva
             </button>
           )}
-        </div>
+        </HScroll>
 
         {listaActiva && items.length > 0 ? (
           <>

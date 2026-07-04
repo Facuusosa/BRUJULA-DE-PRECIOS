@@ -154,6 +154,35 @@
   mix-blend-mode: multiply;
 }
 
+/* Flechas de carrusel (HScroll) — solo existen en desktop con mouse.
+   En touch se scrollea con el dedo y las flechas nunca se muestran. */
+.hscroll-btn {
+  position: absolute;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  color: var(--ink);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease, background 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hscroll-btn { display: flex; }
+  .hscroll-btn[data-visible='true'] { opacity: 1; pointer-events: auto; }
+  .hscroll-btn:hover { background: var(--plate); }
+  /* el press global button:active { scale } pisaría el translateY: se re-declara completo */
+  .hscroll-btn:active { transform: translateY(-50%) scale(0.94); }
+}
+
 /* ──────────────────────────────────────────────
    SLIDER (Calculadora de margen)
 ────────────────────────────────────────────── */

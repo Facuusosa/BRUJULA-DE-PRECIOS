@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Producto, productos, formatearPrecio, extraerTamano } from '@/lib/data'
 import { ShuffleValue } from '@/components/shuffle-value'
 import { FrescuraPill } from '@/components/frescura-pill'
+import { HScroll } from '@/components/h-scroll'
 
 interface VistaDetalleProps {
   producto: Producto
@@ -504,11 +505,11 @@ export function VistaDetalle({
             {relacionados.length > 0 && (
               <div className="det-rel det-anim" style={{ animationDelay: '340ms' }}>
                 <h2 className="det-sh">De la misma categoría</h2>
-                <div className="det-rel-scroll">
+                <HScroll className="det-rel-scroll" arrowOffsetY={7}>
                   {relacionados.map(rel => (
                     <RelCard key={rel.id} producto={rel} onClick={() => onVerProducto?.(rel)} />
                   ))}
-                </div>
+                </HScroll>
               </div>
             )}
           </div>

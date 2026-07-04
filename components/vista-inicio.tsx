@@ -1,10 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Image from 'next/image'
 import { calcularBombas, productos, sectores, Producto, ProductoBomba } from '@/lib/data'
 import { BombaDeal } from '@/components/bomba-list-item'
 import { LogoLoop } from '@/components/LogoLoop'
+import { HScroll } from '@/components/h-scroll'
+import { CategoriaCard } from '@/components/categoria-card'
+import { CATEGORIA_FOTOS } from '@/lib/categoria-fotos'
 
 interface VistaInicioProps {
   onIrACompararConSector: (sector: string) => void
@@ -22,18 +24,13 @@ const MAYORISTAS = [
   { src: '/mayoristas/maxiconsumo.webp',  alt: 'Maxiconsumo',   url: 'https://www.maxiconsumo.com' },
 ]
 
-const SECTOR_IMAGES: Record<string, string> = {
-  'Almacén':          '/categories/almacen.png',
-  'Bebidas':          '/categories/bebidas_real.png',
-  'Limpieza':         '/categories/limpieza_real.png',
-  'Frescos':          '/categories/frescos.png',
-  'Cuidado Personal': '/categories/perfumeria_real.png',
-  'Mascotas':         '/categories/mascotas.png',
-}
-
 const TOP_TOTAL = 20
 const VISIBLES_INICIAL = 6
 const VISIBLES_PASO = 6
+
+/* Categorías con menos productos que esto no se muestran: un recuadro
+   con "3 productos" vende pobreza, no catálogo */
+const MIN_PRODUCTOS_CATEGORIA = 10
 
 const fmt = new Intl.NumberFormat('es-AR')
 
@@ -60,7 +57,20 @@ export function VistaInicio({
   onIrAlCatalogo,
   onGuardar,
 }: VistaInicioProps) {
-  const top = useMemo(() => rankearTop(calcularBombas()), [])
+  const bombas = useMemo(() => calcularBombas(), [])
+  const top = useMemo(() => rankearTop(bombas), [bombas])
+  const categorias = useMemo(() => (
+    sectores
+      .map(sector => {
+        const count = productos.filter(p => p.sector === sector.nombre).length
+        // mejor ahorro real del sector, mismo criterio que las bombas (cap 60%, sin sospechosos)
+        const pct = bombas
+          .filter(b => b.sector === sector.nombre)
+          .reduce((m, b) => Math.max(m, b.ahorroVsMaximo), 0)
+        return { sector, count, pct, fotos: CATEGORIA_FOTOS[sector.nombre] ?? [] }
+      })
+      .filter(c => c.count >= MIN_PRODUCTOS_CATEGORIA && c.fotos.length > 0)
+  ), [bombas])
   const [visibles, setVisibles] = useState(VISIBLES_INICIAL)
   const deals = top.slice(0, visibles)
   const hayMas = visibles < top.length
@@ -82,8 +92,8 @@ export function VistaInicio({
           .inicio-cta { max-width: 480px; }
         }
         @media (hover: hover) and (pointer: fine) {
-          .cat-card .cat-img { transition: transform 450ms var(--ease-out); }
-          .cat-card:hover .cat-img { transform: scale(1.06); }
+          .catcard .catcard-fotos { transition: transform 450ms var(--ease-out); }
+          .catcard:hover .catcard-fotos { transform: scale(1.05); }
         }
       `}</style>
 
@@ -154,62 +164,18 @@ export function VistaInicio({
           }}>
             Explorá por categoría
           </h2>
-          <div className="scrollbar-hide" style={{ display: 'flex', gap: '12px', padding: '16px 20px 0', overflowX: 'auto' }}>
-            {sectores.map(sector => {
-              const img = SECTOR_IMAGES[sector.nombre]
-              const count = productos.filter(p => p.sector === sector.nombre).length
-              return (
-                <button
-                  key={sector.nombre}
-                  className="cat-card"
-                  onClick={() => onIrACompararConSector(sector.nombre)}
-                  style={{
-                    position: 'relative', flexShrink: 0,
-                    width: '132px', height: '168px',
-                    borderRadius: '10px', overflow: 'hidden',
-                    border: 'none', cursor: 'pointer', padding: 0,
-                    background: 'var(--plate)',
-                  }}
-                >
-                  {img ? (
-                    <Image
-                      src={img}
-                      alt=""
-                      fill
-                      sizes="132px"
-                      className="cat-img"
-                      style={{ objectFit: 'cover', filter: 'contrast(1.05) saturate(0.9)' }}
-                      unoptimized
-                    />
-                  ) : (
-                    <span style={{
-                      position: 'absolute', inset: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '32px',
-                    }}>
-                      {sector.emoji}
-                    </span>
-                  )}
-                  <span style={{
-                    position: 'absolute', inset: 0,
-                    background: 'linear-gradient(to top, rgba(10,10,10,0.85) 0%, rgba(10,10,10,0.2) 48%, rgba(10,10,10,0) 100%)',
-                  }} />
-                  {/* Columna flex: el nombre a 2 líneas empuja el count hacia arriba sin pisarlo */}
-                  <span style={{
-                    position: 'absolute', bottom: '11px', left: '13px', right: '13px', zIndex: 1,
-                    display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left',
-                  }}>
-                    <span className="tnum" style={{ fontSize: '10.5px', fontWeight: 400, color: 'rgba(255,255,255,0.8)', lineHeight: 1.3 }}>
-                      {fmt.format(count)} productos
-                    </span>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff', letterSpacing: '-0.2px', lineHeight: 1.25 }}>
-                      {sector.nombre}
-                    </span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+          <HScroll className="scrollbar-hide" style={{ display: 'flex', gap: '12px', padding: '16px 20px 0', overflowX: 'auto' }} arrowOffsetY={8}>
+            {categorias.map(({ sector, count, pct, fotos }) => (
+              <CategoriaCard
+                key={sector.nombre}
+                nombre={sector.nombre}
+                count={fmt.format(count)}
+                ahorroPct={pct}
+                fotos={fotos}
+                onClick={() => onIrACompararConSector(sector.nombre)}
+              />
+            ))}
+          </HScroll>
         </div>
       </div>
     </div>

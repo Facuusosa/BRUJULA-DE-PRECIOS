@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Search, X, Check, Plus, ChevronDown, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
 import { productos, sectores, Producto, formatearPrecio, extraerTamano } from '@/lib/data'
 import { FrescuraPill } from '@/components/frescura-pill'
+import { HScroll } from '@/components/h-scroll'
 
 const ITEMS_POR_PAGINA = 24
 
@@ -303,7 +304,7 @@ export function VistaCatalogo({
         </div>
 
         {/* Filtros — chips dropdown estilo Trolley */}
-        <div className="cat-filters cat-anim" style={{ animationDelay: '120ms' }}>
+        <HScroll className="cat-filters cat-anim" style={{ animationDelay: '120ms' }} arrowOffsetY={7}>
           {/* Ordenar */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
@@ -392,7 +393,7 @@ export function VistaCatalogo({
             <Heart size={13} strokeWidth={2.5} fill={soloFavoritos ? 'currentColor' : 'none'} />
             Favoritos
           </button>
-        </div>
+        </HScroll>
 
         {/* Meta línea */}
         <div className="cat-meta cat-anim" style={{ animationDelay: '180ms' }}>
