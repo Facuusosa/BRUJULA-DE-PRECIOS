@@ -70,8 +70,10 @@ export default function BrujulaMayorista() {
           const refrescados = vistos.map(item => {
             const actual = productos.find(p => p.id === item.producto.id)
             if (!actual) return item
-            const precioMayorista = actual.precios.find(p => p.mayorista === item.mayorista && p.precio > 0)
-            const mejor = actual.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)[0]
+            // Solo mayoristas: si un item viejo quedó con una cadena guardada,
+            // acá se corrige solo al mejor mayorista vigente
+            const precioMayorista = actual.precios.find(p => p.mayorista === item.mayorista && p.precio > 0 && p.tipoFuente === 'mayorista')
+            const mejor = actual.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').sort((a, b) => a.precio - b.precio)[0]
             const vigente = precioMayorista ?? mejor
             return vigente
               ? { ...item, producto: actual, mayorista: vigente.mayorista, precioCompra: vigente.precio }
@@ -196,7 +198,8 @@ export default function BrujulaMayorista() {
   }
 
   const agregarItemALista = (producto: Producto, listaId: string) => {
-    const preciosValidos = producto.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
+    // La lista es de compra: solo mayoristas (coto es referencia góndola)
+    const preciosValidos = producto.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').sort((a, b) => a.precio - b.precio)
     if (preciosValidos.length === 0) return
     const mejor = preciosValidos[0]
     const item: ItemLista = { producto, mayorista: mejor.mayorista, precioCompra: mejor.precio, margen: 0, precioVenta: 0, ganancia: 0, cantidad: 1 }
@@ -215,7 +218,7 @@ export default function BrujulaMayorista() {
 
   const handleAgregarRapido = (producto: Producto) => {
     if (listas.length === 0) {
-      const preciosValidos = producto.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
+      const preciosValidos = producto.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').sort((a, b) => a.precio - b.precio)
       if (preciosValidos.length === 0) return
       const mejor = preciosValidos[0]
       const item: ItemLista = { producto, mayorista: mejor.mayorista, precioCompra: mejor.precio, margen: 0, precioVenta: 0, ganancia: 0 }

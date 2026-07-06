@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
-import { User, Store, Star, Lock, Bell, MessageCircle, HelpCircle, FileText, ChevronRight, ArrowRight } from 'lucide-react'
-import { productos } from '@/lib/data'
+import { User, Store, Star, Lock, Bell, MessageCircle, HelpCircle, FileText, ChevronRight, ArrowRight, ShoppingCart } from 'lucide-react'
+import { productos, FUENTES } from '@/lib/data'
 import CountUp from '@/components/reactbits/TextAnimations/CountUp/CountUp'
 
 const WHATSAPP_NUMERO = '541168079566'
@@ -21,12 +21,8 @@ interface BrujulaConfig {
   nombreNegocio: string
   rubro: 'Almacen' | 'Kiosco' | 'Minimercado' | 'Otro'
   avisosBombas?: boolean
-}
-
-const LOGOS: Record<string, string> = {
-  'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
-  'Yaguar':        '/mayoristas/yaguar.png',
-  'MaxiCarrefour': '/mayoristas/maxicarrefour.jpg',
+  // Setea el filtro por defecto del catálogo: comerciante → Mayoristas, consumidor → Cadenas
+  perfilUso?: 'comerciante' | 'consumidor'
 }
 
 function diasDesde(fecha: string): string {
@@ -92,11 +88,12 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
     if (cargado) localStorage.setItem('brujula_config', JSON.stringify(config))
   }, [config, cargado])
 
-  const comparados = useMemo(() => productos.filter(p => p.precios.filter(pr => pr.precio > 0).length >= 2).length, [])
+  // Métricas de compra: siempre sobre mayoristas (coto es referencia góndola)
+  const comparados = useMemo(() => productos.filter(p => p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista').length >= 2).length, [])
 
   const ahorroTotal = useMemo(() =>
     productos.reduce((sum, p) => {
-      const validos = p.precios.filter(pr => pr.precio > 0)
+      const validos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
       if (validos.length < 2) return sum
       const min = Math.min(...validos.map(v => v.precio))
       const max = Math.max(...validos.map(v => v.precio))
@@ -107,7 +104,7 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
   // Productos donde Maxiconsumo (el mayorista PRO) tiene el mejor precio
   const perdidasMaxiconsumo = useMemo(() =>
     productos.filter(p => {
-      const validos = p.precios.filter(pr => pr.precio > 0)
+      const validos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
       if (validos.length < 2) return false
       const mejor = validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
       return mejor.mayorista === 'Maxiconsumo'
@@ -349,6 +346,29 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
             </select>
           </div>
 
+          <div className="perfil-group-row" style={grStyle}>
+            <ShoppingCart size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Uso la app como</div>
+              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
+                Define qué precios ves primero en el catálogo
+              </div>
+            </div>
+            <select
+              value={config.perfilUso ?? 'comerciante'}
+              onChange={e => setConfig(prev => ({ ...prev, perfilUso: e.target.value as BrujulaConfig['perfilUso'] }))}
+              aria-label="Perfil de uso"
+              style={{
+                fontSize: '13px', color: 'var(--gray)', fontWeight: 300,
+                border: 'none', outline: 'none', background: 'transparent',
+                fontFamily: 'var(--font-sans)', cursor: 'pointer', textAlign: 'right',
+              }}
+            >
+              <option value="comerciante">Comerciante</option>
+              <option value="consumidor">Consumidor</option>
+            </select>
+          </div>
+
           <button className="perfil-gr-press perfil-group-row" style={grStyle} onClick={onIrAPlanes}>
             <Star size={20} strokeWidth={1.7} color="var(--gold)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -369,21 +389,22 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
           </div>
         </div>
 
-        {/* Mis mayoristas */}
-        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '210ms' }}>Mis mayoristas</div>
+        {/* Fuentes de precios: 3 mayoristas + Coto (cadena, gratis para todos) */}
+        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '210ms' }}>Fuentes de precios</div>
         <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '210ms' }}>
-          {(['MaxiCarrefour', 'Yaguar', 'Maxiconsumo'] as const).map((m, idx) => {
-            const esPro = m === 'Maxiconsumo'
+          {FUENTES.map((f, idx) => {
+            const esPro = f.nombre === 'Maxiconsumo'
+            const esCadena = f.tipo === 'cadena'
             return (
-              <div key={m} style={{ ...grStyle, borderBottom: idx === 2 ? 'none' : '1px solid var(--plate)' }}>
+              <div key={f.nombre} style={{ ...grStyle, borderBottom: idx === FUENTES.length - 1 ? 'none' : '1px solid var(--plate)' }}>
                 <span style={{
                   width: '56px', height: '24px', borderRadius: '5px',
                   border: '1px solid var(--line)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
                   <Image
-                    src={LOGOS[m]}
-                    alt={m}
+                    src={f.logo}
+                    alt={f.nombre}
                     width={46}
                     height={15}
                     style={{ maxWidth: '46px', maxHeight: '15px', objectFit: 'contain', width: 'auto', height: 'auto' }}
@@ -391,9 +412,19 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
                   />
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>{m}</div>
+                  <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>
+                    {f.nombre}
+                    {esCadena && (
+                      <span style={{
+                        marginLeft: '7px', fontSize: '9px', fontWeight: 600, letterSpacing: '0.05em',
+                        color: 'var(--green)', border: '1px solid var(--green)',
+                        borderRadius: '4px', padding: '1px 5px', verticalAlign: 'middle',
+                      }}>GÓNDOLA</span>
+                    )}
+                  </div>
                   <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
-                    {esPro ? 'Desbloquealo con PRO' : (ultimaActualizacion[m] ? diasDesde(ultimaActualizacion[m]) : 'Precios incluidos')}
+                    {esPro ? 'Desbloquealo con PRO'
+                      : (ultimaActualizacion[f.nombre] ? diasDesde(ultimaActualizacion[f.nombre]) : 'Precios incluidos')}
                   </div>
                 </div>
                 {esPro && <span style={proPillStyle}>PRO</span>}

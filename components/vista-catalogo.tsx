@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Search, X, Check, Plus, ChevronDown, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
-import { productos, sectores, Producto, formatearPrecio, extraerTamano } from '@/lib/data'
+import { productos, sectores, Producto, TipoFuente, FUENTES, formatearPrecio, extraerTamano } from '@/lib/data'
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
 
@@ -35,10 +35,10 @@ interface VistaCatalogoProps {
   listaIds?: Set<string>
 }
 
-const MAYORISTAS_FILTER = [
-  { nombre: 'MaxiCarrefour', logo: '/mayoristas/maxicarrefour.jpg' },
-  { nombre: 'Yaguar',        logo: '/mayoristas/yaguar.png' },
-  { nombre: 'Maxiconsumo',   logo: '/mayoristas/maxiconsumo.webp' },
+const TIPO_LABELS: { valor: '' | TipoFuente; label: string }[] = [
+  { valor: '',          label: 'Todos' },
+  { valor: 'mayorista', label: 'Mayoristas' },
+  { valor: 'cadena',    label: 'Cadenas' },
 ]
 
 const fmt = new Intl.NumberFormat('es-AR')
@@ -48,15 +48,17 @@ function normalizar(s: string) {
 }
 
 function ahorroPct(p: Producto): number {
-  const validos = p.precios.filter(pr => pr.precio > 0)
+  // Solo mayoristas: comparar compra vs góndola (Coto) inflaría el ahorro
+  // con la brecha natural mayorista-minorista (regla 09-calidad-datos)
+  const validos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
   if (validos.length < 2) return 0
   const min = Math.min(...validos.map(v => v.precio))
   const max = Math.max(...validos.map(v => v.precio))
   return Math.round(((max - min) / max) * 100)
 }
 
-function precioMin(p: Producto): number {
-  const validos = p.precios.filter(pr => pr.precio > 0)
+function precioMin(p: Producto, tipo: '' | TipoFuente = ''): number {
+  const validos = p.precios.filter(pr => pr.precio > 0 && (!tipo || pr.tipoFuente === tipo))
   return validos.length ? Math.min(...validos.map(v => v.precio)) : 0
 }
 
@@ -93,6 +95,16 @@ export function VistaCatalogo({
 }: VistaCatalogoProps) {
   const [busqueda, setBusqueda] = useState(textoBusquedaInicial)
   const [mayoristaSel, setMayoristaSel] = useState(mayoristaBuscadoInicial || '')
+  // Filtro por tipo de fuente (mayorista/cadena). El default viene de la
+  // preferencia "comerciante/consumidor" guardada en Perfil (brujula_config)
+  const [tipoSel, setTipoSel] = useState<'' | TipoFuente>('')
+  useEffect(() => {
+    try {
+      const cfg = JSON.parse(localStorage.getItem('brujula_config') || '{}')
+      if (cfg.perfilUso === 'consumidor') setTipoSel('cadena')
+      else if (cfg.perfilUso === 'comerciante') setTipoSel('mayorista')
+    } catch { /* config corrupta: seguir con Todos */ }
+  }, [])
   const [sectorSel, setSectorSel] = useState(sectorInicial !== 'Todos' ? sectorInicial : '')
   const [soloComparables, setSoloComparables] = useState(false)
   const [orden, setOrden] = useState<Orden>('relevancia')
@@ -110,14 +122,18 @@ export function VistaCatalogo({
     onSubcategoriaChange?.('')
   }
 
+  // Comparable = 2+ precios MAYORISTAS (coto es referencia, no compara compra)
   const comparablesCount = useMemo(() =>
-    productos.filter(p => p.precios.filter(pr => pr.precio > 0).length >= 2).length,
+    productos.filter(p => p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista').length >= 2).length,
     []
   )
 
   const productosFiltrados = useMemo(() => {
     let lista = productos.filter(p => p.precios.some(pr => pr.precio > 0))
 
+    if (tipoSel) {
+      lista = lista.filter(p => p.precios.some(pr => pr.tipoFuente === tipoSel && pr.precio > 0))
+    }
     if (mayoristaSel) {
       lista = lista.filter(p => p.precios.some(pr => pr.mayorista === mayoristaSel && pr.precio > 0))
     }
@@ -128,7 +144,7 @@ export function VistaCatalogo({
       lista = lista.filter(p => p.subcategoria === subcategoriaInicial)
     }
     if (soloComparables) {
-      lista = lista.filter(p => p.precios.filter(pr => pr.precio > 0).length >= 2)
+      lista = lista.filter(p => p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista').length >= 2)
     }
     if (soloFavoritos) {
       lista = lista.filter(p => favoritos.has(p.id))
@@ -151,11 +167,11 @@ export function VistaCatalogo({
 
     switch (orden) {
       case 'ahorro':      return [...lista].sort((a, b) => ahorroPct(b) - ahorroPct(a))
-      case 'precio-asc':  return [...lista].sort((a, b) => precioMin(a) - precioMin(b))
-      case 'precio-desc': return [...lista].sort((a, b) => precioMin(b) - precioMin(a))
+      case 'precio-asc':  return [...lista].sort((a, b) => precioMin(a, tipoSel) - precioMin(b, tipoSel))
+      case 'precio-desc': return [...lista].sort((a, b) => precioMin(b, tipoSel) - precioMin(a, tipoSel))
       default:            return [...lista].sort(porRelevancia)
     }
-  }, [busqueda, mayoristaSel, sectorSel, subcategoriaInicial, soloComparables, soloFavoritos, favoritos, orden])
+  }, [busqueda, mayoristaSel, tipoSel, sectorSel, subcategoriaInicial, soloComparables, soloFavoritos, favoritos, orden])
 
   const totalPaginas = Math.ceil(productosFiltrados.length / ITEMS_POR_PAGINA)
   const productosVisibles = productosFiltrados.slice(
@@ -163,7 +179,7 @@ export function VistaCatalogo({
     (paginaActual + 1) * ITEMS_POR_PAGINA
   )
 
-  const filterKey = `${mayoristaSel}-${sectorSel}-${subcategoriaInicial}-${busqueda}-${soloComparables}-${soloFavoritos}-${orden}`
+  const filterKey = `${mayoristaSel}-${tipoSel}-${sectorSel}-${subcategoriaInicial}-${busqueda}-${soloComparables}-${soloFavoritos}-${orden}`
 
   useEffect(() => {
     setPaginaActual(0)
@@ -225,7 +241,7 @@ export function VistaCatalogo({
         @media (min-width: 1000px) {
           .cat-search { margin: 4px 0 0; max-width: 640px; }
           .cat-content { padding: 0 44px; }
-          .cat-stores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 26px; }
+          .cat-stores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 26px; }
           .cat-filters { padding: 22px 0 0; }
           .cat-meta { padding: 28px 0 4px; }
           .cat-meta h2 { font-size: 25.7px; }
@@ -274,9 +290,9 @@ export function VistaCatalogo({
           )}
         </div>
 
-        {/* Cards de mayoristas — solo desktop, "Filter by store" */}
+        {/* Cards de fuentes — solo desktop, "Filter by store" */}
         <div className="cat-stores cat-anim" style={{ animationDelay: '90ms' }}>
-          {MAYORISTAS_FILTER.map(m => {
+          {FUENTES.map(m => {
             const activo = mayoristaSel === m.nombre
             return (
               <button
@@ -339,6 +355,17 @@ export function VistaCatalogo({
             )}
           </div>
 
+          {/* Toggle tipo de fuente: Todos / Mayoristas / Cadenas */}
+          {TIPO_LABELS.map(t => (
+            <button
+              key={t.valor || 'todos'}
+              style={chipStyle(tipoSel === t.valor)}
+              onClick={() => setTipoSel(t.valor)}
+            >
+              {t.label}
+            </button>
+          ))}
+
           {/* Sector activo (con X para quitar) */}
           {sectorSel && (
             <button style={chipStyle(true)} onClick={handleQuitarSector}>
@@ -364,7 +391,7 @@ export function VistaCatalogo({
                 background: '#ffffff', border: '1px solid var(--line)', borderRadius: '12px',
                 boxShadow: '0 8px 24px rgba(0,0,0,0.1)', padding: '6px', minWidth: '170px',
               }}>
-                {MAYORISTAS_FILTER.map(m => (
+                {FUENTES.map(m => (
                   <button
                     key={m.nombre}
                     onClick={(e) => { e.stopPropagation(); setMayoristaSel(mayoristaSel === m.nombre ? '' : m.nombre); setDropdownAbierto(null) }}
@@ -413,6 +440,7 @@ export function VistaCatalogo({
                 <CatalogoCell
                   key={producto.id}
                   producto={producto}
+                  tipoSel={tipoSel}
                   onClick={() => onVerProducto(producto)}
                   enLista={listaIds.has(producto.id)}
                   onAgregar={onAgregarALista ? () => onAgregarALista(producto) : undefined}
@@ -468,7 +496,7 @@ export function VistaCatalogo({
                 : 'Probá con otro filtro o búsqueda'}
             </div>
             <button
-              onClick={() => { setBusqueda(''); setMayoristaSel(''); handleQuitarSector(); setSoloComparables(false); onSoloFavoritosChange?.(false) }}
+              onClick={() => { setBusqueda(''); setMayoristaSel(''); setTipoSel(''); handleQuitarSector(); setSoloComparables(false); onSoloFavoritosChange?.(false) }}
               style={{
                 padding: '11px 22px', borderRadius: '999px',
                 background: 'var(--pill)', color: '#ffffff',
@@ -488,15 +516,17 @@ export function VistaCatalogo({
 // ── Celda de producto — sin logos de mayoristas: solo mejor precio + ahorro ──
 interface CatalogoCellProps {
   producto: Producto
+  tipoSel?: '' | TipoFuente
   onClick: () => void
   enLista?: boolean
   onAgregar?: () => void
 }
 
-function CatalogoCell({ producto, onClick, enLista, onAgregar }: CatalogoCellProps) {
+function CatalogoCell({ producto, tipoSel = '', onClick, enLista, onAgregar }: CatalogoCellProps) {
   const plusRef = useRef<HTMLButtonElement>(null)
+  // "Desde $X" y conteo respetan el filtro de tipo activo (mayoristas/cadenas)
   const preciosValidos = producto.precios
-    .filter(p => p.precio > 0)
+    .filter(p => p.precio > 0 && (!tipoSel || p.tipoFuente === tipoSel))
     .sort((a, b) => a.precio - b.precio)
 
   const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')

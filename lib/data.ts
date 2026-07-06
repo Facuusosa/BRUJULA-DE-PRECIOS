@@ -1,10 +1,37 @@
 import catalogoUnificado from '../data/processed/catalogo_unificado.json'
 
+// Fuentes de precios — única fuente de verdad para claves, nombres, tipo y logo.
+// tipo 'mayorista' = precio de compra del comerciante; 'cadena' = referencia
+// góndola (Coto, Carrefour): nunca entra a bombas ni al "mejor precio" de compra.
+export type TipoFuente = 'mayorista' | 'cadena'
+
+export interface FuenteInfo {
+  clave: string     // clave en catalogo_unificado.json (precios / fuentes)
+  nombre: string    // nombre display en la UI
+  tipo: TipoFuente
+  logo: string      // ruta en /public
+  url: string       // sitio oficial de la fuente
+}
+
+export const FUENTES: FuenteInfo[] = [
+  { clave: 'maxicarrefour', nombre: 'MaxiCarrefour', tipo: 'mayorista', logo: '/mayoristas/maxicarrefour.jpg', url: 'https://comerciante.carrefour.com.ar/' },
+  { clave: 'yaguar',        nombre: 'Yaguar',        tipo: 'mayorista', logo: '/mayoristas/yaguar.png',        url: 'https://www.yaguar.com.ar' },
+  { clave: 'maxiconsumo',   nombre: 'Maxiconsumo',   tipo: 'mayorista', logo: '/mayoristas/maxiconsumo.webp',  url: 'https://www.maxiconsumo.com' },
+  { clave: 'coto',          nombre: 'Coto',          tipo: 'cadena',    logo: '/mayoristas/coto.webp',         url: 'https://www.cotodigital.com.ar' },
+  { clave: 'carrefour',     nombre: 'Carrefour',     tipo: 'cadena',    logo: '/mayoristas/carrefour.jpg',     url: 'https://www.carrefour.com.ar' },
+]
+
+export const fuentePorNombre = (nombre: string): FuenteInfo | undefined =>
+  FUENTES.find(f => f.nombre === nombre)
+
 // Tipos para los productos y precios
 export interface Precio {
   mayorista: string
-  precio: number
+  precio: number               // precio efectivo: lo que se paga HOY (oferta si hay)
   tipo: 'lista' | 'oferta'
+  tipoFuente: TipoFuente
+  precioRegular?: number       // precio de lista cuando hay oferta vigente (Coto)
+  oferta?: string              // texto de la oferta, ej. "30%Dto"
   link?: string
   fechaScraping?: string
   precioStale?: boolean        // precio con >14 dias: mostrar como desactualizado
@@ -189,25 +216,25 @@ const sectorColorMap: Record<string, { color: string; emoji: string }> = {
 }
 
 export const productos: Producto[] = (catalogoUnificado as any[]).map((item: any) => {
-    // Mapeo de clave interna → nombre display correcto
-    const nombreMayorista: Record<string, string> = {
-      maxicarrefour: 'MaxiCarrefour',
-      maxiconsumo:   'Maxiconsumo',
-      yaguar:        'Yaguar',
-    }
-
     // Convertir el objecto de precios en un array (solo los que tienen precio > 0)
     const preciosMapped: Precio[] = Object.entries(item.precios)
       .filter(([, precio]) => (precio as number) > 0)
-      .map(([mayorista, precio]) => ({
-        mayorista: nombreMayorista[mayorista] ?? (mayorista.charAt(0).toUpperCase() + mayorista.slice(1)),
-        precio: precio as number,
-        tipo: 'lista' as const,
-        link: item.fuentes?.[mayorista]?.link || undefined,
-        fechaScraping: item.fuentes?.[mayorista]?.fecha_scraping || undefined,
-        precioStale: item.fuentes?.[mayorista]?.precio_stale || undefined,
-        diasDesdeScraping: item.fuentes?.[mayorista]?.dias_desde_scraping ?? undefined,
-      }))
+      .map(([clave, precio]) => {
+        const fuente = FUENTES.find(f => f.clave === clave)
+        const conOferta = !!item.fuentes?.[clave]?.oferta
+        return {
+          mayorista: fuente?.nombre ?? (clave.charAt(0).toUpperCase() + clave.slice(1)),
+          precio: precio as number,
+          tipo: (conOferta ? 'oferta' : 'lista') as 'lista' | 'oferta',
+          tipoFuente: fuente?.tipo ?? 'mayorista',
+          precioRegular: item.fuentes?.[clave]?.precio_regular || undefined,
+          oferta: item.fuentes?.[clave]?.oferta || undefined,
+          link: item.fuentes?.[clave]?.link || undefined,
+          fechaScraping: item.fuentes?.[clave]?.fecha_scraping || undefined,
+          precioStale: item.fuentes?.[clave]?.precio_stale || undefined,
+          diasDesdeScraping: item.fuentes?.[clave]?.dias_desde_scraping ?? undefined,
+        }
+      })
 
 
     // --- LÓGICA DE SECTORES Y SUBCATEGORÍAS ---
@@ -602,14 +629,16 @@ export function calcularBombas(): ProductoBomba[] {
       // Sin sospechosos: un "ahorro" >60% entre fuentes es casi siempre un match
       // incorrecto — mostrarlo como bomba destruye la confianza del comerciante
       if (p.precioSospechoso) return false
-      const preciosValidos = p.precios.filter(pr => pr.precio > 0)
+      // Solo mayoristas: Coto (cadena) es sistemáticamente más caro y generaría
+      // "bombas" falsas del 30-40% que son la brecha natural mayorista-minorista
+      const preciosValidos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
       if (preciosValidos.length < 2) return false
       const min = Math.min(...preciosValidos.map(pr => pr.precio))
       const max = Math.max(...preciosValidos.map(pr => pr.precio))
       return min >= max * 0.4
     })
     .map(p => {
-      const preciosValidos = p.precios.filter(pr => pr.precio > 0)
+      const preciosValidos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
       const precios = preciosValidos.map(pr => pr.precio)
       const precioMinimo = Math.min(...precios)
       const precioMaximo = Math.max(...precios)
@@ -633,9 +662,9 @@ export function calcularBombas(): ProductoBomba[] {
       const aAbc = abcOrder[a.abc ?? ''] ?? 4
       const bAbc = abcOrder[b.abc ?? ''] ?? 4
       if (aAbc !== bAbc) return aAbc - bAbc
-      // Prioridad 2: productos con 3 mayoristas
-      const a3 = a.precios.filter(pr => pr.precio > 0).length === 3 ? 1 : 0
-      const b3 = b.precios.filter(pr => pr.precio > 0).length === 3 ? 1 : 0
+      // Prioridad 2: productos con 3 mayoristas (coto no cuenta)
+      const a3 = a.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista').length === 3 ? 1 : 0
+      const b3 = b.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista').length === 3 ? 1 : 0
       if (a3 !== b3) return b3 - a3
       // Prioridad 3: mayor ahorro porcentual
       return b.ahorroVsMaximo - a.ahorroVsMaximo

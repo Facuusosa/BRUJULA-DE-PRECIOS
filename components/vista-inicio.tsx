@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { calcularBombas, productos, sectores, Producto, ProductoBomba } from '@/lib/data'
+import { calcularBombas, productos, sectores, Producto, ProductoBomba, FUENTES } from '@/lib/data'
 import { BombaDeal } from '@/components/bomba-list-item'
 import { LogoLoop } from '@/components/LogoLoop'
 import { HScroll } from '@/components/h-scroll'
@@ -18,11 +18,7 @@ interface VistaInicioProps {
   onGuardar?: (producto: Producto) => void
 }
 
-const MAYORISTAS = [
-  { src: '/mayoristas/maxicarrefour.jpg', alt: 'MaxiCarrefour', url: 'https://comerciante.carrefour.com.ar/' },
-  { src: '/mayoristas/yaguar.png',        alt: 'Yaguar',        url: 'https://www.yaguar.com.ar' },
-  { src: '/mayoristas/maxiconsumo.webp',  alt: 'Maxiconsumo',   url: 'https://www.maxiconsumo.com' },
-]
+const MAYORISTAS = FUENTES.map(f => ({ src: f.logo, alt: f.nombre, url: f.url }))
 
 const TOP_TOTAL = 20
 const VISIBLES_INICIAL = 6
@@ -38,7 +34,7 @@ const fmt = new Intl.NumberFormat('es-AR')
    repone siempre), después clase A con 2, después el resto — siempre por mayor ahorro */
 function rankearTop(bombas: ProductoBomba[]): ProductoBomba[] {
   const score = (b: ProductoBomba) => {
-    const numPrecios = b.precios.filter(p => p.precio > 0).length
+    const numPrecios = b.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').length
     return (b.abc === 'A' ? 2 : 0) + (numPrecios >= 3 ? 1 : 0)
   }
   return [...bombas]

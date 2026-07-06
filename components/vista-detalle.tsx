@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, Heart, Share2, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
-import { Producto, productos, formatearPrecio, extraerTamano } from '@/lib/data'
+import { Producto, productos, formatearPrecio, extraerTamano, fuentePorNombre } from '@/lib/data'
 import { ShuffleValue } from '@/components/shuffle-value'
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
@@ -26,10 +26,21 @@ interface VistaDetalleProps {
   onVerProducto?: (producto: Producto) => void
 }
 
-const LOGOS: Record<string, string> = {
-  'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
-  'Yaguar':        '/mayoristas/yaguar.png',
-  'MaxiCarrefour': '/mayoristas/maxicarrefour.jpg',
+// Distinción visible por fila (pedido Facu 06/07): el comerciante nunca debe
+// confundir precio de compra (mayorista) con precio de góndola (cadena)
+function ChipTipo({ tipo }: { tipo: 'mayorista' | 'cadena' }) {
+  const esCadena = tipo === 'cadena'
+  return (
+    <span style={{
+      display: 'inline-block', marginTop: '5px',
+      fontSize: '9px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase',
+      color: esCadena ? 'var(--green)' : 'var(--gray)',
+      border: `1px solid ${esCadena ? 'var(--green)' : 'var(--line)'}`,
+      borderRadius: '4px', padding: '1.5px 6px',
+    }}>
+      {esCadena ? 'Cadena' : 'Mayorista'}
+    </span>
+  )
 }
 
 export function VistaDetalle({
@@ -41,12 +52,18 @@ export function VistaDetalle({
   onVerProducto,
 }: VistaDetalleProps) {
   const [margen, setMargen] = useState(35)
+  // Calculadora flexible (pedido Facu 06/07): base a libre elección entre TODOS
+  // los competidores (mayorista o cadena) + precio de venta tipeado exacto
+  const [fuenteSel, setFuenteSel] = useState<string | null>(null)
+  const [ventaManual, setVentaManual] = useState<number | null>(null)
   const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
   const [imgFallbackIdx, setImgFallbackIdx] = useState(0)
 
   useEffect(() => {
     setImgSrc(producto.imageUrl || '')
     setImgFallbackIdx(0)
+    setFuenteSel(null)
+    setVentaManual(null)
   }, [producto.id, producto.imageUrl])
 
   const handleImageError = () => {
@@ -60,17 +77,28 @@ export function VistaDetalle({
   }
 
   const tamano = extraerTamano(producto.nombre)
+  // Mayoristas = precio de compra; cadenas (Coto, Carrefour) = referencia góndola.
+  // filter, no find: con 2+ cadenas el find mostraba solo la primera (bug 06/07)
   const preciosValidos = producto.precios
-    .filter(p => p.precio > 0)
+    .filter(p => p.precio > 0 && p.tipoFuente === 'mayorista')
+    .sort((a, b) => a.precio - b.precio)
+  const preciosGondola = producto.precios
+    .filter(p => p.precio > 0 && p.tipoFuente === 'cadena')
     .sort((a, b) => a.precio - b.precio)
 
   const mejorPrecio = preciosValidos[0]
   const peorPrecio = preciosValidos[preciosValidos.length - 1]
   const esEan = /^\d{13}$/.test(producto.id)
 
-  const precioCompra = mejorPrecio?.precio ?? 0
-  const precioVentaCalc = precioCompra > 0 ? precioCompra / (1 - margen / 100) : 0
+  // Base de la calculadora: el competidor que elija el usuario (default: el
+  // mayorista más barato). ventaManual (tipeado exacto) manda sobre el slider.
+  const preciosTodos = [...preciosValidos, ...preciosGondola]
+  const precioBase = (fuenteSel ? preciosTodos.find(p => p.mayorista === fuenteSel) : undefined)
+    ?? mejorPrecio ?? preciosTodos[0]
+  const precioCompra = precioBase?.precio ?? 0
+  const precioVentaCalc = ventaManual ?? (precioCompra > 0 ? precioCompra / (1 - margen / 100) : 0)
   const gananciaCalc = precioVentaCalc - precioCompra
+  const margenEfectivo = precioVentaCalc > 0 ? Math.round((1 - precioCompra / precioVentaCalc) * 100) : margen
 
   const ahorroUnidad = preciosValidos.length >= 2 ? peorPrecio.precio - mejorPrecio.precio : 0
 
@@ -89,14 +117,22 @@ export function VistaDetalle({
   )
 
   const handleGuardar = () => {
-    if (!mejorPrecio) return
+    // Mi Lista es de COMPRA: las cadenas son referencia góndola, nunca lugar
+    // de compra. Si la base elegida en la calculadora es una cadena, se guarda
+    // el mejor MAYORISTA con el mismo precio de venta que configuró el usuario.
+    const fuenteCompra = precioBase?.tipoFuente === 'mayorista' ? precioBase : mejorPrecio
+    if (!fuenteCompra) {
+      toast.error('Este producto no tiene precio mayorista para comprar')
+      return
+    }
+    const venta = Math.round(precioVentaCalc)
     onGuardar({
       producto,
-      mayorista: mejorPrecio.mayorista,
-      precioCompra,
-      margen,
-      precioVenta: Math.round(precioVentaCalc),
-      ganancia: Math.round(gananciaCalc),
+      mayorista: fuenteCompra.mayorista,
+      precioCompra: fuenteCompra.precio,
+      margen: venta > 0 ? Math.round((1 - fuenteCompra.precio / venta) * 100) : margenEfectivo,
+      precioVenta: venta,
+      ganancia: venta - Math.round(fuenteCompra.precio),
     })
   }
 
@@ -290,6 +326,8 @@ export function VistaDetalle({
             <section className="det-section det-anim" style={{ animationDelay: '210ms' }}>
               <h2 className="det-sh">Dónde comprarlo</h2>
 
+              {/* Una sola tira: mayoristas primero (por precio), cadenas después.
+                  El chip por fila reemplaza a los sub-encabezados */}
               {preciosValidos.map((precio, idx) => {
                 const esMejor = idx === 0
                 const diffPct = !esMejor && mejorPrecio.precio > 0
@@ -301,13 +339,13 @@ export function VistaDetalle({
                     style={{
                       display: 'flex', alignItems: 'center', gap: '14px',
                       padding: '15px 0',
-                      borderBottom: idx === preciosValidos.length - 1 ? 'none' : '1px solid var(--line)',
+                      borderBottom: idx === preciosValidos.length - 1 && preciosGondola.length === 0 ? 'none' : '1px solid var(--line)',
                     }}
                   >
                     <div style={{ width: '86px', flexShrink: 0 }}>
-                      {LOGOS[precio.mayorista] ? (
+                      {fuentePorNombre(precio.mayorista)?.logo ? (
                         <Image
-                          src={LOGOS[precio.mayorista]}
+                          src={fuentePorNombre(precio.mayorista)!.logo}
                           alt={precio.mayorista}
                           width={82}
                           height={22}
@@ -317,6 +355,7 @@ export function VistaDetalle({
                       ) : (
                         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
                       )}
+                      <ChipTipo tipo="mayorista" />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
@@ -363,6 +402,78 @@ export function VistaDetalle({
                   </div>
                 )
               })}
+
+              {/* Cadenas: misma tira, misma fila — el chip CADENA (verde) las
+                  distingue. Es venta al público, nunca precio de compra */}
+              {preciosGondola.map((precio, idx) => (
+                <div
+                  key={precio.mayorista}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '14px',
+                    padding: '15px 0',
+                    borderBottom: idx === preciosGondola.length - 1 ? 'none' : '1px solid var(--line)',
+                  }}
+                >
+                  <div style={{ width: '86px', flexShrink: 0 }}>
+                    {fuentePorNombre(precio.mayorista)?.logo ? (
+                      <Image
+                        src={fuentePorNombre(precio.mayorista)!.logo}
+                        alt={precio.mayorista}
+                        width={82}
+                        height={22}
+                        style={{ maxWidth: '82px', maxHeight: '22px', objectFit: 'contain', display: 'block', width: 'auto', height: 'auto' }}
+                        unoptimized
+                      />
+                    ) : (
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
+                    )}
+                    <ChipTipo tipo="cadena" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <span className="tnum" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--ink)' }}>
+                        {formatearPrecio(precio.precio)}
+                      </span>
+                      {precio.oferta && (
+                        <span style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
+                          OFERTA {precio.oferta}
+                        </span>
+                      )}
+                    </div>
+                    {/* Tachado solo si el regular es MAYOR: en promos por cantidad
+                        (2do al X%) el precio unitario no cambia y tacharlo confunde */}
+                    {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio ? (
+                      <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
+                        precio de lista <s>{formatearPrecio(precio.precioRegular)}</s>
+                      </div>
+                    ) : (
+                      <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
+                        venta al público
+                      </div>
+                    )}
+                    <div style={{ marginTop: '3px' }}>
+                      <FrescuraPill precio={precio} />
+                    </div>
+                  </div>
+                  {precio.link && (
+                    <a
+                      href={precio.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        border: '1.5px solid var(--ink)', background: '#ffffff',
+                        borderRadius: '999px', padding: '8px 16px',
+                        fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)',
+                        fontFamily: 'var(--font-sans)', textDecoration: 'none',
+                        display: 'flex', alignItems: 'center', gap: '5px',
+                      }}
+                    >
+                      Ver <ArrowUpRight size={12} strokeWidth={2.5} />
+                    </a>
+                  )}
+                </div>
+              ))}
 
               {/* Barra de rango de precios */}
               {preciosValidos.length >= 2 && (
@@ -436,7 +547,7 @@ export function VistaDetalle({
             </section>
 
             {/* Calculadora de margen */}
-            {mejorPrecio && (
+            {precioBase && (
               <div className="det-calc det-anim" style={{
                 animationDelay: '260ms',
                 border: '1px solid var(--line)',
@@ -446,30 +557,77 @@ export function VistaDetalle({
                 <h2 style={{ fontSize: '16px', fontWeight: 600, letterSpacing: '-0.2px', color: 'var(--ink)', margin: 0 }}>
                   Calculadora de margen
                 </h2>
-                <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '3px' }}>
-                  Comprando en {mejorPrecio.mayorista} a <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{formatearPrecio(precioCompra)}</b>
+                {/* Base a libre elección: cualquier competidor, mayorista o cadena */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' }}>
+                  {preciosTodos.map(p => {
+                    const activo = p.mayorista === precioBase.mayorista
+                    return (
+                      <button
+                        key={p.mayorista}
+                        onClick={() => setFuenteSel(p.mayorista)}
+                        style={{
+                          border: activo ? '1.5px solid var(--ink)' : '1px solid var(--line)',
+                          background: activo ? 'var(--ink)' : '#ffffff',
+                          color: activo ? '#ffffff' : 'var(--ink)',
+                          borderRadius: '999px', padding: '6px 12px',
+                          fontSize: '11.5px', fontWeight: 600,
+                          fontFamily: 'var(--font-sans)', cursor: 'pointer',
+                        }}
+                      >
+                        {p.mayorista} <span className="tnum" style={{ fontWeight: 500 }}>{formatearPrecio(p.precio)}</span>
+                      </button>
+                    )
+                  })}
                 </div>
+                <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '10px' }}>
+                  Comprando en {precioBase.mayorista} a <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{formatearPrecio(precioCompra)}</b>
+                  {precioBase.tipoFuente === 'cadena' ? ' (precio góndola)' : ''}
+                </div>
+                {/* Referencia conservadora: la cadena MÁS BARATA (preciosGondola viene ordenado) */}
+                {preciosGondola[0] && preciosGondola[0].precio > precioCompra && (
+                  <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '4px' }}>
+                    {preciosGondola[0].mayorista} lo vende al público a <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{formatearPrecio(preciosGondola[0].precio)}</b> —
+                    igualando la góndola tu margen es <b style={{ color: 'var(--green)', fontWeight: 600 }}>{Math.round(((preciosGondola[0].precio - precioCompra) / preciosGondola[0].precio) * 100)}%</b>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '18px' }}>
                   <span style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)' }}>Tu margen</span>
-                  <span className="tnum" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--gold)' }}>{margen}%</span>
+                  <span className="tnum" style={{ fontSize: '18px', fontWeight: 600, color: margenEfectivo < 0 ? '#c0392b' : 'var(--gold)' }}>{margenEfectivo}%</span>
                 </div>
                 <input
                   type="range"
                   className="slider-brujula"
-                  min={5} max={99} value={margen}
-                  onChange={e => setMargen(parseInt(e.target.value, 10))}
+                  min={5} max={99} value={Math.min(99, Math.max(5, margenEfectivo))}
+                  onChange={e => { setMargen(parseInt(e.target.value, 10)); setVentaManual(null) }}
                   aria-label="Margen de ganancia"
-                  style={{ marginTop: '8px', '--slider-pct': `${((margen - 5) / (99 - 5)) * 100}%` } as React.CSSProperties}
+                  style={{ marginTop: '8px', '--slider-pct': `${((Math.min(99, Math.max(5, margenEfectivo)) - 5) / (99 - 5)) * 100}%` } as React.CSSProperties}
                 />
                 <div style={{ display: 'flex', gap: '12px', marginTop: '22px' }}>
                   <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '8px', padding: '14px 16px' }}>
                     <div style={{ fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase' }}>
-                      Precio venta
+                      Precio venta · tocá y editá
                     </div>
-                    <ShuffleValue
-                      value={formatearPrecio(Math.round(precioVentaCalc))}
-                      style={{ fontSize: '24px', fontWeight: 600, marginTop: '3px', color: 'var(--ink)', display: 'block' }}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'baseline', marginTop: '3px' }}>
+                      <span className="tnum" style={{ fontSize: '24px', fontWeight: 600, color: 'var(--ink)' }}>$&nbsp;</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="tnum"
+                        value={Math.round(precioVentaCalc).toLocaleString('es-AR')}
+                        onChange={e => {
+                          const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
+                          setVentaManual(Number.isNaN(n) ? null : n)
+                        }}
+                        aria-label="Precio de venta exacto"
+                        style={{
+                          fontSize: '24px', fontWeight: 600, color: 'var(--ink)',
+                          background: 'transparent', border: 'none', outline: 'none',
+                          borderBottom: '1.5px dashed var(--gray)',
+                          width: '100%', minWidth: 0, padding: 0,
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                    </div>
                   </div>
                   <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '8px', padding: '14px 16px' }}>
                     <div style={{ fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase' }}>
@@ -477,7 +635,7 @@ export function VistaDetalle({
                     </div>
                     <ShuffleValue
                       value={formatearPrecio(Math.round(gananciaCalc))}
-                      style={{ fontSize: '24px', fontWeight: 600, marginTop: '3px', color: 'var(--green)', display: 'block' }}
+                      style={{ fontSize: '24px', fontWeight: 600, marginTop: '3px', color: gananciaCalc >= 0 ? 'var(--green)' : '#c0392b', display: 'block' }}
                     />
                   </div>
                 </div>
@@ -522,7 +680,9 @@ export function VistaDetalle({
 function RelCard({ producto, onClick }: { producto: Producto; onClick: () => void }) {
   const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
   const [fallbackIdx, setFallbackIdx] = useState(0)
-  const preciosValidos = producto.precios.filter(p => p.precio > 0)
+  // "Desde $X" = mejor precio de COMPRA (mayoristas); si solo hay góndola, mostrar esa
+  const preciosMay = producto.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista')
+  const preciosValidos = preciosMay.length ? preciosMay : producto.precios.filter(p => p.precio > 0)
   const mejor = preciosValidos.length ? Math.min(...preciosValidos.map(p => p.precio)) : 0
 
   const handleError = () => {

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
-import { ItemLista, Lista, formatearPrecio } from '@/lib/data'
+import { ItemLista, Lista, formatearPrecio, FUENTES, fuentePorNombre } from '@/lib/data'
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
 
@@ -19,16 +19,11 @@ interface VistaListaProps {
   onIrAComparar: () => void
 }
 
-const MAYORISTAS = ['Yaguar', 'MaxiCarrefour', 'Maxiconsumo'] as const
-
-const LOGOS: Record<string, string> = {
-  'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
-  'Yaguar':        '/mayoristas/yaguar.png',
-  'MaxiCarrefour': '/mayoristas/maxicarrefour.jpg',
-}
+// La lista es una herramienta de COMPRA: solo fuentes mayoristas
+const MAYORISTAS = FUENTES.filter(f => f.tipo === 'mayorista').map(f => f.nombre)
 
 function mejorPrecioDe(item: ItemLista) {
-  const validos = item.producto.precios.filter(p => p.precio > 0)
+  const validos = item.producto.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista')
   if (validos.length === 0) return null
   return validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
 }
@@ -130,9 +125,9 @@ function ChipMayorista({ mayorista, w = 64, h = 28 }: { mayorista: string; w?: n
       border: '1px solid var(--line)', background: '#ffffff',
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
-      {LOGOS[mayorista] ? (
+      {fuentePorNombre(mayorista)?.logo ? (
         <Image
-          src={LOGOS[mayorista]}
+          src={fuentePorNombre(mayorista)!.logo}
           alt={mayorista}
           width={w - 10}
           height={h - 10}

@@ -4,14 +4,8 @@ import Image from 'next/image'
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { ProductoBomba, formatearPrecio, extraerTamano } from '@/lib/data'
+import { ProductoBomba, formatearPrecio, extraerTamano, fuentePorNombre } from '@/lib/data'
 import { FrescuraPill } from '@/components/frescura-pill'
-
-const LOGOS: Record<string, string> = {
-  'Maxiconsumo':   '/mayoristas/maxiconsumo.webp',
-  'Yaguar':        '/mayoristas/yaguar.png',
-  'MaxiCarrefour': '/mayoristas/maxicarrefour.jpg',
-}
 
 function useImagenConFallback(bomba: ProductoBomba) {
   const [imgSrc, setImgSrc] = useState(bomba.imageUrl || '')
@@ -68,7 +62,11 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
   }, [])
 
   const tamano = extraerTamano(bomba.nombre)
-  const preciosValidos = bomba.precios.filter(p => p.precio > 0).sort((a, b) => a.precio - b.precio)
+  // Mayoristas siempre visibles; cadenas (Coto, Carrefour) colapsadas detrás
+  // de "Ver en cadenas" (pedido Facu 06/07 — tarjeta limpia, info a un tap)
+  const preciosValidos = bomba.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').sort((a, b) => a.precio - b.precio)
+  const preciosCadena = bomba.precios.filter(p => p.precio > 0 && p.tipoFuente === 'cadena').sort((a, b) => a.precio - b.precio)
+  const [cadenasAbiertas, setCadenasAbiertas] = useState(false)
   const masCaro = preciosValidos[preciosValidos.length - 1]
   const pctSobreMejor = preciosValidos.length >= 2
     ? Math.round(((masCaro.precio - preciosValidos[0].precio) / preciosValidos[0].precio) * 100)
@@ -249,9 +247,9 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
               <div style={{ display: 'flex', marginTop: '14px' }}>
                 {preciosValidos.slice(0, 3).map((precio, idx) => (
                   <div key={precio.mayorista} style={{ flex: 1 }}>
-                    {LOGOS[precio.mayorista] ? (
+                    {fuentePorNombre(precio.mayorista)?.logo ? (
                       <Image
-                        src={LOGOS[precio.mayorista]}
+                        src={fuentePorNombre(precio.mayorista)!.logo}
                         alt={precio.mayorista}
                         width={60}
                         height={17}
@@ -275,6 +273,71 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                   </div>
                 ))}
               </div>
+
+              {/* Cadenas colapsadas: "Ver en cadenas" -> logos grandes + precios */}
+              {preciosCadena.length > 0 && (
+                <>
+                  <button
+                    onClick={e => { e.stopPropagation(); setCadenasAbiertas(v => !v) }}
+                    aria-expanded={cadenasAbiertas}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      marginTop: '14px', padding: 0,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: '12.5px', fontWeight: 600, color: 'var(--green)',
+                      fontFamily: 'var(--font-sans)',
+                    }}
+                  >
+                    Ver en cadenas
+                    <svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                      style={{ transform: cadenasAbiertas ? 'rotate(180deg)' : 'none', transition: 'transform 180ms var(--ease-out)' }}
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                  {cadenasAbiertas && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={e => e.stopPropagation()}
+                      style={{ marginTop: '12px' }}
+                    >
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink)' }}>Cadenas</div>
+                      <div style={{ display: 'flex', marginTop: '12px' }}>
+                        {preciosCadena.map(precio => (
+                          <div key={precio.mayorista} style={{ flex: 1 }}>
+                            {fuentePorNombre(precio.mayorista)?.logo ? (
+                              <Image
+                                src={fuentePorNombre(precio.mayorista)!.logo}
+                                alt={precio.mayorista}
+                                width={92}
+                                height={26}
+                                style={{ height: '26px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                                unoptimized
+                              />
+                            ) : (
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)' }}>{precio.mayorista}</span>
+                            )}
+                            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, marginTop: '7px', color: 'var(--ink)' }}>
+                              {formatearPrecio(precio.precio)}
+                            </div>
+                            {precio.oferta && (
+                              <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em', marginTop: '2px' }}>
+                                OFERTA {precio.oferta}
+                              </div>
+                            )}
+                            <div style={{ marginTop: '5px' }}>
+                              <FrescuraPill precio={precio} compact />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </>
+              )}
             </div>
           )}
 

@@ -19,7 +19,7 @@ export function VistaPlanes({ onBack }: VistaPlanesProps) {
 
   const perdidasMaxiconsumo = useMemo(() =>
     productos.filter(p => {
-      const validos = p.precios.filter(pr => pr.precio > 0)
+      const validos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
       if (validos.length < 2) return false
       const mejor = validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
       return mejor.mayorista === 'Maxiconsumo'
@@ -282,6 +282,10 @@ export function VistaPlanes({ onBack }: VistaPlanesProps) {
                 </li>
                 <li style={featLi}>
                   <Check size={17} strokeWidth={2.5} color="var(--green)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>Precio góndola de Coto en todos los productos</span>
+                </li>
+                <li style={featLi}>
+                  <Check size={17} strokeWidth={2.5} color="var(--green)" style={{ flexShrink: 0, marginTop: '2px' }} />
                   <span>Comparador y calculadora de margen</span>
                 </li>
                 <li style={featLi}>
@@ -308,7 +312,7 @@ export function VistaPlanes({ onBack }: VistaPlanesProps) {
           padding: '26px 30px 0', lineHeight: 1.6,
         }}>
           Precios actualizados <b style={{ color: 'var(--green)', fontWeight: 600 }}>esta semana</b> de
-          Yaguar, MaxiCarrefour y Maxiconsumo · {fmt.format(productos.length)} productos relevados
+          Yaguar, MaxiCarrefour, Maxiconsumo y Coto · {fmt.format(productos.length)} productos relevados
         </div>
       </div>
     </div>
