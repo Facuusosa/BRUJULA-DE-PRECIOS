@@ -19,10 +19,29 @@ export const FUENTES: FuenteInfo[] = [
   { clave: 'maxiconsumo',   nombre: 'Maxiconsumo',   tipo: 'mayorista', logo: '/mayoristas/maxiconsumo.webp',  url: 'https://www.maxiconsumo.com' },
   { clave: 'coto',          nombre: 'Coto',          tipo: 'cadena',    logo: '/mayoristas/coto.webp',         url: 'https://www.cotodigital.com.ar' },
   { clave: 'carrefour',     nombre: 'Carrefour',     tipo: 'cadena',    logo: '/mayoristas/carrefour.jpg',     url: 'https://www.carrefour.com.ar' },
+  { clave: 'dia',           nombre: 'Dia',           tipo: 'cadena',    logo: '/mayoristas/logo_dia.jpg',      url: 'https://diaonline.supermercadosdia.com.ar' },
 ]
 
 export const fuentePorNombre = (nombre: string): FuenteInfo | undefined =>
   FUENTES.find(f => f.nombre === nombre)
+
+// Ámbito de comparación en Mi Lista y en "agregar rápido": única fuente de verdad
+// sobre qué fuentes cuentan como válidas en cada modo. Sumar un competidor nuevo a
+// FUENTES con su `tipo` correcto alcanza — entra solo al bucket que le toca acá,
+// sin tocar los componentes que consumen este helper.
+export type AmbitoLista = 'todos' | TipoFuente
+
+export function fuentesDeAmbito(ambito: AmbitoLista): string[] {
+  if (ambito === 'todos') return FUENTES.map(f => f.nombre)
+  return FUENTES.filter(f => f.tipo === ambito).map(f => f.nombre)
+}
+
+export function mejorPrecioEnAmbito(producto: Producto, ambito: AmbitoLista): Precio | undefined {
+  const nombres = fuentesDeAmbito(ambito)
+  const validos = producto.precios.filter(p => p.precio > 0 && nombres.includes(p.mayorista))
+  if (validos.length === 0) return undefined
+  return validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
+}
 
 // Tipos para los productos y precios
 export interface Precio {
@@ -622,6 +641,10 @@ export const sectores = sectoresRaw.filter(s =>
 
 
 
+// Productos fijados siempre primero en "bombas" por decisión de negocio (no algorítmica).
+// Se fija por id (= EAN cuando existe) para no depender del texto de nombre_display.
+const IDS_FIJADOS_BOMBAS = ['7790290101602'] // Fernet BRANCA X750 ml
+
 // Función para calcular las bombas del día (productos con mayor diferencia de precio entre mayoristas)
 export function calcularBombas(): ProductoBomba[] {
   return productos
@@ -657,6 +680,10 @@ export function calcularBombas(): ProductoBomba[] {
       }
     })
     .sort((a, b) => {
+      // Prioridad 0: productos fijados manualmente van siempre primero
+      const aFijado = IDS_FIJADOS_BOMBAS.includes(a.id) ? 1 : 0
+      const bFijado = IDS_FIJADOS_BOMBAS.includes(b.id) ? 1 : 0
+      if (aFijado !== bFijado) return bFijado - aFijado
       // Prioridad 1: productos ABC=A primero (productos de alto volumen conocidos)
       const abcOrder: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
       const aAbc = abcOrder[a.abc ?? ''] ?? 4

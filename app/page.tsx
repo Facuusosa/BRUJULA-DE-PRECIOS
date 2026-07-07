@@ -11,7 +11,7 @@ import { VistaDetalle } from '@/components/vista-detalle'
 import { VistaLista } from '@/components/vista-lista'
 import { VistaCuenta } from '@/components/vista-cuenta'
 import { VistaPlanes } from '@/components/vista-planes'
-import { ItemLista, Lista, Producto, calcularBombas, productos } from '@/lib/data'
+import { ItemLista, Lista, Producto, calcularBombas, productos, mejorPrecioEnAmbito } from '@/lib/data'
 
 export type Vista = 'inicio' | 'catalogo' | 'detalle' | 'herramientas' | 'perfil' | 'planes'
 
@@ -70,11 +70,11 @@ export default function BrujulaMayorista() {
           const refrescados = vistos.map(item => {
             const actual = productos.find(p => p.id === item.producto.id)
             if (!actual) return item
-            // Solo mayoristas: si un item viejo quedó con una cadena guardada,
-            // acá se corrige solo al mejor mayorista vigente
-            const precioMayorista = actual.precios.find(p => p.mayorista === item.mayorista && p.precio > 0 && p.tipoFuente === 'mayorista')
-            const mejor = actual.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').sort((a, b) => a.precio - b.precio)[0]
-            const vigente = precioMayorista ?? mejor
+            // Preferir la misma fuente que tenía guardada (mayorista o cadena —
+            // vista-detalle permite guardar cualquiera); si ya no tiene precio
+            // vigente, caer al mejor precio disponible de cualquier fuente.
+            const precioMismaFuente = actual.precios.find(p => p.mayorista === item.mayorista && p.precio > 0)
+            const vigente = precioMismaFuente ?? mejorPrecioEnAmbito(actual, 'todos')
             return vigente
               ? { ...item, producto: actual, mayorista: vigente.mayorista, precioCompra: vigente.precio }
               : { ...item, producto: actual }
@@ -198,10 +198,11 @@ export default function BrujulaMayorista() {
   }
 
   const agregarItemALista = (producto: Producto, listaId: string) => {
-    // La lista es de compra: solo mayoristas (coto es referencia góndola)
-    const preciosValidos = producto.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').sort((a, b) => a.precio - b.precio)
-    if (preciosValidos.length === 0) return
-    const mejor = preciosValidos[0]
+    // "Agregar rápido" desde el catálogo guarda siempre el mejor mayorista —
+    // el ámbito de visualización (Más barato/Mayoristas/Cadenas) se elige después,
+    // dentro de Mi Lista, sin depender de con qué fuente se agregó el item.
+    const mejor = mejorPrecioEnAmbito(producto, 'mayorista')
+    if (!mejor) return
     const item: ItemLista = { producto, mayorista: mejor.mayorista, precioCompra: mejor.precio, margen: 0, precioVenta: 0, ganancia: 0, cantidad: 1 }
     setListas(prev => prev.map(l => {
       if (l.id !== listaId) return l
@@ -218,9 +219,8 @@ export default function BrujulaMayorista() {
 
   const handleAgregarRapido = (producto: Producto) => {
     if (listas.length === 0) {
-      const preciosValidos = producto.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').sort((a, b) => a.precio - b.precio)
-      if (preciosValidos.length === 0) return
-      const mejor = preciosValidos[0]
+      const mejor = mejorPrecioEnAmbito(producto, 'mayorista')
+      if (!mejor) return
       const item: ItemLista = { producto, mayorista: mejor.mayorista, precioCompra: mejor.precio, margen: 0, precioVenta: 0, ganancia: 0 }
       const nueva: Lista = { id: uuid(), nombre: 'Mi lista', items: [item], creadaEn: new Date().toISOString() }
       setListas(prev => [...prev, nueva])

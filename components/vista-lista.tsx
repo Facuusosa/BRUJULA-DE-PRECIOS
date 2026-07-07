@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
-import { ItemLista, Lista, formatearPrecio, FUENTES, fuentePorNombre } from '@/lib/data'
+import { ItemLista, Lista, AmbitoLista, formatearPrecio, FUENTES, fuentePorNombre, fuentesDeAmbito, mejorPrecioEnAmbito } from '@/lib/data'
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
+import { ChipTipo } from '@/components/chip-tipo'
 
 interface VistaListaProps {
   listas: Lista[]
@@ -19,33 +20,39 @@ interface VistaListaProps {
   onIrAComparar: () => void
 }
 
-// La lista es una herramienta de COMPRA: solo fuentes mayoristas
-const MAYORISTAS = FUENTES.filter(f => f.tipo === 'mayorista').map(f => f.nombre)
+// 3 ámbitos de comparación (pedido Facu 06/07): "todos" mezcla cualquier fuente
+// (útil para el consumidor final que arma su changuito), "mayorista"/"cadena"
+// aíslan un tipo. fuentesDeAmbito/mejorPrecioEnAmbito viven en lib/data.ts —
+// única fuente de verdad, así un competidor nuevo entra solo al bucket que le
+// toca sin tocar este archivo.
+export const AMBITOS: { valor: AmbitoLista; label: string }[] = [
+  { valor: 'todos', label: 'Más barato' },
+  { valor: 'mayorista', label: 'Mayoristas' },
+  { valor: 'cadena', label: 'Cadenas' },
+]
 
-function mejorPrecioDe(item: ItemLista) {
-  const validos = item.producto.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista')
-  if (validos.length === 0) return null
-  return validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
+function mejorPrecioDe(item: ItemLista, ambito: AmbitoLista) {
+  return mejorPrecioEnAmbito(item.producto, ambito) ?? null
 }
 
-function calcularTotalMix(items: ItemLista[]): number {
+function calcularTotalMix(items: ItemLista[], ambito: AmbitoLista): number {
   return items.reduce((sum, item) => {
-    const mejor = mejorPrecioDe(item)
+    const mejor = mejorPrecioDe(item, ambito)
     return mejor ? sum + mejor.precio * (item.cantidad ?? 1) : sum
   }, 0)
 }
 
-function calcularOpcionMayorista(items: ItemLista[], mayorista: string) {
+function calcularOpcionFuente(items: ItemLista[], fuente: string, ambito: AmbitoLista) {
   let total = 0
   let cubre = 0
   for (const item of items) {
     const cant = item.cantidad ?? 1
-    const propio = item.producto.precios.find(p => p.mayorista === mayorista && p.precio > 0)
+    const propio = item.producto.precios.find(p => p.mayorista === fuente && p.precio > 0)
     if (propio) {
       total += propio.precio * cant
       cubre++
     } else {
-      const mejor = mejorPrecioDe(item)
+      const mejor = mejorPrecioDe(item, ambito)
       if (mejor) total += mejor.precio * cant
     }
   }
@@ -59,10 +66,10 @@ interface GrupoMayorista {
   total: number
 }
 
-function calcularMixDetallado(items: ItemLista[]): GrupoMayorista[] {
+function calcularMixDetallado(items: ItemLista[], ambito: AmbitoLista): GrupoMayorista[] {
   const grupos: Record<string, GrupoMayorista> = {}
   for (const item of items) {
-    const mejor = mejorPrecioDe(item)
+    const mejor = mejorPrecioDe(item, ambito)
     if (!mejor) continue
     const cant = item.cantidad ?? 1
     if (!grupos[mejor.mayorista]) {
@@ -153,12 +160,25 @@ export function VistaLista({
   onIrAComparar,
 }: VistaListaProps) {
   const [modo, setModo] = useState<'productos' | 'plan'>('productos')
+  // Ámbito recordado por usuario (localStorage): arranca en "todos" (Más barato)
+  // para no asumir que quien abre la app por primera vez sabe qué es un mayorista.
+  const [ambito, setAmbito] = useState<AmbitoLista>('todos')
   const [creandoLista, setCreandoLista] = useState(false)
   const [nombreNueva, setNombreNueva] = useState('')
   const [renombrando, setRenombrando] = useState(false)
   const [nombreRename, setNombreRename] = useState('')
   const inputNuevaRef = useRef<HTMLInputElement>(null)
   const inputRenameRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const guardado = localStorage.getItem('brujula_ambito_lista') as AmbitoLista | null
+    if (guardado && AMBITOS.some(a => a.valor === guardado)) setAmbito(guardado)
+  }, [])
+
+  const handleCambiarAmbito = (valor: AmbitoLista) => {
+    setAmbito(valor)
+    localStorage.setItem('brujula_ambito_lista', valor)
+  }
 
   useEffect(() => {
     if (creandoLista) inputNuevaRef.current?.focus()
@@ -171,15 +191,15 @@ export function VistaLista({
   const listaActiva = listas.find(l => l.id === listaActivaId) ?? null
   const items = listaActiva?.items ?? []
 
-  const totalMix = calcularTotalMix(items)
-  const mixDetallado = calcularMixDetallado(items)
+  const totalMix = calcularTotalMix(items, ambito)
+  const mixDetallado = calcularMixDetallado(items, ambito)
   const unidadesTotal = items.reduce((s, i) => s + (i.cantidad ?? 1), 0)
 
-  const opciones = MAYORISTAS
-    .map(m => ({ mayorista: m, ...calcularOpcionMayorista(items, m) }))
+  const opciones = fuentesDeAmbito(ambito)
+    .map(m => ({ mayorista: m, ...calcularOpcionFuente(items, m, ambito) }))
     .sort((a, b) => a.total - b.total)
   const mejorOpcionIndividual = opciones.length ? opciones[0].total : 0
-  // Ahorro real del mix: contra la MEJOR opción de un solo mayorista
+  // Ahorro real del mix: contra la MEJOR opción de una sola fuente
   const ahorroMix = Math.max(0, mejorOpcionIndividual - totalMix)
   const ahorroMixPct = mejorOpcionIndividual > 0 ? Math.round((ahorroMix / mejorOpcionIndividual) * 100) : 0
 
@@ -365,6 +385,27 @@ export function VistaLista({
               </div>
             </div>
 
+            {/* Ámbito de comparación: qué fuentes cuentan para "el mejor precio" */}
+            <HScroll className="lista-anim scrollbar-hide" style={{ display: 'flex', gap: '7px', padding: '14px 20px 0', overflowX: 'auto' }} arrowOffsetY={5}>
+              {AMBITOS.map(a => (
+                <button
+                  key={a.valor}
+                  onClick={() => handleCambiarAmbito(a.valor)}
+                  style={{
+                    border: `1px solid ${ambito === a.valor ? 'var(--ink)' : 'var(--line)'}`,
+                    borderRadius: '999px', padding: '7px 14px',
+                    fontSize: '12.5px', fontWeight: 600, whiteSpace: 'nowrap',
+                    background: ambito === a.valor ? 'var(--ink)' : '#ffffff',
+                    color: ambito === a.valor ? '#ffffff' : 'var(--ink)',
+                    cursor: 'pointer', flexShrink: 0,
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </HScroll>
+
             {/* Toggle de modo */}
             <div className="lista-anim" style={{
               animationDelay: '130ms',
@@ -408,7 +449,7 @@ export function VistaLista({
                 {/* Ticket: items con su mayorista en cada fila */}
                 <div style={{ padding: '4px 20px 0' }}>
                   {items.map((item, idx) => {
-                    const mejor = mejorPrecioDe(item)
+                    const mejor = mejorPrecioDe(item, ambito)
                     const cant = item.cantidad ?? 1
                     if (!mejor) return null
                     return (
@@ -468,6 +509,13 @@ export function VistaLista({
                           }}>
                             {mejor.mayorista}
                           </span>
+                          {/* En "Más barato" se mezclan tipos: el chip aclara si esta
+                              fila es de compra mayorista o precio de góndola */}
+                          {ambito === 'todos' && (
+                            <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
+                              <ChipTipo tipo={mejor.tipoFuente} />
+                            </div>
+                          )}
                           <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
                             <FrescuraPill precio={mejor} compact />
                           </div>
@@ -485,6 +533,9 @@ export function VistaLista({
                     <div key={grupo.mayorista} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 0 0' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                         <ChipMayorista mayorista={grupo.mayorista} w={58} h={26} />
+                        {ambito === 'todos' && fuentePorNombre(grupo.mayorista) && (
+                          <ChipTipo tipo={fuentePorNombre(grupo.mayorista)!.tipo} />
+                        )}
                         <span className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300 }}>
                           {grupo.productos.length} producto{grupo.productos.length !== 1 ? 's' : ''} · {grupo.unidades} unidad{grupo.unidades !== 1 ? 'es' : ''}
                         </span>
@@ -503,7 +554,7 @@ export function VistaLista({
                   </div>
                   {ahorroMix > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0', fontSize: '13px' }}>
-                      <span style={{ color: 'var(--gray)', fontWeight: 300 }}>vs. comprar todo en un solo mayorista</span>
+                      <span style={{ color: 'var(--gray)', fontWeight: 300 }}>vs. comprar todo en un solo lugar</span>
                       <span className="tnum" style={{ color: 'var(--green)', fontWeight: 600 }}>−{formatearPrecio(ahorroMix)} ({ahorroMixPct}%)</span>
                     </div>
                   )}
@@ -528,6 +579,9 @@ export function VistaLista({
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <ChipMayorista mayorista={op.mayorista} w={64} h={28} />
+                        {ambito === 'todos' && fuentePorNombre(op.mayorista) && (
+                          <ChipTipo tipo={fuentePorNombre(op.mayorista)!.tipo} />
+                        )}
                         {idx === 0 ? (
                           <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em' }}>MÁS BARATO</span>
                         ) : (
@@ -562,7 +616,7 @@ export function VistaLista({
                     </span>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: '4px' }}>
                       <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--ink)' }}>
-                        {mixDetallado.length} mayoristas
+                        {mixDetallado.length} lugares
                       </span>
                       <span className="tnum" style={{ fontSize: '23px', fontWeight: 700, color: 'var(--ink)' }}>
                         {formatearPrecio(totalMix)}
@@ -581,6 +635,9 @@ export function VistaLista({
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                             <ChipMayorista mayorista={grupo.mayorista} w={60} h={26} />
+                            {ambito === 'todos' && fuentePorNombre(grupo.mayorista) && (
+                              <ChipTipo tipo={fuentePorNombre(grupo.mayorista)!.tipo} />
+                            )}
                             <span className="tnum" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300 }}>
                               {grupo.productos.length} producto{grupo.productos.length !== 1 ? 's' : ''}
                             </span>

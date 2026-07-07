@@ -8,6 +8,7 @@ import { Producto, productos, formatearPrecio, extraerTamano, fuentePorNombre } 
 import { ShuffleValue } from '@/components/shuffle-value'
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
+import { ChipTipo } from '@/components/chip-tipo'
 
 interface VistaDetalleProps {
   producto: Producto
@@ -24,23 +25,6 @@ interface VistaDetalleProps {
   esFavorito?: boolean
   onToggleFavorito?: () => void
   onVerProducto?: (producto: Producto) => void
-}
-
-// Distinción visible por fila (pedido Facu 06/07): el comerciante nunca debe
-// confundir precio de compra (mayorista) con precio de góndola (cadena)
-function ChipTipo({ tipo }: { tipo: 'mayorista' | 'cadena' }) {
-  const esCadena = tipo === 'cadena'
-  return (
-    <span style={{
-      display: 'inline-block', marginTop: '5px',
-      fontSize: '9px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase',
-      color: esCadena ? 'var(--green)' : 'var(--gray)',
-      border: `1px solid ${esCadena ? 'var(--green)' : 'var(--line)'}`,
-      borderRadius: '4px', padding: '1.5px 6px',
-    }}>
-      {esCadena ? 'Cadena' : 'Mayorista'}
-    </span>
-  )
 }
 
 export function VistaDetalle({
@@ -117,22 +101,22 @@ export function VistaDetalle({
   )
 
   const handleGuardar = () => {
-    // Mi Lista es de COMPRA: las cadenas son referencia góndola, nunca lugar
-    // de compra. Si la base elegida en la calculadora es una cadena, se guarda
-    // el mejor MAYORISTA con el mismo precio de venta que configuró el usuario.
-    const fuenteCompra = precioBase?.tipoFuente === 'mayorista' ? precioBase : mejorPrecio
-    if (!fuenteCompra) {
-      toast.error('Este producto no tiene precio mayorista para comprar')
+    // Mi Lista ahora soporta 3 ámbitos (Más barato / Mayoristas / Cadenas) y
+    // recalcula el mejor precio en vivo según cuál esté activo — guardamos la
+    // fuente que el usuario esté mirando en la calculadora tal cual, sin forzar
+    // un fallback a mayorista acá.
+    if (!precioBase) {
+      toast.error('Este producto no tiene precio disponible para comprar')
       return
     }
     const venta = Math.round(precioVentaCalc)
     onGuardar({
       producto,
-      mayorista: fuenteCompra.mayorista,
-      precioCompra: fuenteCompra.precio,
-      margen: venta > 0 ? Math.round((1 - fuenteCompra.precio / venta) * 100) : margenEfectivo,
+      mayorista: precioBase.mayorista,
+      precioCompra: precioBase.precio,
+      margen: venta > 0 ? Math.round((1 - precioBase.precio / venta) * 100) : margenEfectivo,
       precioVenta: venta,
-      ganancia: venta - Math.round(fuenteCompra.precio),
+      ganancia: venta - Math.round(precioBase.precio),
     })
   }
 
@@ -355,7 +339,7 @@ export function VistaDetalle({
                       ) : (
                         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
                       )}
-                      <ChipTipo tipo="mayorista" />
+                      <ChipTipo tipo="mayorista" style={{ marginTop: '5px' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
@@ -427,7 +411,7 @@ export function VistaDetalle({
                     ) : (
                       <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
                     )}
-                    <ChipTipo tipo="cadena" />
+                    <ChipTipo tipo="cadena" style={{ marginTop: '5px' }} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
