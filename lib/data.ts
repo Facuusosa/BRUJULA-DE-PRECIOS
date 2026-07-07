@@ -643,7 +643,10 @@ export const sectores = sectoresRaw.filter(s =>
 
 // Productos fijados siempre primero en "bombas" por decisión de negocio (no algorítmica).
 // Se fija por id (= EAN cuando existe) para no depender del texto de nombre_display.
+// Exportado porque hay más de un ranking de bombas en el frontend (calcularBombas acá
+// y rankearTop en vista-inicio.tsx) — ambos deben respetar el mismo fijado.
 const IDS_FIJADOS_BOMBAS = ['7790290101602'] // Fernet BRANCA X750 ml
+export const esBombaFijada = (id: string): boolean => IDS_FIJADOS_BOMBAS.includes(id)
 
 // Función para calcular las bombas del día (productos con mayor diferencia de precio entre mayoristas)
 export function calcularBombas(): ProductoBomba[] {
@@ -681,8 +684,8 @@ export function calcularBombas(): ProductoBomba[] {
     })
     .sort((a, b) => {
       // Prioridad 0: productos fijados manualmente van siempre primero
-      const aFijado = IDS_FIJADOS_BOMBAS.includes(a.id) ? 1 : 0
-      const bFijado = IDS_FIJADOS_BOMBAS.includes(b.id) ? 1 : 0
+      const aFijado = esBombaFijada(a.id) ? 1 : 0
+      const bFijado = esBombaFijada(b.id) ? 1 : 0
       if (aFijado !== bFijado) return bFijado - aFijado
       // Prioridad 1: productos ABC=A primero (productos de alto volumen conocidos)
       const abcOrder: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }

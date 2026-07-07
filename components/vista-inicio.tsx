@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { calcularBombas, productos, sectores, Producto, ProductoBomba, FUENTES } from '@/lib/data'
+import { calcularBombas, esBombaFijada, productos, sectores, Producto, ProductoBomba, FUENTES } from '@/lib/data'
 import { BombaDeal } from '@/components/bomba-list-item'
 import { LogoLoop } from '@/components/LogoLoop'
 import { HScroll } from '@/components/h-scroll'
@@ -39,6 +39,9 @@ function rankearTop(bombas: ProductoBomba[]): ProductoBomba[] {
   }
   return [...bombas]
     .sort((a, b) => {
+      const aFijado = esBombaFijada(a.id) ? 1 : 0
+      const bFijado = esBombaFijada(b.id) ? 1 : 0
+      if (aFijado !== bFijado) return bFijado - aFijado
       const sa = score(a)
       const sb = score(b)
       if (sa !== sb) return sb - sa
