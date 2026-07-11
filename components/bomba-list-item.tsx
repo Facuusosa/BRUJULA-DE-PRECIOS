@@ -251,9 +251,9 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                       <Image
                         src={fuentePorNombre(precio.mayorista)!.logo}
                         alt={precio.mayorista}
-                        width={60}
-                        height={17}
-                        style={{ height: '17px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                        width={92}
+                        height={26}
+                        style={{ height: '26px', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }}
                         unoptimized
                       />
                     ) : (
