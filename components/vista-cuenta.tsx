@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
-import { User, Store, Star, Lock, Bell, MessageCircle, HelpCircle, FileText, ChevronRight, ArrowRight, ShoppingCart } from 'lucide-react'
+import { User, Store, Check, MessageCircle, HelpCircle, FileText, ChevronRight, ShoppingCart } from 'lucide-react'
 import { productos, FUENTES } from '@/lib/data'
 import CountUp from '@/components/reactbits/TextAnimations/CountUp/CountUp'
 
@@ -19,8 +19,7 @@ interface BrujulaPerfil {
 
 interface BrujulaConfig {
   nombreNegocio: string
-  rubro: 'Almacen' | 'Kiosco' | 'Minimercado' | 'Otro'
-  avisosBombas?: boolean
+  rubro: string
   // Setea el filtro por defecto del catálogo: comerciante → Mayoristas, consumidor → Cadenas
   perfilUso?: 'comerciante' | 'consumidor'
 }
@@ -32,40 +31,17 @@ function diasDesde(fecha: string): string {
   return `Actualizado hace ${dias} días`
 }
 
-function Switch({ on, locked, onToggle }: { on: boolean; locked?: boolean; onToggle?: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      disabled={locked}
-      aria-checked={on}
-      role="switch"
-      style={{
-        width: '44px', height: '26px', borderRadius: '99px',
-        background: on ? 'var(--green)' : 'var(--line)',
-        position: 'relative', flexShrink: 0,
-        border: 'none',
-        cursor: locked ? 'default' : 'pointer',
-        opacity: locked ? 0.45 : 1,
-        transition: 'background 200ms ease',
-        padding: 0,
-      }}
-    >
-      <span style={{
-        position: 'absolute', top: '3px', left: '3px',
-        width: '20px', height: '20px', borderRadius: '99px', background: '#ffffff',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        transform: on ? 'translateX(18px)' : 'translateX(0)',
-        transition: 'transform 200ms var(--ease-out)',
-        display: 'block',
-      }} />
-    </button>
-  )
+// Evita mostrar "$0 M": redondear siempre a millones perdía cualquier ahorro
+// por debajo de $500.000 (se veía como si la app no detectara nada).
+function formatoAhorro(valor: number): { to: number; suffix: string } {
+  if (valor >= 1_000_000) return { to: Math.round((valor / 1_000_000) * 10) / 10, suffix: ' M' }
+  if (valor >= 1_000) return { to: Math.round(valor / 1000), suffix: ' K' }
+  return { to: Math.round(valor), suffix: '' }
 }
 
 export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
   const [perfil, setPerfil] = useState<BrujulaPerfil>({ nombre: '' })
-  const [config, setConfig] = useState<BrujulaConfig>({ nombreNegocio: '', rubro: 'Kiosco', avisosBombas: true })
-  const [listasCount, setListasCount] = useState(0)
+  const [config, setConfig] = useState<BrujulaConfig>({ nombreNegocio: '', rubro: '' })
   const [editandoNombre, setEditandoNombre] = useState(false)
   const [expandida, setExpandida] = useState<string | null>(null)
   const [cargado, setCargado] = useState(false)
@@ -75,8 +51,6 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
     if (savedPerfil) { try { setPerfil(JSON.parse(savedPerfil)) } catch {} }
     const savedConfig = localStorage.getItem('brujula_config')
     if (savedConfig) { try { setConfig(prev => ({ ...prev, ...JSON.parse(savedConfig) })) } catch {} }
-    const savedListas = localStorage.getItem('brujula_listas')
-    if (savedListas) { try { setListasCount(JSON.parse(savedListas).length) } catch {} }
     setCargado(true)
   }, [])
 
@@ -101,15 +75,7 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
     }, 0), []
   )
 
-  // Productos donde Maxiconsumo (el mayorista PRO) tiene el mejor precio
-  const perdidasMaxiconsumo = useMemo(() =>
-    productos.filter(p => {
-      const validos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
-      if (validos.length < 2) return false
-      const mejor = validos.reduce((a, b) => (a.precio <= b.precio ? a : b))
-      return mejor.mayorista === 'Maxiconsumo'
-    }).length, []
-  )
+  const ahorroFmt = useMemo(() => formatoAhorro(ahorroTotal), [ahorroTotal])
 
   const fechaDatos = useMemo(() => {
     let max = ''
@@ -162,12 +128,6 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
     border: '1px solid var(--line)', borderRadius: '12px', overflow: 'hidden',
   }
 
-  const proPillStyle: React.CSSProperties = {
-    fontSize: '9.5px', fontWeight: 600, letterSpacing: '0.08em',
-    color: 'var(--gold)', border: '1px solid var(--gold)',
-    borderRadius: '999px', padding: '2px 8px', flexShrink: 0,
-  }
-
   return (
     <div style={{ background: '#ffffff', minHeight: '100%', paddingBottom: '40px' }}>
       <style>{`
@@ -212,23 +172,15 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
           </div>
           <div>
             <h1 className="perfil-identity-name" style={{ fontSize: '21.4px', fontWeight: 600, letterSpacing: '-0.3px', margin: 0, color: 'var(--ink)' }}>
-              {perfil.nombre || 'Tu negocio'}
+              {perfil.nombre || 'Bienvenido/a'}
             </h1>
             <div style={{ fontSize: '12.5px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
-              {config.rubro === 'Almacen' ? 'Almacén' : config.rubro} · Buenos Aires
+              Buenos Aires
             </div>
-            <span style={{
-              display: 'inline-flex', marginTop: '6px',
-              background: 'var(--pill)', color: '#ffffff',
-              fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.1em',
-              borderRadius: '999px', padding: '3px 11px',
-            }}>
-              PLAN FREE
-            </span>
           </div>
         </div>
 
-        {/* Stats con CountUp */}
+        {/* Stats con CountUp — 2 columnas (nunca 3 iguales en mobile) */}
         <div className="perfil-anim" style={{ animationDelay: '100ms', display: 'flex', gap: '10px', padding: '18px 20px 0' }}>
           <div className="perfil-stat-card" style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
             <div className="tnum perfil-stat-val" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
@@ -240,58 +192,19 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
           </div>
           <div className="perfil-stat-card" style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
             <div className="tnum perfil-stat-val" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--green)' }}>
-              {cargado ? <CountUp from={0} to={Math.round(ahorroTotal / 1000000)} duration={0.9} prefix="$" suffix=" M" separator="." /> : `$${Math.round(ahorroTotal / 1000000)} M`}
+              {cargado
+                ? <CountUp from={0} to={ahorroFmt.to} duration={0.9} prefix="$" suffix={ahorroFmt.suffix} separator="." />
+                : `$${ahorroFmt.to.toLocaleString('es-AR')}${ahorroFmt.suffix}`}
             </div>
             <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
               ahorro detectado en catálogo
             </div>
           </div>
-          <div className="perfil-stat-card" style={{ flex: 1, background: 'var(--plate)', borderRadius: '10px', padding: '12px 14px' }}>
-            <div className="tnum perfil-stat-val" style={{ fontSize: '17px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
-              {cargado ? <CountUp from={0} to={listasCount} duration={0.5} /> : listasCount}
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px', lineHeight: 1.3 }}>
-              listas activas
-            </div>
-          </div>
         </div>
 
-        {/* Banner de upgrade → Planes */}
-        <button
-          className="perfil-anim perfil-gr-press"
-          onClick={onIrAPlanes}
-          style={{
-            animationDelay: '150ms',
-            margin: '18px 20px 0',
-            width: 'calc(100% - 40px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
-            border: '1.5px solid var(--gold)', borderRadius: '12px',
-            padding: '14px 16px',
-            background: 'linear-gradient(100deg, rgba(200,144,85,0.07), transparent 70%)',
-            cursor: 'pointer', textAlign: 'left',
-          }}
-        >
-          <div>
-            <div className="perfil-upgrade-title" style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
-              Te estás perdiendo el más barato
-            </div>
-            <div className="tnum perfil-upgrade-sub" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px' }}>
-              Maxiconsumo tuvo el mejor precio en {perdidasMaxiconsumo.toLocaleString('es-AR')} productos
-            </div>
-          </div>
-          <span style={{
-            flexShrink: 0,
-            width: '34px', height: '34px', borderRadius: '99px',
-            background: 'var(--gold)', color: '#ffffff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <ArrowRight size={16} strokeWidth={2.5} />
-          </span>
-        </button>
-
-        {/* Mi negocio */}
-        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '180ms' }}>Mi negocio</div>
-        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '180ms' }}>
+        {/* Mi perfil */}
+        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '150ms' }}>Mi perfil</div>
+        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '150ms' }}>
           <div className="perfil-group-row" style={grStyle}>
             <User size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -329,21 +242,17 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Rubro</div>
             </div>
-            <select
+            <input
               value={config.rubro}
-              onChange={e => setConfig(prev => ({ ...prev, rubro: e.target.value as BrujulaConfig['rubro'] }))}
-              aria-label="Rubro del negocio"
+              onChange={e => setConfig(prev => ({ ...prev, rubro: e.target.value }))}
+              placeholder="Kiosco, uso personal..."
+              aria-label="Rubro"
               style={{
-                fontSize: '13px', color: 'var(--gray)', fontWeight: 300,
+                fontSize: '13px', color: 'var(--gray)', fontWeight: 300, textAlign: 'right',
                 border: 'none', outline: 'none', background: 'transparent',
-                fontFamily: 'var(--font-sans)', cursor: 'pointer', textAlign: 'right',
+                fontFamily: 'var(--font-sans)', width: '160px',
               }}
-            >
-              <option value="Kiosco">Kiosco</option>
-              <option value="Almacen">Almacén</option>
-              <option value="Minimercado">Minimercado</option>
-              <option value="Otro">Otro</option>
-            </select>
+            />
           </div>
 
           <div className="perfil-group-row" style={grStyle}>
@@ -368,32 +277,12 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
               <option value="consumidor">Consumidor</option>
             </select>
           </div>
-
-          <button className="perfil-gr-press perfil-group-row" style={grStyle} onClick={onIrAPlanes}>
-            <Star size={20} strokeWidth={1.7} color="var(--gold)" style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Mi plan</div>
-              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Gratis · 2 de 3 mayoristas</div>
-            </div>
-            <span style={proPillStyle}>VER PLANES</span>
-            <ChevronRight size={16} color="var(--line)" style={{ flexShrink: 0 }} />
-          </button>
-
-          <div style={{ ...grStyle, borderBottom: 'none' }}>
-            <Lock size={20} strokeWidth={1.7} color="var(--gray)" style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Email y contraseña</div>
-              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Accedé desde cualquier dispositivo</div>
-            </div>
-            <span style={proPillStyle}>PRO</span>
-          </div>
         </div>
 
-        {/* Fuentes de precios: 3 mayoristas + Coto (cadena, gratis para todos) */}
+        {/* Fuentes de precios: todos los competidores relevados, mayoristas + cadenas */}
         <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '210ms' }}>Fuentes de precios</div>
         <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '210ms' }}>
           {FUENTES.map((f, idx) => {
-            const esPro = f.nombre === 'Maxiconsumo'
             const esCadena = f.tipo === 'cadena'
             return (
               <div key={f.nombre} style={{ ...grStyle, borderBottom: idx === FUENTES.length - 1 ? 'none' : '1px solid var(--plate)' }}>
@@ -423,36 +312,21 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
                     )}
                   </div>
                   <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>
-                    {esPro ? 'Desbloquealo con PRO'
-                      : (ultimaActualizacion[f.nombre] ? diasDesde(ultimaActualizacion[f.nombre]) : 'Precios incluidos')}
+                    {ultimaActualizacion[f.nombre] ? diasDesde(ultimaActualizacion[f.nombre]) : 'Precios incluidos'}
                   </div>
                 </div>
-                {esPro && <span style={proPillStyle}>PRO</span>}
-                <Switch on={!esPro} locked={esPro} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', fontWeight: 500, color: 'var(--green)', flexShrink: 0 }}>
+                  <Check size={15} strokeWidth={2.5} />
+                  Incluido
+                </span>
               </div>
             )
           })}
         </div>
 
-        {/* Avisos */}
-        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '240ms' }}>Avisos</div>
-        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '240ms' }}>
-          <div style={{ ...grStyle, borderBottom: 'none' }}>
-            <Bell size={20} strokeWidth={1.7} color="var(--ink)" style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="perfil-group-lbl" style={{ fontSize: '14px', fontWeight: 400, color: 'var(--ink)' }}>Avisarme de bombas nuevas</div>
-              <div className="perfil-group-sub" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '1px' }}>Cuando un producto tuyo baje fuerte</div>
-            </div>
-            <Switch
-              on={config.avisosBombas !== false}
-              onToggle={() => setConfig(prev => ({ ...prev, avisosBombas: prev.avisosBombas === false }))}
-            />
-          </div>
-        </div>
-
         {/* Ayuda */}
-        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '270ms' }}>Ayuda</div>
-        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '270ms' }}>
+        <div className="perfil-anim perfil-section-label" style={{ ...groupLabelStyle, animationDelay: '240ms' }}>Ayuda</div>
+        <div className="perfil-anim" style={{ ...groupStyle, animationDelay: '240ms' }}>
           <a
             href={`https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG_SUGERIR}`}
             target="_blank"
@@ -507,7 +381,7 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
         </div>
 
         {/* Danger zone */}
-        <div className="perfil-anim" style={{ animationDelay: '300ms', padding: '30px 20px 0' }}>
+        <div className="perfil-anim" style={{ animationDelay: '270ms', padding: '30px 20px 0' }}>
           <button
             onClick={handleBorrarDatos}
             style={{
