@@ -305,7 +305,7 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                       style={{ marginTop: '12px' }}
                     >
                       <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink)' }}>Cadenas</div>
-                      <div style={{ display: 'flex', marginTop: '12px' }}>
+                      <div style={{ display: 'flex', marginTop: '12px', gap: '12px' }}>
                         {preciosCadena.map(precio => (
                           <div key={precio.mayorista} style={{ flex: 1 }}>
                             {fuentePorNombre(precio.mayorista)?.logo ? (
@@ -314,7 +314,7 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                                 alt={precio.mayorista}
                                 width={92}
                                 height={26}
-                                style={{ height: '26px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                                style={{ height: '26px', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }}
                                 unoptimized
                               />
                             ) : (
