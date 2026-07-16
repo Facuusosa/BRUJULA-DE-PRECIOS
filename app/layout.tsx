@@ -13,7 +13,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: 'Brújula de Precios',
-  description: 'Compará precios de mayoristas y ahorrá en tu negocio',
+  description: 'Compará precios de mayoristas y cadenas, y ahorrá en cada compra',
 }
 
 export const viewport: Viewport = {
