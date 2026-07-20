@@ -342,9 +342,22 @@ export function VistaDetalle({
                       <ChipTipo tipo="mayorista" style={{ marginTop: '5px' }} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
-                        {formatearPrecio(precio.precio)}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                        <div className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
+                          {formatearPrecio(precio.precio)}
+                        </div>
+                        {precio.oferta && (
+                          <span style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
+                            OFERTA {precio.oferta}
+                          </span>
+                        )}
                       </div>
+                      {/* Tachado solo si el regular es MAYOR: mismo criterio que cadenas */}
+                      {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
+                        <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
+                          precio de lista <s>{formatearPrecio(precio.precioRegular)}</s>
+                        </div>
+                      )}
                       {esMejor ? (
                         <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em', marginTop: '1px' }}>
                           MÁS BARATO

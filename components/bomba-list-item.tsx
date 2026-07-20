@@ -262,6 +262,11 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                     <div className="tnum" style={{ fontSize: '17px', fontWeight: idx === 0 ? 600 : 500, marginTop: '7px', color: 'var(--ink)' }}>
                       {formatearPrecio(precio.precio)}
                     </div>
+                    {precio.oferta && (
+                      <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em', marginTop: '2px' }}>
+                        OFERTA {precio.oferta}
+                      </div>
+                    )}
                     {idx === 0 && (
                       <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
                         MÁS BARATO

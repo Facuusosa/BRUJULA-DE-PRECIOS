@@ -20,6 +20,8 @@ export const FUENTES: FuenteInfo[] = [
   { clave: 'coto',          nombre: 'Coto',          tipo: 'cadena',    logo: '/mayoristas/coto.webp',         url: 'https://www.cotodigital.com.ar' },
   { clave: 'carrefour',     nombre: 'Carrefour',     tipo: 'cadena',    logo: '/mayoristas/carrefour.jpg',     url: 'https://www.carrefour.com.ar' },
   { clave: 'dia',           nombre: 'Dia',           tipo: 'cadena',    logo: '/mayoristas/logo_dia.jpg',      url: 'https://diaonline.supermercadosdia.com.ar' },
+  { clave: 'masonline',     nombre: 'Masonline',     tipo: 'cadena',    logo: '/mayoristas/masonline.png',     url: 'https://www.masonline.com.ar' },
+  { clave: 'jumbo',         nombre: 'Jumbo',         tipo: 'cadena',    logo: '/mayoristas/jumbo.png',         url: 'https://www.jumbo.com.ar' },
 ]
 
 export const fuentePorNombre = (nombre: string): FuenteInfo | undefined =>
