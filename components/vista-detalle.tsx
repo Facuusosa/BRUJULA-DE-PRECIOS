@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, Heart, Share2, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
-import { Producto, productos, formatearPrecio, extraerTamano, fuentePorNombre } from '@/lib/data'
+import { Producto, Precio, productos, formatearPrecio, extraerTamano, fuentePorNombre } from '@/lib/data'
 import { ShuffleValue } from '@/components/shuffle-value'
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
@@ -72,6 +72,14 @@ export function VistaDetalle({
 
   const mejorPrecio = preciosValidos[0]
   const peorPrecio = preciosValidos[preciosValidos.length - 1]
+  // "MÁS BARATO" es una afirmación objetiva: tiene que ganar quien tenga el
+  // precio más bajo de TODA la ficha (mayorista o cadena) — si una cadena
+  // vende más barato que todos los mayoristas, el sello va ahí, no en el
+  // mejor mayorista (bug reportado por Facu 22/07: siempre ganaba mayorista).
+  const candidatosGlobal = [preciosValidos[0], preciosGondola[0]].filter((p): p is Precio => !!p)
+  const mejorGlobal = candidatosGlobal.length
+    ? candidatosGlobal.reduce((a, b) => (a.precio <= b.precio ? a : b))
+    : undefined
   const esEan = /^\d{13}$/.test(producto.id)
 
   // Base de la calculadora: el competidor que elija el usuario (default: el
@@ -313,9 +321,9 @@ export function VistaDetalle({
               {/* Una sola tira: mayoristas primero (por precio), cadenas después.
                   El chip por fila reemplaza a los sub-encabezados */}
               {preciosValidos.map((precio, idx) => {
-                const esMejor = idx === 0
-                const diffPct = !esMejor && mejorPrecio.precio > 0
-                  ? Math.round(((precio.precio - mejorPrecio.precio) / mejorPrecio.precio) * 100)
+                const esMejor = mejorGlobal?.mayorista === precio.mayorista
+                const diffPct = !esMejor && mejorGlobal && mejorGlobal.precio > 0
+                  ? Math.round(((precio.precio - mejorGlobal.precio) / mejorGlobal.precio) * 100)
                   : 0
                 return (
                   <div
@@ -402,7 +410,12 @@ export function VistaDetalle({
 
               {/* Cadenas: misma tira, misma fila — el chip CADENA (verde) las
                   distingue. Es venta al público, nunca precio de compra */}
-              {preciosGondola.map((precio, idx) => (
+              {preciosGondola.map((precio, idx) => {
+                const esMejor = mejorGlobal?.mayorista === precio.mayorista
+                const diffPct = !esMejor && mejorGlobal && mejorGlobal.precio > 0
+                  ? Math.round(((precio.precio - mejorGlobal.precio) / mejorGlobal.precio) * 100)
+                  : 0
+                return (
                 <div
                   key={precio.mayorista}
                   style={{
@@ -428,7 +441,7 @@ export function VistaDetalle({
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      <span className="tnum" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--ink)' }}>
+                      <span className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
                         {formatearPrecio(precio.precio)}
                       </span>
                       {precio.oferta && (
@@ -439,13 +452,18 @@ export function VistaDetalle({
                     </div>
                     {/* Tachado solo si el regular es MAYOR: en promos por cantidad
                         (2do al X%) el precio unitario no cambia y tacharlo confunde */}
-                    {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio ? (
+                    {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
                       <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
                         precio de lista <s>{formatearPrecio(precio.precioRegular)}</s>
                       </div>
+                    )}
+                    {esMejor ? (
+                      <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em', marginTop: '1px' }}>
+                        MÁS BARATO
+                      </div>
                     ) : (
                       <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
-                        venta al público
+                        +{diffPct}% vs el mejor
                       </div>
                     )}
                     <div style={{ marginTop: '3px' }}>
@@ -470,7 +488,8 @@ export function VistaDetalle({
                     </a>
                   )}
                 </div>
-              ))}
+                )
+              })}
 
               {/* Barra de rango de precios */}
               {preciosValidos.length >= 2 && (

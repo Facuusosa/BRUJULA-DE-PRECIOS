@@ -71,6 +71,14 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
   const pctSobreMejor = preciosValidos.length >= 2
     ? Math.round(((masCaro.precio - preciosValidos[0].precio) / preciosValidos[0].precio) * 100)
     : 0
+  // El sello "MÁS BARATO" es una afirmación objetiva sobre TODA la tarjeta
+  // (mayoristas + cadenas colapsadas), no solo entre mayoristas — si Coto está
+  // más barato, el sello va ahí, aunque el ranking de "bombas" del home siga
+  // siendo solo-mayorista (eso es sobre oportunidad de compra para revender).
+  const candidatosGlobal = [preciosValidos[0], preciosCadena[0]].filter((p): p is typeof preciosValidos[0] => !!p)
+  const mejorGlobal = candidatosGlobal.length
+    ? candidatosGlobal.reduce((a, b) => (a.precio <= b.precio ? a : b))
+    : undefined
   const esEan = /^\d{13}$/.test(bomba.id)
 
   const handleGuardar = (e: React.MouseEvent) => {
@@ -259,7 +267,7 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                     ) : (
                       <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
                     )}
-                    <div className="tnum" style={{ fontSize: '17px', fontWeight: idx === 0 ? 600 : 500, marginTop: '7px', color: 'var(--ink)' }}>
+                    <div className="tnum" style={{ fontSize: '17px', fontWeight: precio.mayorista === mejorGlobal?.mayorista ? 600 : 500, marginTop: '7px', color: 'var(--ink)' }}>
                       {formatearPrecio(precio.precio)}
                     </div>
                     {precio.oferta && (
@@ -267,7 +275,7 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                         OFERTA {precio.oferta}
                       </div>
                     )}
-                    {idx === 0 && (
+                    {precio.mayorista === mejorGlobal?.mayorista && (
                       <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
                         MÁS BARATO
                       </div>
@@ -325,12 +333,17 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                             ) : (
                               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)' }}>{precio.mayorista}</span>
                             )}
-                            <div className="tnum" style={{ fontSize: '17px', fontWeight: 600, marginTop: '7px', color: 'var(--ink)' }}>
+                            <div className="tnum" style={{ fontSize: '17px', fontWeight: precio.mayorista === mejorGlobal?.mayorista ? 600 : 500, marginTop: '7px', color: 'var(--ink)' }}>
                               {formatearPrecio(precio.precio)}
                             </div>
                             {precio.oferta && (
                               <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em', marginTop: '2px' }}>
                                 OFERTA {precio.oferta}
+                              </div>
+                            )}
+                            {precio.mayorista === mejorGlobal?.mayorista && (
+                              <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
+                                MÁS BARATO
                               </div>
                             )}
                             <div style={{ marginTop: '5px' }}>
