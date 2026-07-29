@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { calcularBombas, esBombaFijada, productos, sectores, Producto, ProductoBomba, FUENTES } from '@/lib/data'
 import { BombaDeal } from '@/components/bomba-list-item'
 import { LogoLoop } from '@/components/LogoLoop'
@@ -30,24 +30,25 @@ const MIN_PRODUCTOS_CATEGORIA = 10
 
 const fmt = new Intl.NumberFormat('es-AR')
 
-/* Top 20 del día: primero clase A con 3 precios (los productos que el comerciante
-   repone siempre), después clase A con 2, después el resto — siempre por mayor ahorro */
-function rankearTop(bombas: ProductoBomba[]): ProductoBomba[] {
-  const score = (b: ProductoBomba) => {
-    const numPrecios = b.precios.filter(p => p.precio > 0 && p.tipoFuente === 'mayorista').length
-    return (b.abc === 'A' ? 2 : 0) + (numPrecios >= 3 ? 1 : 0)
+function mezclar<T>(items: T[]): T[] {
+  const copia = [...items]
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copia[i], copia[j]] = [copia[j], copia[i]]
   }
-  return [...bombas]
-    .sort((a, b) => {
-      const aFijado = esBombaFijada(a.id) ? 1 : 0
-      const bFijado = esBombaFijada(b.id) ? 1 : 0
-      if (aFijado !== bFijado) return bFijado - aFijado
-      const sa = score(a)
-      const sb = score(b)
-      if (sa !== sb) return sb - sa
-      return b.ahorroEnPlata - a.ahorroEnPlata
-    })
-    .slice(0, TOP_TOTAL)
+  return copia
+}
+
+/* Top 20 de cada entrada a Inicio: el fijado (Fernet) siempre primero, el resto
+   rotado al azar dentro del pool ya curado por calcularBombas (ABC=A, mayor
+   ahorro) — así se ve variedad real sin bajar la calidad de lo destacado. Se
+   recalcula solo al montar VistaInicio (useMemo en el componente), o sea que
+   cambia cada vez que Facu vuelve a la pestaña Inicio, no en cada render. */
+function rankearTop(bombas: ProductoBomba[]): ProductoBomba[] {
+  const fijadas = bombas.filter(b => esBombaFijada(b.id))
+  const resto = bombas.filter(b => !esBombaFijada(b.id))
+  const necesarios = TOP_TOTAL - fijadas.length
+  return [...fijadas, ...mezclar(resto).slice(0, necesarios)]
 }
 
 export function VistaInicio({
@@ -57,7 +58,13 @@ export function VistaInicio({
   onGuardar,
 }: VistaInicioProps) {
   const bombas = useMemo(() => calcularBombas(), [])
-  const top = useMemo(() => rankearTop(bombas), [bombas])
+  // Valor inicial SIN random (mismo orden en servidor y en cliente, evita error de
+  // hidratación) — el shuffle real se aplica recién en el navegador, después de montar.
+  const [top, setTop] = useState<ProductoBomba[]>(() => bombas.slice(0, TOP_TOTAL))
+  useEffect(() => {
+    setTop(rankearTop(bombas))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const categorias = useMemo(() => (
     sectores
       .map(sector => {

@@ -17,6 +17,7 @@ export const FUENTES: FuenteInfo[] = [
   { clave: 'maxicarrefour', nombre: 'MaxiCarrefour', tipo: 'mayorista', logo: '/mayoristas/maxicarrefour.jpg', url: 'https://comerciante.carrefour.com.ar/' },
   { clave: 'yaguar',        nombre: 'Yaguar',        tipo: 'mayorista', logo: '/mayoristas/yaguar.png',        url: 'https://www.yaguar.com.ar' },
   { clave: 'maxiconsumo',   nombre: 'Maxiconsumo',   tipo: 'mayorista', logo: '/mayoristas/maxiconsumo.webp',  url: 'https://www.maxiconsumo.com' },
+  { clave: 'nini',          nombre: 'Nini',          tipo: 'mayorista', logo: '/mayoristas/nini.png',          url: 'http://ecommerce.nini.com.ar:8081/' },
   { clave: 'coto',          nombre: 'Coto',          tipo: 'cadena',    logo: '/mayoristas/coto.webp',         url: 'https://www.cotodigital.com.ar' },
   { clave: 'carrefour',     nombre: 'Carrefour',     tipo: 'cadena',    logo: '/mayoristas/carrefour.jpg',     url: 'https://www.carrefour.com.ar' },
   { clave: 'dia',           nombre: 'Dia',           tipo: 'cadena',    logo: '/mayoristas/logo_dia.jpg',      url: 'https://diaonline.supermercadosdia.com.ar' },
@@ -701,7 +702,10 @@ export function calcularBombas(): ProductoBomba[] {
       // Prioridad 3: mayor ahorro porcentual
       return b.ahorroVsMaximo - a.ahorroVsMaximo
     })
-    .slice(0, 50)
+    // Pool amplio (no solo el top 20 que se muestra): hay 253 productos ABC=A
+    // elegibles (medido 29/07/2026), así que 150 queda 100% ABC=A y le da a
+    // rankearTop() margen real para rotar sin bajar de categoría.
+    .slice(0, 150)
 }
 
 // Ahorro máximo que puede lograr eligiendo siempre el mejor precio (solo ABC=A)
