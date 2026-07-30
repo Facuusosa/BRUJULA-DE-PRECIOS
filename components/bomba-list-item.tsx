@@ -252,9 +252,13 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
           {preciosValidos.length > 0 && (
             <div className="deal-sec">
               <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ink)' }}>Dónde comprarlo</div>
-              <div style={{ display: 'flex', marginTop: '14px' }}>
-                {preciosValidos.slice(0, 3).map((precio, idx) => (
-                  <div key={precio.mayorista} style={{ flex: 1 }}>
+              <div
+                style={preciosValidos.length >= 4
+                  ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', rowGap: '20px', columnGap: '12px', marginTop: '14px' }
+                  : { display: 'flex', marginTop: '14px' }}
+              >
+                {preciosValidos.map((precio, idx) => (
+                  <div key={precio.mayorista} style={preciosValidos.length >= 4 ? undefined : { flex: 1 }}>
                     {fuentePorNombre(precio.mayorista)?.logo ? (
                       <Image
                         src={fuentePorNombre(precio.mayorista)!.logo}
