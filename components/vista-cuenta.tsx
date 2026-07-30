@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import { User, Store, Check, MessageCircle, HelpCircle, FileText, ChevronRight, ShoppingCart } from 'lucide-react'
-import { productos, FUENTES } from '@/lib/data'
+import { productos, FUENTES, UMBRAL_VIEJO_DIAS } from '@/lib/data'
 import CountUp from '@/components/reactbits/TextAnimations/CountUp/CountUp'
 
 const WHATSAPP_NUMERO = '541168079566'
@@ -357,7 +357,7 @@ export function VistaCuenta({ onIrAPlanes }: VistaCuentaProps) {
           {expandida === 'precios' && (
             <div style={{ padding: '4px 16px 14px 48px', fontSize: '12.5px', color: 'var(--gray)', fontWeight: 300, lineHeight: 1.5, background: '#ffffff', borderBottom: '1px solid var(--plate)' }}>
               Los precios salen directo de las webs de cada mayorista y se actualizan cada semana.
-              Si un precio tiene más de 30 días, lo marcamos como desactualizado.
+              Si un precio tiene más de {UMBRAL_VIEJO_DIAS} días, lo marcamos como desactualizado.
             </div>
           )}
 

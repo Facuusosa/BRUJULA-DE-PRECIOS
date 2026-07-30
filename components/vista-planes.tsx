@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import { ChevronLeft, Check, Lock } from 'lucide-react'
-import { productos } from '@/lib/data'
+import { productos, diasDesdeScrapingDe } from '@/lib/data'
+
+const FUENTES_TRUST = ['Yaguar', 'MaxiCarrefour', 'Maxiconsumo', 'Coto']
 import { LogoBrujula } from '@/components/logo-brujula'
 import { ShuffleValue } from '@/components/shuffle-value'
 
@@ -25,6 +27,22 @@ export function VistaPlanes({ onBack }: VistaPlanesProps) {
       return mejor.mayorista === 'Maxiconsumo'
     }).length, []
   )
+
+  // Texto de trust honesto: si alguna de las 4 fuentes lleva más de un dia sin
+  // actualizar (ej. un scraper que fallo), no podemos decir "esta semana" a secas.
+  const textoActualizacion = useMemo(() => {
+    let peor = 0
+    for (const p of productos) {
+      for (const pr of p.precios) {
+        if (!FUENTES_TRUST.includes(pr.mayorista) || pr.precio <= 0) continue
+        const dias = diasDesdeScrapingDe(pr)
+        if (dias !== null && dias > peor) peor = dias
+      }
+    }
+    if (peor === 0) return 'hoy'
+    if (peor === 1) return 'ayer'
+    return `hace ${peor} días`
+  }, [])
 
   const msgUpgrade = encodeURIComponent(
     `Hola Facundo, quiero activar Brújula PRO (plan ${billing === 'anual' ? 'anual' : 'mensual'})`
@@ -311,7 +329,7 @@ export function VistaPlanes({ onBack }: VistaPlanesProps) {
           textAlign: 'center', fontSize: '12px', color: 'var(--gray)', fontWeight: 300,
           padding: '26px 30px 0', lineHeight: 1.6,
         }}>
-          Precios actualizados <b style={{ color: 'var(--green)', fontWeight: 600 }}>esta semana</b> de
+          Precios actualizados <b style={{ color: 'var(--green)', fontWeight: 600 }}>{textoActualizacion}</b> de
           Yaguar, MaxiCarrefour, Maxiconsumo y Coto · {fmt.format(productos.length)} productos relevados
         </div>
       </div>

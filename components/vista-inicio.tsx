@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { calcularBombas, esBombaFijada, productos, sectores, Producto, ProductoBomba, FUENTES } from '@/lib/data'
+import { calcularBombas, esBombaFijada, productos, sectores, Producto, ProductoBomba, FUENTES, diasDesdeScrapingDe } from '@/lib/data'
 import { BombaDeal } from '@/components/bomba-list-item'
 import { LogoLoop } from '@/components/LogoLoop'
 import { HScroll } from '@/components/h-scroll'
@@ -81,6 +81,23 @@ export function VistaInicio({
   const deals = top.slice(0, visibles)
   const hayMas = visibles < top.length
 
+  // Título honesto: "de hoy" solo si TODOS los precios mayoristas mostrados son
+  // de hoy. Si alguno es más viejo (ej. un scraper que falló), el título lo dice —
+  // antes decía "Bombas de hoy" siempre, aunque Perfil mostrara fuentes atrasadas.
+  const tituloSeccion = useMemo(() => {
+    let peor = 0
+    for (const b of deals) {
+      for (const p of b.precios) {
+        if (p.tipoFuente !== 'mayorista' || p.precio <= 0) continue
+        const dias = diasDesdeScrapingDe(p)
+        if (dias !== null && dias > peor) peor = dias
+      }
+    }
+    if (peor === 0) return 'Bombas de hoy'
+    if (peor === 1) return 'Bombas de ayer'
+    return `Bombas actualizadas hace ${peor} días`
+  }, [deals])
+
   return (
     <div className="inicio" style={{ background: '#ffffff', minHeight: '100%' }}>
       <style>{`
@@ -110,7 +127,7 @@ export function VistaInicio({
           fontSize: 'var(--fs-section)', fontWeight: 600, letterSpacing: '-0.3px',
           padding: '10px 20px 0', margin: 0, color: 'var(--ink)',
         }}>
-          Bombas de hoy
+          {tituloSeccion}
         </h2>
 
         {/* Mayoristas — LogoLoop infinito (efecto aprobado, en todas las resoluciones) */}
