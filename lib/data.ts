@@ -766,17 +766,22 @@ export function calcularPrecioPorUnidad(precio: number, tamano: string | null): 
 
 // --- Frescura de precios ---
 // Indicador de cuan reciente es el precio de una fuente. Devuelve null cuando no
-// hay fecha (no afirmamos una frescura que no podemos probar). Umbral 'viejo' = 14
-// dias, alineado con precio_stale del pipeline (actualizar_catalogo.py).
+// hay fecha (no afirmamos una frescura que no podemos probar). Umbral 'viejo' =
+// UMBRAL_VIEJO_DIAS, alineado con STALE_DIAS del pipeline (actualizar_catalogo.py) —
+// unica fuente de verdad para cualquier texto de la UI que mencione este numero.
+export const UMBRAL_VIEJO_DIAS = 14
+
 export interface Frescura {
   label: string
   color: string
   nivel: 'fresco' | 'reciente' | 'viejo'
 }
 
-export function frescuraDe(precio: Precio): Frescura | null {
+// Dias transcurridos desde el scraping de un precio, o null si no hay fecha
+// (no afirmamos una frescura que no podemos probar). Usa diasDesdeScraping si
+// ya viene calculado en el JSON; si no, lo calcula desde fechaScraping.
+export function diasDesdeScrapingDe(precio: Precio): number | null {
   let dias = precio.diasDesdeScraping
-  // Si el valor no está en el JSON, calcularlo en el momento desde fechaScraping
   if ((dias === undefined || dias === null) && precio.fechaScraping) {
     const hoy = new Date()
     const fecha = new Date(precio.fechaScraping)
@@ -784,7 +789,12 @@ export function frescuraDe(precio: Precio): Frescura | null {
       dias = Math.floor((hoy.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24))
     }
   }
-  if (dias === undefined || dias === null) return null
+  return dias ?? null
+}
+
+export function frescuraDe(precio: Precio): Frescura | null {
+  const dias = diasDesdeScrapingDe(precio)
+  if (dias === null) return null
 
   // Label: dias exactos ("Hoy", "Ayer", "2 días", "3 días", etc.)
   let label: string
@@ -796,8 +806,8 @@ export function frescuraDe(precio: Precio): Frescura | null {
     label = `${dias} días`
   }
 
-  if (dias <= 1)  return { label, color: 'var(--green)', nivel: 'fresco' }
-  if (dias <= 3)  return { label, color: 'var(--green)', nivel: 'fresco' }
-  if (dias <= 14) return { label, color: 'var(--gold)',  nivel: 'reciente' }
+  if (dias <= 1) return { label, color: 'var(--green)', nivel: 'fresco' }
+  if (dias <= 3) return { label, color: 'var(--green)', nivel: 'fresco' }
+  if (dias <= UMBRAL_VIEJO_DIAS) return { label, color: 'var(--gold)', nivel: 'reciente' }
   return { label, color: '#ef4444', nivel: 'viejo' }
 }
