@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { Search, X, Check, Plus, ChevronDown, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
 import { productos, sectores, Producto, TipoFuente, FUENTES, formatearPrecio, extraerTamano } from '@/lib/data'
@@ -79,6 +80,50 @@ function clickSpark(el: HTMLElement) {
   }
 }
 
+/* Portal al body: .cat-filters tiene overflow-x:auto para el scroll horizontal de
+   chips, y por spec de CSS eso fuerza overflow-y a comportarse como 'auto' aunque
+   se declare 'visible' explicito -- cualquier dropdown hijo queda recortado e
+   invisible (bug real encontrado en auditoria, confirmado en mobile y desktop).
+   Sacar el menu del DOM del contenedor con position:fixed evita el recorte. */
+function FilterDropdown({ anchorRef, open, onClose, children }: {
+  anchorRef: React.RefObject<HTMLButtonElement | null>
+  open: boolean
+  onClose: () => void
+  children: ReactNode
+}) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+
+  useEffect(() => {
+    if (!open || !anchorRef.current) { setPos(null); return }
+    const r = anchorRef.current.getBoundingClientRect()
+    setPos({ top: r.bottom + 6, left: r.left })
+    // Cierra en scroll en vez de reposicionar en vivo: el filtro scrollea dentro
+    // de <main> (no window), capture:true atrapa el scroll del contenedor interno.
+    window.addEventListener('scroll', onClose, { capture: true, passive: true })
+    window.addEventListener('resize', onClose)
+    return () => {
+      window.removeEventListener('scroll', onClose, { capture: true })
+      window.removeEventListener('resize', onClose)
+    }
+  }, [open, anchorRef, onClose])
+
+  if (!open || !pos || typeof document === 'undefined') return null
+
+  return createPortal(
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed', top: pos.top, left: pos.left, zIndex: 100,
+        background: '#ffffff', border: '1px solid var(--line)', borderRadius: '12px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.1)', padding: '6px', minWidth: '170px',
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  )
+}
+
 export function VistaCatalogo({
   sectorActivo: sectorInicial = 'Todos',
   mayoristaBuscado: mayoristaBuscadoInicial = '',
@@ -109,6 +154,8 @@ export function VistaCatalogo({
   const [soloComparables, setSoloComparables] = useState(false)
   const [orden, setOrden] = useState<Orden>('relevancia')
   const [dropdownAbierto, setDropdownAbierto] = useState<'orden' | 'mayorista' | null>(null)
+  const ordenBtnRef = useRef<HTMLButtonElement>(null)
+  const mayoristaBtnRef = useRef<HTMLButtonElement>(null)
   const [paginaActual, setPaginaActual] = useState(0)
 
   // El catálogo es navegable desde el drawer/sidebar: sincronizar el sector externo
@@ -324,35 +371,30 @@ export function VistaCatalogo({
           {/* Ordenar */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
+              ref={ordenBtnRef}
               style={chipStyle(orden !== 'relevancia')}
               onClick={(e) => { e.stopPropagation(); setDropdownAbierto(dropdownAbierto === 'orden' ? null : 'orden') }}
             >
               {orden === 'relevancia' ? 'Ordenar' : ORDEN_LABELS[orden]}
               <ChevronDown size={13} strokeWidth={2.5} />
             </button>
-            {dropdownAbierto === 'orden' && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 30,
-                background: '#ffffff', border: '1px solid var(--line)', borderRadius: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.1)', padding: '6px', minWidth: '170px',
-              }}>
-                {(Object.keys(ORDEN_LABELS) as Orden[]).map(o => (
-                  <button
-                    key={o}
-                    onClick={(e) => { e.stopPropagation(); setOrden(o); setDropdownAbierto(null) }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left',
-                      padding: '9px 12px', borderRadius: '8px',
-                      fontSize: '13.5px', fontWeight: orden === o ? 600 : 400,
-                      background: orden === o ? 'var(--plate)' : 'transparent',
-                      color: 'var(--ink)', border: 'none', cursor: 'pointer',
-                    }}
-                  >
-                    {ORDEN_LABELS[o]}
-                  </button>
-                ))}
-              </div>
-            )}
+            <FilterDropdown anchorRef={ordenBtnRef} open={dropdownAbierto === 'orden'} onClose={() => setDropdownAbierto(null)}>
+              {(Object.keys(ORDEN_LABELS) as Orden[]).map(o => (
+                <button
+                  key={o}
+                  onClick={(e) => { e.stopPropagation(); setOrden(o); setDropdownAbierto(null) }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '9px 12px', borderRadius: '8px',
+                    fontSize: '13.5px', fontWeight: orden === o ? 600 : 400,
+                    background: orden === o ? 'var(--plate)' : 'transparent',
+                    color: 'var(--ink)', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  {ORDEN_LABELS[o]}
+                </button>
+              ))}
+            </FilterDropdown>
           </div>
 
           {/* Toggle tipo de fuente: Todos / Mayoristas / Cadenas */}
@@ -377,6 +419,7 @@ export function VistaCatalogo({
           {/* Mayorista */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
+              ref={mayoristaBtnRef}
               style={chipStyle(!!mayoristaSel)}
               onClick={(e) => { e.stopPropagation(); setDropdownAbierto(dropdownAbierto === 'mayorista' ? null : 'mayorista') }}
             >
@@ -385,29 +428,23 @@ export function VistaCatalogo({
                 ? <X size={13} strokeWidth={2.5} onClick={(e) => { e.stopPropagation(); setMayoristaSel(''); setDropdownAbierto(null) }} />
                 : <ChevronDown size={13} strokeWidth={2.5} />}
             </button>
-            {dropdownAbierto === 'mayorista' && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 30,
-                background: '#ffffff', border: '1px solid var(--line)', borderRadius: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.1)', padding: '6px', minWidth: '170px',
-              }}>
-                {FUENTES.map(m => (
-                  <button
-                    key={m.nombre}
-                    onClick={(e) => { e.stopPropagation(); setMayoristaSel(mayoristaSel === m.nombre ? '' : m.nombre); setDropdownAbierto(null) }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left',
-                      padding: '9px 12px', borderRadius: '8px',
-                      fontSize: '13.5px', fontWeight: mayoristaSel === m.nombre ? 600 : 400,
-                      background: mayoristaSel === m.nombre ? 'var(--plate)' : 'transparent',
-                      color: 'var(--ink)', border: 'none', cursor: 'pointer',
-                    }}
-                  >
-                    {m.nombre}
-                  </button>
-                ))}
-              </div>
-            )}
+            <FilterDropdown anchorRef={mayoristaBtnRef} open={dropdownAbierto === 'mayorista'} onClose={() => setDropdownAbierto(null)}>
+              {FUENTES.map(m => (
+                <button
+                  key={m.nombre}
+                  onClick={(e) => { e.stopPropagation(); setMayoristaSel(mayoristaSel === m.nombre ? '' : m.nombre); setDropdownAbierto(null) }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '9px 12px', borderRadius: '8px',
+                    fontSize: '13.5px', fontWeight: mayoristaSel === m.nombre ? 600 : 400,
+                    background: mayoristaSel === m.nombre ? 'var(--plate)' : 'transparent',
+                    color: 'var(--ink)', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  {m.nombre}
+                </button>
+              ))}
+            </FilterDropdown>
           </div>
 
           {/* Solo comparables */}
