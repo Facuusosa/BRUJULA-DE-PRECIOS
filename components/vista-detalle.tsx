@@ -25,6 +25,7 @@ interface VistaDetalleProps {
   esFavorito?: boolean
   onToggleFavorito?: () => void
   onVerProducto?: (producto: Producto) => void
+  enLista?: boolean
 }
 
 export function VistaDetalle({
@@ -34,6 +35,7 @@ export function VistaDetalle({
   esFavorito,
   onToggleFavorito,
   onVerProducto,
+  enLista,
 }: VistaDetalleProps) {
   const [margen, setMargen] = useState(35)
   // Calculadora flexible (pedido Facu 06/07): base a libre elección entre TODOS
@@ -113,6 +115,7 @@ export function VistaDetalle({
     // recalcula el mejor precio en vivo según cuál esté activo — guardamos la
     // fuente que el usuario esté mirando en la calculadora tal cual, sin forzar
     // un fallback a mayorista acá.
+    if (enLista) return
     if (!precioBase) {
       toast.error('Este producto no tiene precio disponible para comprar')
       return
@@ -286,16 +289,19 @@ export function VistaDetalle({
             <div className="det-anim" style={{ animationDelay: '160ms', display: 'flex', justifyContent: 'center', gap: '10px', padding: '18px 0 0' }}>
               <button
                 onClick={handleGuardar}
+                aria-label={enLista ? 'Ya en tu lista' : 'Agregar a lista'}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '7px',
-                  background: 'var(--plate)', borderRadius: '999px',
-                  padding: '10px 18px', border: 'none', cursor: 'pointer',
-                  fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)',
+                  background: enLista ? 'var(--green)' : 'var(--plate)', borderRadius: '999px',
+                  padding: '10px 18px', border: 'none', cursor: enLista ? 'default' : 'pointer',
+                  fontSize: '13.5px', fontWeight: 500, color: enLista ? '#ffffff' : 'var(--ink)',
                   fontFamily: 'var(--font-sans)',
                 }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>
-                Lista
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  {enLista ? <path d="M5 12l5 5L19 8" /> : <><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></>}
+                </svg>
+                {enLista ? 'En lista' : 'Lista'}
               </button>
               <button
                 onClick={handleCompartir}
@@ -664,14 +670,14 @@ export function VistaDetalle({
                 onClick={handleGuardar}
                 style={{
                   width: '100%',
-                  background: 'var(--pill)', color: '#ffffff',
+                  background: enLista ? 'var(--green)' : 'var(--pill)', color: '#ffffff',
                   border: 'none', borderRadius: '999px',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '15px', fontWeight: 500,
-                  padding: '15px 0', cursor: 'pointer',
+                  padding: '15px 0', cursor: enLista ? 'default' : 'pointer',
                 }}
               >
-                Guardar en mi lista
+                {enLista ? 'Ya está en tu lista' : 'Guardar en mi lista'}
               </button>
             </div>
 

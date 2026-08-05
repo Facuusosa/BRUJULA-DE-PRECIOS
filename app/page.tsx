@@ -333,6 +333,7 @@ export default function BrujulaMayorista() {
               esFavorito={favoritos.has(productoSeleccionado.id)}
               onToggleFavorito={() => handleToggleFavorito(productoSeleccionado.id)}
               onVerProducto={(producto) => handleVerProducto(producto, 'detalle')}
+              enLista={itemsActivos.some((i) => i.producto.id === productoSeleccionado.id)}
             />
           )}
 
