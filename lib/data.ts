@@ -651,6 +651,14 @@ export const sectores = sectoresRaw.filter(s =>
 const IDS_FIJADOS_BOMBAS = ['7790290101602'] // Fernet BRANCA X750 ml
 export const esBombaFijada = (id: string): boolean => IDS_FIJADOS_BOMBAS.includes(id)
 
+// Bomba = "esto es una oferta VIGENTE". Un precio mayorista de hace más de
+// unos días puede ya no ser real (el producto no volvió a aparecer en el
+// scrape más reciente y el catálogo conserva el último dato conocido, con
+// su fecha honesta — ver 02-scrapers.md). Sin este corte, un solo producto
+// viejo que cae en el shuffle aleatorio de Inicio contamina el título
+// completo ("Bombas actualizadas hace 8 días") aunque el resto sea de hoy.
+const BOMBA_DIAS_MAX = 3
+
 // Función para calcular las bombas del día (productos con mayor diferencia de precio entre mayoristas)
 export function calcularBombas(): ProductoBomba[] {
   return productos
@@ -664,7 +672,11 @@ export function calcularBombas(): ProductoBomba[] {
       if (preciosValidos.length < 2) return false
       const min = Math.min(...preciosValidos.map(pr => pr.precio))
       const max = Math.max(...preciosValidos.map(pr => pr.precio))
-      return min >= max * 0.4
+      if (min < max * 0.4) return false
+      return preciosValidos.every(pr => {
+        const dias = diasDesdeScrapingDe(pr)
+        return dias === null || dias <= BOMBA_DIAS_MAX
+      })
     })
     .map(p => {
       const preciosValidos = p.precios.filter(pr => pr.precio > 0 && pr.tipoFuente === 'mayorista')
