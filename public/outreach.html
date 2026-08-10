@@ -433,15 +433,22 @@ function render(){
   contadores();
 }
 
+// Debounce: filtra 6700+ productos en cada letra -- sin esto, escribir
+// rapido en el buscador de material tilda al tipear (mismo problema que el
+// buscador de comercios de arriba).
+let _acTimer = null;
 function ac(i, n){
-  const q = (document.getElementById("inp"+i).value || "").toLowerCase().trim();
   const box = document.getElementById("acl"+i);
-  if(q.length < 2){ box.classList.remove("show"); return; }
-  const res = POOL.filter(p => p.producto.toLowerCase().includes(q)).slice(0, 10);
-  box.innerHTML = res.length
-    ? res.map(p => `<div class="ac-item" onmousedown="setMat('${jq(n)}','${jq(p.producto)}')">${p.producto}${p.abc==="A"?'<span class="abadge">A</span>':""}<small class="${p.warn?'pw':'pg'}">${p.pct}%</small></div>`).join("")
-    : `<div class="ac-item" style="color:#808080">Sin resultados &mdash; prob&aacute; otra palabra</div>`;
-  box.classList.add("show");
+  clearTimeout(_acTimer);
+  _acTimer = setTimeout(() => {
+    const q = (document.getElementById("inp"+i).value || "").toLowerCase().trim();
+    if(q.length < 2){ box.classList.remove("show"); return; }
+    const res = POOL.filter(p => p.producto.toLowerCase().includes(q)).slice(0, 10);
+    box.innerHTML = res.length
+      ? res.map(p => `<div class="ac-item" onmousedown="setMat('${jq(n)}','${jq(p.producto)}')">${p.producto}${p.abc==="A"?'<span class="abadge">A</span>':""}<small class="${p.warn?'pw':'pg'}">${p.pct}%</small></div>`).join("")
+      : `<div class="ac-item" style="color:#808080">Sin resultados &mdash; prob&aacute; otra palabra</div>`;
+    box.classList.add("show");
+  }, 150);
 }
 function cerrarAc(i){ const b=document.getElementById("acl"+i); if(b) b.classList.remove("show"); }
 function setMat(n, prod){ const s=st(n); s.material=prod; s.mensaje=null; guardar(); render(); }
@@ -475,7 +482,14 @@ function exportar(){
 if (!PW) {
   document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#666">Acceso restringido. Necesitás la URL con la clave.</div>';
 } else {
-  document.getElementById("q").addEventListener("input", render);
+  // Debounce: cada letra reconstruye las 27 tarjetas completas (DOM pesado,
+  // imagenes incluidas) -- sin esto, escribir rapido en el buscador satura
+  // el hilo principal y la pagina se tilda, sobre todo en celular.
+  let _searchTimer = null;
+  document.getElementById("q").addEventListener("input", () => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(render, 200);
+  });
   document.querySelectorAll("#filtros .chip").forEach(ch=>ch.addEventListener("click", ()=>{
     document.querySelectorAll("#filtros .chip").forEach(x=>x.classList.remove("on"));
     ch.classList.add("on"); filtro = ch.dataset.f; render();
