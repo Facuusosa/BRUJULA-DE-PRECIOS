@@ -50,6 +50,23 @@
   .card.enviado{opacity:.55}
   .card.cancelado{opacity:.34}
 
+  /* ---- Fila compacta: comercio colapsado, sin textarea/autocomplete/listeners
+     pesados vivos -- solo el que estas trabajando se expande a .card completa ---- */
+  .fila{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--bg);
+    border:1.5px solid var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s}
+  .fila:hover{border-color:var(--gold)}
+  .fila.aprobado{border-color:var(--green)}
+  .fila.enviado{opacity:.55}
+  .fila.cancelado{opacity:.34}
+  .fila-foto{width:48px;height:48px;border-radius:10px;background:#e8e6e2;overflow:hidden;flex:none}
+  .fila-foto img{width:100%;height:100%;object-fit:cover}
+  .fila-info{flex:1;min-width:0}
+  .fila-nombre{font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fila-sub{font-size:var(--fs-sm);color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card-header{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 28px;background:var(--plate);cursor:pointer;border-bottom:2px solid var(--card-border)}
+  .card-header:hover{background:#ece9e4}
+
   /* ---- Two-column grid ---- */
   .card-grid{display:grid;grid-template-columns:1fr 320px;align-items:stretch;min-height:0}
   .card-left{padding:28px 32px 28px 28px;border-right:2px solid var(--card-border)}
@@ -312,6 +329,28 @@ function bloqueMaterial(c, i){
     </div>`;
 }
 
+// Un solo comercio expandido a la vez -- el resto se muestra como fila
+// compacta sin textarea/autocomplete/imagen grande. Con las 27 tarjetas
+// completas siempre vivas (509 listeners, 6500+ nodos medido) la pagina se
+// tildaba en celular ante cualquier interaccion.
+let abierto = null;
+function abrir(n){ abierto = (abierto===n) ? null : n; render(); }
+
+function filaCompacta(c, s, i){
+  const fl = c.foto_local ? `<img src="${c.foto_local}" loading="lazy" onerror="this.parentNode.style.display='none'">` : "";
+  const estadoHtml = s.status==="aprobado" ? `<span class="estado">Aprobado</span>`
+                    : s.status==="enviado" ? `<span class="estado">Enviado</span>` : "";
+  const canalLabel = c.canal.includes("WhatsApp")?"WhatsApp":c.canal.includes("Instagram")?"Instagram DM":c.canal.includes("Facebook")?"Facebook":c.canal;
+  return `
+    <div class="fila ${s.status==="pendiente"?"":s.status}" onclick="abrir('${jq(c.nombre)}')">
+      <div class="fila-foto">${fl}</div>
+      <div class="fila-info">
+        <div class="fila-nombre">${c.nombre}${estadoHtml}</div>
+        <div class="fila-sub">${c.tipo} &middot; ${c.zona}${c.rating?` &middot; &#9733; ${c.rating}`:""} &middot; ${canalLabel}</div>
+      </div>
+    </div>`;
+}
+
 function clientCard(c, s){
   const fl = c.foto_local ? `<img src="${c.foto_local}" onerror="this.parentNode.innerHTML='<div class=ph>sin foto</div>'">` : `<div class="ph">sin foto</div>`;
   const estadoHtml = s.status==="aprobado"
@@ -401,11 +440,23 @@ function render(){
     if(q && !`${c.nombre} ${c.zona} ${c.canal} ${c.tipo}`.toLowerCase().includes(q)) return;
     if(filtro !== "todos" && s.status !== filtro) return;
     vis++;
+
+    if(c.nombre !== abierto){
+      const filaEl = document.createElement("div");
+      filaEl.innerHTML = filaCompacta(c, s, i);
+      cont.appendChild(filaEl.firstElementChild);
+      return;
+    }
+
     const msg = s.mensaje !== null ? s.mensaje : mensajeDe(c);
 
     const card = document.createElement("div");
     card.className = "card " + (s.status==="pendiente"?"":s.status);
     card.innerHTML = `
+      <div class="card-header" onclick="abrir('${jq(c.nombre)}')">
+        <strong>${c.nombre}</strong>
+        <span style="color:var(--gray);font-size:var(--fs-sm)">Cerrar &and;</span>
+      </div>
       <div class="card-grid">
         <div class="card-left">
           <div id="mat${i}">${bloqueMaterial(c,i)}</div>
