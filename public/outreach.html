@@ -200,6 +200,7 @@
   .b:hover{border-color:var(--ink)}
   .b.prim{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600}
   .b.ok.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .b.copied-ok{background:var(--green);color:#fff;border-color:var(--green);cursor:default}
   .b.x{margin-left:auto;color:var(--red);border:none;background:none;font-size:var(--fs-sm)}
   .b.x:hover{text-decoration:underline}
   .b:active{transform:translateY(1px)}
@@ -548,7 +549,12 @@ function setMat(n, prod){ const s=st(n); s.material=prod; s.mensaje=null; guarda
 function aprobar(n,i){ const ta=document.getElementById("ta"+i); st(n).mensaje=ta.value; st(n).status=(st(n).status==="aprobado"?"pendiente":"aprobado"); guardar(); render(); }
 function enviado(n){ st(n).status="enviado"; st(n).fecha=new Date().toISOString(); guardar(); render(); }
 function cancelar(n){ if(confirm("Cancelar este comercio?")){ st(n).status="cancelado"; guardar(); render(); } }
-function copiar(i,b){ const ta=document.getElementById("ta"+i); ta.select(); navigator.clipboard.writeText(ta.value); b.outerHTML=`<span class="copied">&#10003; Copiado</span>`; setTimeout(render,1100); }
+function copiar(i,b){
+  const ta=document.getElementById("ta"+i); ta.select(); navigator.clipboard.writeText(ta.value);
+  const original = b.textContent;
+  b.textContent = "✓ Copiado"; b.classList.add("copied-ok"); b.disabled = true;
+  setTimeout(() => { b.textContent = original; b.classList.remove("copied-ok"); b.disabled = false; }, 1600);
+}
 function reportar(n, prod){
   const nota = prompt("Reportar precio incorrecto de:\n"+prod+"\n\nQue viste mal? (opcional)");
   if(nota===null) return;
