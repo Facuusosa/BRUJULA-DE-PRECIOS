@@ -242,8 +242,10 @@ let reportes = JSON.parse(localStorage.getItem(RKEY) || "[]");
 let filtro = "todos";
 let _saveTimer = null;
 
-// Extraer ?pw= de la URL actual para pasarlo a la API
-const PW = new URLSearchParams(location.search).get("pw") || "";
+// Acceso libre (decision de Facu 10/08): ya no hace falta ?pw= en la URL,
+// pero la API de sincronizacion con la nube sigue necesitando la clave --
+// va fija aca adentro en vez de pedirsela al usuario.
+const PW = new URLSearchParams(location.search).get("pw") || "brujula2025";
 const API = "/api/outreach?pw=" + encodeURIComponent(PW);
 
 async function cargarDesdeNube() {
@@ -529,25 +531,20 @@ function exportar(){
   a.download = "estado_outreach_" + new Date().toISOString().slice(0,10) + ".json"; a.click();
 }
 
-// Bloquear sin contraseña
-if (!PW) {
-  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#666">Acceso restringido. Necesitás la URL con la clave.</div>';
-} else {
-  // Debounce: cada letra reconstruye las 27 tarjetas completas (DOM pesado,
-  // imagenes incluidas) -- sin esto, escribir rapido en el buscador satura
-  // el hilo principal y la pagina se tilda, sobre todo en celular.
-  let _searchTimer = null;
-  document.getElementById("q").addEventListener("input", () => {
-    clearTimeout(_searchTimer);
-    _searchTimer = setTimeout(render, 200);
-  });
-  document.querySelectorAll("#filtros .chip").forEach(ch=>ch.addEventListener("click", ()=>{
-    document.querySelectorAll("#filtros .chip").forEach(x=>x.classList.remove("on"));
-    ch.classList.add("on"); filtro = ch.dataset.f; render();
-  }));
-  // Cargar estado de la nube primero, luego renderizar
-  cargarDesdeNube().then(render);
-}
+// Debounce: cada letra reconstruye las 27 tarjetas completas (DOM pesado,
+// imagenes incluidas) -- sin esto, escribir rapido en el buscador satura
+// el hilo principal y la pagina se tilda, sobre todo en celular.
+let _searchTimer = null;
+document.getElementById("q").addEventListener("input", () => {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(render, 200);
+});
+document.querySelectorAll("#filtros .chip").forEach(ch=>ch.addEventListener("click", ()=>{
+  document.querySelectorAll("#filtros .chip").forEach(x=>x.classList.remove("on"));
+  ch.classList.add("on"); filtro = ch.dataset.f; render();
+}));
+// Cargar estado de la nube primero, luego renderizar
+cargarDesdeNube().then(render);
 </script>
 </body>
 </html>
