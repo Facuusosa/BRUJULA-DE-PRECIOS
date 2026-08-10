@@ -50,22 +50,48 @@
   .card.enviado{opacity:.55}
   .card.cancelado{opacity:.34}
 
-  /* ---- Fila compacta: comercio colapsado, sin textarea/autocomplete/listeners
-     pesados vivos -- solo el que estas trabajando se expande a .card completa ---- */
-  .fila{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--bg);
-    border:1.5px solid var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s}
-  .fila:hover{border-color:var(--gold)}
+  /* ---- Fila compacta: comercio colapsado -- foto, contacto y mapa quedan
+     visibles y clickeables sin abrir nada (livianos: solo texto + <a>).
+     El textarea/autocomplete de material (pesado: 6700+ productos, era la
+     causa real del tildado) solo existe en el DOM del comercio abierto. ---- */
+  .fila{display:flex;align-items:center;gap:18px;padding:14px 18px;background:var(--bg);
+    border:1.5px solid var(--line);border-radius:16px;transition:border-color .15s,box-shadow .15s}
+  .fila:hover{border-color:var(--gold);box-shadow:0 2px 10px rgba(0,0,0,.05)}
   .fila.aprobado{border-color:var(--green)}
   .fila.enviado{opacity:.55}
   .fila.cancelado{opacity:.34}
-  .fila-foto{width:48px;height:48px;border-radius:10px;background:#e8e6e2;overflow:hidden;flex:none}
-  .fila-foto img{width:100%;height:100%;object-fit:cover}
-  .fila-info{flex:1;min-width:0}
-  .fila-nombre{font-weight:600;font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .fila-sub{font-size:var(--fs-sm);color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fila-foto{width:92px;height:92px;border-radius:12px;background:#e8e6e2;overflow:hidden;
+    flex:none;cursor:pointer}
+  .fila-foto img{width:100%;height:100%;object-fit:cover;display:block}
+  .fila-foto .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+    font-size:var(--fs-xs);color:var(--gray);text-align:center;padding:6px}
+  .fila-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+  .fila-top{cursor:pointer}
+  .fila-nombre{font-weight:600;font-size:17px;line-height:1.25}
+  .fila-sub{font-size:var(--fs-sm);color:var(--gray);margin-top:1px}
+  .fila-chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chipc{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-xs);font-weight:600;
+    padding:5px 10px 5px 8px;border-radius:999px;background:var(--plate);color:var(--ink);
+    max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:filter .15s}
+  .chipc:hover{filter:brightness(.96)}
+  .chipc svg{width:12px;height:12px;flex:none}
+  .chipc.map{color:var(--gray)}
+  .chipc.wa{background:var(--wa-bg,#e7f6ec);color:var(--wa)}
+  .chipc.ig{background:var(--ig-bg,#fde7f0);color:var(--ig)}
+  .chipc.fb{background:var(--fb-bg,#e8efff);color:var(--fb)}
+  .fila-expandir{flex:none;align-self:stretch;display:flex;align-items:center;gap:4px;
+    background:none;border:none;border-left:1.5px solid var(--line);padding:0 0 0 16px;
+    color:var(--gray);font-family:inherit;font-size:var(--fs-sm);font-weight:600;cursor:pointer}
+  .fila-expandir:hover{color:var(--ink)}
   .card-header{display:flex;align-items:center;justify-content:space-between;
     padding:14px 28px;background:var(--plate);cursor:pointer;border-bottom:2px solid var(--card-border)}
   .card-header:hover{background:#ece9e4}
+  @media (max-width:640px){
+    .fila{gap:12px;padding:10px 12px}
+    .fila-foto{width:64px;height:64px}
+    .fila-nombre{font-size:15px}
+    .fila-expandir{display:none} /* toda la fila es clickeable en mobile, sobra el boton */
+  }
 
   /* ---- Two-column grid ---- */
   .card-grid{display:grid;grid-template-columns:1fr 320px;align-items:stretch;min-height:0}
@@ -339,17 +365,30 @@ let abierto = null;
 function abrir(n){ abierto = (abierto===n) ? null : n; render(); }
 
 function filaCompacta(c, s, i){
-  const fl = c.foto_local ? `<img src="${c.foto_local}" loading="lazy" onerror="this.parentNode.style.display='none'">` : "";
+  const fl = c.foto_local
+    ? `<img src="${c.foto_local}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=ph>sin foto</div>'">`
+    : `<div class="ph">sin foto</div>`;
   const estadoHtml = s.status==="aprobado" ? `<span class="estado">Aprobado</span>`
                     : s.status==="enviado" ? `<span class="estado">Enviado</span>` : "";
-  const canalLabel = c.canal.includes("WhatsApp")?"WhatsApp":c.canal.includes("Instagram")?"Instagram DM":c.canal.includes("Facebook")?"Facebook":c.canal;
+
+  // Contacto y mapa: <a> livianos, clickeables sin expandir nada (stopPropagation
+  // para que abrir un canal no dispare tambien el toggle de la fila).
+  const chipMap = `<a class="chipc map" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.nombre+' '+c.direccion+' CABA')}" target="_blank" onclick="event.stopPropagation()">${ICO_MAP}${jq(c.direccion)}</a>`;
+  const chipWa = c.whatsapp ? `<a class="chipc wa" href="https://wa.me/${c.whatsapp}" target="_blank" onclick="event.stopPropagation()">${ICO_WA}WhatsApp</a>` : "";
+  const chipIg = c.instagram ? `<a class="chipc ig" href="https://instagram.com/${c.instagram}" target="_blank" onclick="event.stopPropagation()">${ICO_IG}Instagram</a>` : "";
+  const chipFb = c.facebook ? `<a class="chipc fb" href="https://facebook.com/${c.facebook}" target="_blank" onclick="event.stopPropagation()">${ICO_FB}Facebook</a>` : "";
+
   return `
     <div class="fila ${s.status==="pendiente"?"":s.status}" onclick="abrir('${jq(c.nombre)}')">
       <div class="fila-foto">${fl}</div>
-      <div class="fila-info">
-        <div class="fila-nombre">${c.nombre}${estadoHtml}</div>
-        <div class="fila-sub">${c.tipo} &middot; ${c.zona}${c.rating?` &middot; &#9733; ${c.rating}`:""} &middot; ${canalLabel}</div>
+      <div class="fila-body">
+        <div class="fila-top">
+          <div class="fila-nombre">${c.nombre}${estadoHtml}</div>
+          <div class="fila-sub">${c.tipo}${c.rating?` &middot; &#9733; ${c.rating}`:""} &middot; ${c.zona}</div>
+        </div>
+        <div class="fila-chips">${chipMap}${chipWa}${chipIg}${chipFb}</div>
       </div>
+      <button class="fila-expandir" aria-label="Trabajar mensaje">Mensaje &rsaquo;</button>
     </div>`;
 }
 
