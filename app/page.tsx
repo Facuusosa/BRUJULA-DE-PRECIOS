@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AppHeader } from '@/components/header'
 import { CategoryDrawer } from '@/components/category-drawer'
 import { DesktopSidebar } from '@/components/desktop-sidebar'
@@ -14,8 +14,25 @@ import { VistaPlanes } from '@/components/vista-planes'
 import { ItemLista, Lista, Producto, calcularBombas, productos, mejorPrecioEnAmbito } from '@/lib/data'
 
 export type Vista = 'inicio' | 'catalogo' | 'detalle' | 'herramientas' | 'perfil' | 'planes'
+const VISTAS: Vista[] = ['inicio', 'catalogo', 'detalle', 'herramientas', 'perfil', 'planes']
 
 const uuid = () => (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2))
+
+// Cada pantalla tiene su URL: el "atrás" del celu/navegador vuelve a la pantalla
+// anterior en vez de sacar al usuario del sitio, y recargar no lo tira al Inicio
+const urlDe = (vista: Vista, productoId?: string) =>
+  vista === 'inicio' ? '/'
+    : vista === 'detalle' && productoId ? `/?vista=detalle&p=${encodeURIComponent(productoId)}`
+    : `/?vista=${vista}`
+
+const leerUrl = (): { vista: Vista; producto: Producto | null } => {
+  const params = new URLSearchParams(window.location.search)
+  const v = params.get('vista') as Vista | null
+  const vista = v && VISTAS.includes(v) ? v : 'inicio'
+  const pid = params.get('p')
+  const producto = vista === 'detalle' ? (pid && productos.find(p => p.id === pid)) || calcularBombas()[0] || null : null
+  return { vista: vista === 'detalle' && !producto ? 'inicio' : vista, producto }
+}
 
 export default function BrujulaMayorista() {
   const [vistaActiva, setVistaActiva] = useState<Vista>('inicio')
@@ -32,12 +49,26 @@ export default function BrujulaMayorista() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [subcategoriaActiva, setSubcategoriaActiva] = useState<string>('')
   const mainRef = useRef<HTMLDivElement>(null)
-  const busquedaRef = useRef('')
-  const onBusquedaChange = useCallback((texto: string) => { busquedaRef.current = texto }, [])
+  // El catálogo NO se desmonta al abrir un producto (queda oculto): así al volver
+  // conserva búsqueda, filtros y página. La key se incrementa solo cuando se entra
+  // con un filtro nuevo (categoría, mayorista, favoritos) para arrancarlo limpio.
+  const [catalogoKey, setCatalogoKey] = useState(0)
+  const [catalogoVisitado, setCatalogoVisitado] = useState(false)
+  // Historial propio: idx > 0 = hay una pantalla nuestra atrás (el Volver usa history.back)
+  const histIdx = useRef(0)
+  const histIniciado = useRef(false)
+  const scrolls = useRef<Record<string, number>>({})
+  const scrollARestaurar = useRef<number | null>(null)
 
-  // También al cambiar de producto dentro del detalle (relacionados): sin esto se aterrizaba al final de la ficha nueva
   useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+    if (vistaActiva === 'catalogo') setCatalogoVisitado(true)
+  }, [vistaActiva])
+
+  // Al volver con "atrás" se restaura el scroll que tenía esa pantalla; si no, arriba de todo
+  // (también al cambiar de producto dentro del detalle: sin esto se aterrizaba al final de la ficha nueva)
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: scrollARestaurar.current ?? 0, behavior: 'instant' })
+    scrollARestaurar.current = null
   }, [vistaActiva, productoSeleccionado?.id])
 
   useEffect(() => {
@@ -49,14 +80,40 @@ export default function BrujulaMayorista() {
       setVistaActiva('catalogo')
       return
     }
-    const vista = params.get('vista') as Vista | null
-    if (vista) {
-      if (vista === 'detalle') {
-        const bombas = calcularBombas()
-        if (bombas.length > 0) setProductoSeleccionado(bombas[0])
-      }
-      setVistaActiva(vista)
+    const { vista, producto } = leerUrl()
+    if (producto) setProductoSeleccionado(producto)
+    setVistaActiva(vista)
+  }, [])
+
+  useEffect(() => {
+    const url = urlDe(vistaActiva, productoSeleccionado?.id)
+    // Primer render con ?vista=/?q= en la URL: esperar a que el efecto de arriba la lea
+    if (!histIniciado.current && window.location.search && vistaActiva === 'inicio') return
+    if (!histIniciado.current) {
+      histIniciado.current = true
+      // Si la URL ya es la correcta no tocar el history: en el primer render Next todavía no
+      // guardó su estado interno (__NA) y pisarlo hace que el "atrás" recargue la página entera
+      if (window.location.pathname + window.location.search !== url) window.history.replaceState({ idx: 0 }, '', url)
+      return
     }
+    // Llegamos acá por un popstate: la URL ya es la de esta pantalla, no apilar otra
+    if (window.location.pathname + window.location.search === url) return
+    histIdx.current += 1
+    window.history.pushState({ idx: histIdx.current }, '', url)
+  }, [vistaActiva, productoSeleccionado?.id])
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const { vista, producto } = leerUrl()
+      histIdx.current = (e.state as { idx?: number } | null)?.idx ?? 0
+      scrollARestaurar.current = scrolls.current[urlDe(vista, producto?.id)] ?? 0
+      if (producto) setProductoSeleccionado(producto)
+      setVistaActiva(vista)
+      setDrawerOpen(false)
+      setSheetLista(null)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   // textoBusqueda solo sirve para que el catálogo arranque con ese texto (volver de un detalle o link
@@ -142,10 +199,22 @@ export default function BrujulaMayorista() {
     setVistaActiva(vista)
   }
 
-  const handleBack = () => {
-    // El catálogo se destruye al abrir un detalle: se le devuelve la búsqueda que tenía
-    if (vistaAnterior === 'catalogo') setTextoBusqueda(busquedaRef.current)
-    setVistaActiva(vistaAnterior)
+  // Volver = mismo efecto que el "atrás" del celu; sin historial propio (entró por un link) cae al fallback
+  const volver = (fallback: () => void) => {
+    if (histIdx.current > 0) window.history.back()
+    else fallback()
+  }
+
+  const handleBack = () => volver(() => setVistaActiva(vistaAnterior))
+
+  const abrirCatalogoNuevo = (f: { sector?: string; sub?: string; mayorista?: string; favoritos?: boolean }) => {
+    setSectorActivo(f.sector ?? 'Todos')
+    setSubcategoriaActiva(f.sub ?? '')
+    setMayoristaBuscado(f.mayorista ?? '')
+    setFiltroFavoritos(f.favoritos ?? false)
+    setTextoBusqueda('')
+    setCatalogoKey(k => k + 1)
+    navegarA('catalogo', vistaActiva)
   }
 
   const handleVerProducto = (producto: Producto, desde: Vista = vistaActiva) => {
@@ -277,7 +346,7 @@ export default function BrujulaMayorista() {
       <AppHeader
         onSearchClick={() => navegarA('catalogo', vistaActiva)}
         onPerfil={() => navegarA('perfil', vistaActiva)}
-        onFavoritos={() => { setFiltroFavoritos(true); navegarA('catalogo', vistaActiva) }}
+        onFavoritos={() => abrirCatalogoNuevo({ favoritos: true })}
         onMenuClick={() => setDrawerOpen(true)}
         onLogoClick={() => navegarA('inicio')}
       />
@@ -291,34 +360,19 @@ export default function BrujulaMayorista() {
             sectorActivo={sectorActivo}
             subcategoriaActiva={subcategoriaActiva}
             onChange={(v) => navegarA(v)}
-            onCategoria={(sector, sub) => {
-              setSectorActivo(sector)
-              setSubcategoriaActiva(sub ?? '')
-              setFiltroFavoritos(false)
-              navegarA('catalogo', vistaActiva)
-            }}
+            onCategoria={(sector, sub) => abrirCatalogoNuevo({ sector, sub })}
           />
         )}
         {/* Main content area */}
-        <main ref={mainRef} style={{
+        <main ref={mainRef} onScroll={(e) => { scrolls.current[urlDe(vistaActiva, productoSeleccionado?.id)] = e.currentTarget.scrollTop }} style={{
           flex: 1,
           overflowY: 'auto',
           paddingBottom: isNavVisible ? 'var(--bottom-nav-h)' : '0',
         }}>
           {vistaActiva === 'inicio' && (
             <VistaInicio
-              onIrACompararConSector={(sector) => {
-                setSectorActivo(sector)
-                setMayoristaBuscado('')
-                setFiltroFavoritos(false)
-                navegarA('catalogo', 'inicio')
-              }}
-              onIrAlCatalogoConMayorista={(mayorista) => {
-                setSectorActivo('Todos')
-                setMayoristaBuscado(mayorista)
-                setFiltroFavoritos(false)
-                navegarA('catalogo', 'inicio')
-              }}
+              onIrACompararConSector={(sector) => abrirCatalogoNuevo({ sector })}
+              onIrAlCatalogoConMayorista={(mayorista) => abrirCatalogoNuevo({ mayorista })}
               onIrAlCatalogo={() => navegarA('catalogo', 'inicio')}
               onVerProducto={(producto) => handleVerProducto(producto, 'inicio')}
               favoritos={favoritos}
@@ -328,12 +382,13 @@ export default function BrujulaMayorista() {
             />
           )}
 
-          {vistaActiva === 'catalogo' && (
+          {(catalogoVisitado || vistaActiva === 'catalogo') && (
+            <div hidden={vistaActiva !== 'catalogo'}>
             <VistaCatalogo
+              key={catalogoKey}
               sectorActivo={sectorActivo}
               mayoristaBuscado={mayoristaBuscado}
               textoBusquedaInicial={textoBusqueda}
-              onBusquedaChange={onBusquedaChange}
               subcategoriaActiva={subcategoriaActiva}
               onVerProducto={(producto) => handleVerProducto(producto, 'catalogo')}
               favoritos={favoritos}
@@ -345,6 +400,7 @@ export default function BrujulaMayorista() {
               onAgregarALista={handleAgregarRapido}
               listaIds={new Set(itemsActivos.map(i => i.producto.id))}
             />
+            </div>
           )}
 
           {vistaActiva === 'detalle' && productoSeleccionado && (
@@ -379,7 +435,7 @@ export default function BrujulaMayorista() {
           )}
 
           {vistaActiva === 'planes' && (
-            <VistaPlanes onBack={() => navegarA('perfil')} />
+            <VistaPlanes onBack={() => volver(() => navegarA('perfil'))} />
           )}
         </main>
       </div>
@@ -393,7 +449,7 @@ export default function BrujulaMayorista() {
       <CategoryDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva(''); setTextoBusqueda(''); setMayoristaBuscado(''); setFiltroFavoritos(false) }}
+        onSectorChange={(s) => { setSectorActivo(s); setSubcategoriaActiva(''); setTextoBusqueda(''); setMayoristaBuscado(''); setFiltroFavoritos(false); setCatalogoKey(k => k + 1) }}
         onSubcategoriaChange={setSubcategoriaActiva}
         onNavegar={(v) => navegarA(v, vistaActiva)}
       />
