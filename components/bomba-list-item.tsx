@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { ProductoBomba, formatearPrecio, extraerTamano, fuentePorNombre } from '@/lib/data'
 import { FrescuraPill } from '@/components/frescura-pill'
+import { compartirProducto } from '@/lib/compartir'
 
 function useImagenConFallback(bomba: ProductoBomba) {
   const [imgSrc, setImgSrc] = useState(bomba.imageUrl || '')
@@ -20,15 +21,6 @@ function useImagenConFallback(bomba: ProductoBomba) {
     }
   }
   return { imgSrc, onError }
-}
-
-function compartir(bomba: ProductoBomba) {
-  if (typeof navigator !== 'undefined' && navigator.share) {
-    navigator.share({ title: bomba.nombre, text: `${bomba.nombre} — Brújula de Precios` }).catch(() => null)
-  } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-    navigator.clipboard.writeText(bomba.nombre)
-    toast.success('Nombre copiado')
-  }
 }
 
 interface BombaDealProps {
@@ -89,7 +81,7 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
 
   const handleCompartir = (e: React.MouseEvent) => {
     e.stopPropagation()
-    compartir(bomba)
+    compartirProducto(bomba.nombre)
   }
 
   return (

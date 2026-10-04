@@ -23,6 +23,7 @@ interface VistaCatalogoProps {
   sectorActivo?: string
   mayoristaBuscado?: string
   textoBusquedaInicial?: string
+  onBusquedaChange?: (texto: string) => void
   subcategoriaActiva?: string
   onVerProducto: (producto: Producto) => void
   onIrAHerramientas?: () => void
@@ -128,6 +129,7 @@ export function VistaCatalogo({
   sectorActivo: sectorInicial = 'Todos',
   mayoristaBuscado: mayoristaBuscadoInicial = '',
   textoBusquedaInicial = '',
+  onBusquedaChange,
   subcategoriaActiva: subcategoriaInicial = '',
   onVerProducto,
   favoritos,
@@ -139,6 +141,8 @@ export function VistaCatalogo({
   listaIds = new Set(),
 }: VistaCatalogoProps) {
   const [busqueda, setBusqueda] = useState(textoBusquedaInicial)
+  // El padre guarda qué se busca para restaurarlo al volver desde un detalle
+  useEffect(() => { onBusquedaChange?.(busqueda) }, [busqueda, onBusquedaChange])
   const [mayoristaSel, setMayoristaSel] = useState(mayoristaBuscadoInicial || '')
   // Filtro por tipo de fuente (mayorista/cadena). El default viene de la
   // preferencia "comerciante/consumidor" guardada en Perfil (brujula_config)
@@ -232,7 +236,9 @@ export function VistaCatalogo({
     setPaginaActual(0)
   }, [filterKey])
 
-  const tituloActivo = subcategoriaInicial || sectorSel || mayoristaSel || (soloFavoritos ? 'Mis favoritos' : 'Ofertas del día')
+  // "Ofertas del día" mentía: sin filtro activo se ve el catálogo COMPLETO
+  // (19.455 productos), no una selección de ofertas — el título lo dice bien
+  const tituloActivo = subcategoriaInicial || sectorSel || mayoristaSel || (soloFavoritos ? 'Mis favoritos' : 'Catálogo completo')
 
   const chipStyle = (activo: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: '7px',
@@ -449,7 +455,7 @@ export function VistaCatalogo({
 
           {/* Solo comparables */}
           <button style={chipStyle(soloComparables)} onClick={() => setSoloComparables(v => !v)}>
-            Solo comparables
+            2+ precios
           </button>
 
           {/* Favoritos */}

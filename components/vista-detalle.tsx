@@ -9,6 +9,7 @@ import { ShuffleValue } from '@/components/shuffle-value'
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
 import { ChipTipo } from '@/components/chip-tipo'
+import { compartirProducto } from '@/lib/compartir'
 
 interface VistaDetalleProps {
   producto: Producto
@@ -83,6 +84,8 @@ export function VistaDetalle({
     ? candidatosGlobal.reduce((a, b) => (a.precio <= b.precio ? a : b))
     : undefined
   const esEan = /^\d{13}$/.test(producto.id)
+  // Con una sola fuente no hay con qué comparar: "MÁS BARATO" sería una afirmación vacía
+  const hayComparacion = preciosValidos.length + preciosGondola.length >= 2
 
   // Base de la calculadora: el competidor que elija el usuario (default: el
   // mayorista más barato). ventaManual (tipeado exacto) manda sobre el slider.
@@ -96,9 +99,12 @@ export function VistaDetalle({
 
   const ahorroUnidad = preciosValidos.length >= 2 ? peorPrecio.precio - mejorPrecio.precio : 0
 
-  const relacionados = useMemo(() =>
-    productos
-      .filter(p => p.sector === producto.sector && p.id !== producto.id && p.precios.some(pr => pr.precio > 0))
+  // El 72% del catálogo no tiene subcategoría cargada — filtrar SOLO por
+  // subcategoría dejaba a la mayoría sin relacionados. Con subcategoría y
+  // volumen suficiente (>=4) se usa esa (más específica: Gaseosas, no todo
+  // Bebidas); si no, cae a sector, igual que antes.
+  const relacionados = useMemo(() => {
+    const ordenar = (lista: Producto[]) => lista
       .sort((a, b) => {
         const abcOrder: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
         const aAbc = abcOrder[a.abc ?? ''] ?? 4
@@ -106,9 +112,15 @@ export function VistaDetalle({
         if (aAbc !== bAbc) return aAbc - bAbc
         return b.precios.filter(p => p.precio > 0).length - a.precios.filter(p => p.precio > 0).length
       })
-      .slice(0, 10),
-    [producto.sector, producto.id]
-  )
+      .slice(0, 10)
+    const porSubcategoria = producto.subcategoria
+      ? productos.filter(p => p.subcategoria === producto.subcategoria && p.id !== producto.id && p.precios.some(pr => pr.precio > 0))
+      : []
+    if (porSubcategoria.length >= 4) return ordenar(porSubcategoria)
+    return ordenar(productos.filter(p => p.sector === producto.sector && p.id !== producto.id && p.precios.some(pr => pr.precio > 0)))
+  }, [producto.sector, producto.subcategoria, producto.id])
+  const relacionadosPorSubcategoria = !!producto.subcategoria
+    && relacionados.every(r => r.subcategoria === producto.subcategoria)
 
   const handleGuardar = () => {
     // Mi Lista ahora soporta 3 ámbitos (Más barato / Mayoristas / Cadenas) y
@@ -131,20 +143,7 @@ export function VistaDetalle({
     })
   }
 
-  const handleCompartir = () => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      navigator.share({ title: producto.nombre, text: `${producto.nombre} — Brújula de Precios` }).catch(() => null)
-    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(producto.nombre)
-      toast.success('Nombre copiado')
-    }
-  }
-
-  // Posición del dot en la barra de rango: 3% a 97%
-  const dotPos = (precio: number) => {
-    if (preciosValidos.length < 2 || peorPrecio.precio === mejorPrecio.precio) return 50
-    return 3 + ((precio - mejorPrecio.precio) / (peorPrecio.precio - mejorPrecio.precio)) * 94
-  }
+  const handleCompartir = () => compartirProducto(producto.nombre)
 
   return (
     <div style={{ background: '#ffffff', minHeight: '100%', paddingBottom: '40px' }}>
@@ -259,14 +258,17 @@ export function VistaDetalle({
             </div>
 
             <div className="det-stage det-anim" style={{ animationDelay: '110ms' }}>
-              {producto.abc && (
+              {/* "Clase A/B/C/D" es una clasificación interna de volumen de ventas
+                  (lib/data.ts) sin significado para el usuario — solo se muestra la
+                  A, traducida a algo que dice algo real: es top de ventas */}
+              {producto.abc === 'A' && (
                 <span className="det-abc" style={{
                   position: 'absolute', top: '12px', left: '12px',
                   background: 'var(--gold)', color: '#ffffff',
                   fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
                   borderRadius: '999px', padding: '5px 11px',
                 }}>
-                  CLASE {producto.abc}
+                  TOP VENTAS
                 </span>
               )}
               {imgSrc ? (
@@ -301,7 +303,7 @@ export function VistaDetalle({
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                   {enLista ? <path d="M5 12l5 5L19 8" /> : <><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></>}
                 </svg>
-                {enLista ? 'En lista' : 'Lista'}
+                {enLista ? 'En lista' : 'Guardar'}
               </button>
               <button
                 onClick={handleCompartir}
@@ -323,11 +325,16 @@ export function VistaDetalle({
           <div className="det-right">
             <section className="det-section det-anim" style={{ animationDelay: '210ms' }}>
               <h2 className="det-sh">Dónde comprarlo</h2>
+              {/* Única aparición de esta aclaración en toda la app (pedido Facu):
+                  acá, no repetida en cada chip Mayorista/Cadena de Catálogo/Inicio */}
+              <p style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 400, margin: '2px 0 0' }}>
+                Mayorista = precio de compra · Cadena = precio de góndola, para comparar
+              </p>
 
               {/* Una sola tira: mayoristas primero (por precio), cadenas después.
                   El chip por fila reemplaza a los sub-encabezados */}
               {preciosValidos.map((precio, idx) => {
-                const esMejor = mejorGlobal?.mayorista === precio.mayorista
+                const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
                 const diffPct = !esMejor && mejorGlobal && mejorGlobal.precio > 0
                   ? Math.round(((precio.precio - mejorGlobal.precio) / mejorGlobal.precio) * 100)
                   : 0
@@ -372,7 +379,11 @@ export function VistaDetalle({
                           precio de lista <s>{formatearPrecio(precio.precioRegular)}</s>
                         </div>
                       )}
-                      {esMejor ? (
+                      {!hayComparacion ? (
+<div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
+Solo lo encontramos en {precio.mayorista}
+</div>
+) : esMejor ? (
                         <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em', marginTop: '1px' }}>
                           MÁS BARATO
                         </div>
@@ -417,7 +428,7 @@ export function VistaDetalle({
               {/* Cadenas: misma tira, misma fila — el chip CADENA (verde) las
                   distingue. Es venta al público, nunca precio de compra */}
               {preciosGondola.map((precio, idx) => {
-                const esMejor = mejorGlobal?.mayorista === precio.mayorista
+                const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
                 const diffPct = !esMejor && mejorGlobal && mejorGlobal.precio > 0
                   ? Math.round(((precio.precio - mejorGlobal.precio) / mejorGlobal.precio) * 100)
                   : 0
@@ -463,7 +474,11 @@ export function VistaDetalle({
                         precio de lista <s>{formatearPrecio(precio.precioRegular)}</s>
                       </div>
                     )}
-                    {esMejor ? (
+                    {!hayComparacion ? (
+<div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
+Solo lo encontramos en {precio.mayorista}
+</div>
+) : esMejor ? (
                       <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em', marginTop: '1px' }}>
                         MÁS BARATO
                       </div>
@@ -497,69 +512,17 @@ export function VistaDetalle({
                 )
               })}
 
-              {/* Barra de rango de precios */}
-              {preciosValidos.length >= 2 && (
-                <div style={{ marginTop: '22px' }}>
-                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--ink)' }}>Rango de precios</div>
-                  <div style={{
-                    marginTop: '26px',
-                    height: '6px', borderRadius: '99px',
-                    background: 'linear-gradient(90deg, var(--green) 0%, var(--gold) 55%, #c0392b 100%)',
-                    opacity: 0.85,
-                    position: 'relative',
-                  }}>
-                    {preciosValidos.map((precio, idx) => {
-                      // Si dos dots quedan a <20% de distancia, el label de uno baja para no pisarse
-                      const colisiona = idx > 0 && Math.abs(dotPos(precio.precio) - dotPos(preciosValidos[idx - 1].precio)) < 20
-                      const pos = dotPos(precio.precio)
-                      // Dots cerca de los bordes: anclar el label hacia adentro para que
-                      // nunca se corte fuera del viewport (en mobile la barra es angosta)
-                      const anclaLabel: React.CSSProperties =
-                        pos < 14 ? { left: '-6px' }
-                        : pos > 86 ? { right: '-6px' }
-                        : { left: '50%', transform: 'translateX(-50%)' }
-                      return (
-                        <span
-                          key={precio.mayorista}
-                          style={{
-                            position: 'absolute', top: '50%', left: `${pos}%`,
-                            transform: 'translate(-50%, -50%)',
-                            width: idx === 0 ? '16px' : '14px',
-                            height: idx === 0 ? '16px' : '14px',
-                            borderRadius: '99px',
-                            background: '#ffffff',
-                            border: `2.5px solid ${idx === 0 ? 'var(--green)' : 'var(--ink)'}`,
-                          }}
-                        >
-                          <span className="tnum" style={{
-                            position: 'absolute',
-                            ...(colisiona ? { top: '16px', background: '#ffffff', padding: '0 4px', zIndex: 1 } : { bottom: '16px' }),
-                            ...anclaLabel,
-                            fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap',
-                            color: idx === 0 ? 'var(--green)' : 'var(--ink)',
-                          }}>
-                            {formatearPrecio(precio.precio)}
-                          </span>
-                        </span>
-                      )
-                    })}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 400 }}>Más barato</span>
-                    <span style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 400 }}>Más caro</span>
-                  </div>
-                </div>
-              )}
-
               {/* Insight de precio auto-generado (reemplaza valoraciones vacías) */}
               <div style={{ marginTop: '14px' }}>
                 <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--green)', fontWeight: 500 }}>
-                  {esEan ? `EAN ${producto.id} · ` : ''}{producto.abc ? `Clase ${producto.abc} · ` : ''}{preciosValidos.length} mayorista{preciosValidos.length !== 1 ? 's' : ''} lo {preciosValidos.length !== 1 ? 'venden' : 'vende'}
+                  {esEan ? `EAN ${producto.id}` : ''}
+                  {esEan && preciosValidos.length > 0 ? ' · ' : ''}
+                  {preciosValidos.length > 0 && `${preciosValidos.length} mayorista${preciosValidos.length !== 1 ? 's' : ''} lo ${preciosValidos.length !== 1 ? 'venden' : 'vende'}`}
                 </div>
                 {ahorroUnidad > 0 && (
                   <p className="tnum" style={{ marginTop: '8px', fontSize: '14px', fontWeight: 300, lineHeight: 1.55, color: 'var(--ink)' }}>
                     Comprando en {mejorPrecio.mayorista} ahorrás <b style={{ fontWeight: 600 }}>{formatearPrecio(ahorroUnidad)}</b> por
-                    unidad contra {peorPrecio.mayorista} — en una caja de 6 son <b style={{ fontWeight: 600 }}>{formatearPrecio(ahorroUnidad * 6)}</b>.
+                    unidad contra {peorPrecio.mayorista}.
                   </p>
                 )}
                 <p style={{ marginTop: '10px', marginBottom: 0, fontSize: '11px', fontWeight: 300, lineHeight: 1.5, color: 'var(--gray)' }}>
@@ -613,7 +576,7 @@ export function VistaDetalle({
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '18px' }}>
-                  <span style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)' }}>Tu margen</span>
+                  <span style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)' }}>Tu margen sobre la venta</span>
                   <span className="tnum" style={{ fontSize: '18px', fontWeight: 600, color: margenEfectivo < 0 ? '#c0392b' : 'var(--gold)' }}>{margenEfectivo}%</span>
                 </div>
                 <input
@@ -684,7 +647,7 @@ export function VistaDetalle({
             {/* De la misma categoría — scrollea con la columna derecha */}
             {relacionados.length > 0 && (
               <div className="det-rel det-anim" style={{ animationDelay: '340ms' }}>
-                <h2 className="det-sh">De la misma categoría</h2>
+                <h2 className="det-sh">{relacionadosPorSubcategoria ? `Más en ${producto.subcategoria}` : 'De la misma categoría'}</h2>
                 <HScroll className="det-rel-scroll" arrowOffsetY={7}>
                   {relacionados.map(rel => (
                     <RelCard key={rel.id} producto={rel} onClick={() => onVerProducto?.(rel)} />

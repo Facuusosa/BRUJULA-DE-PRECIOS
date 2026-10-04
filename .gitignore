@@ -31,3 +31,4 @@ data/processed/pipeline_report.json
 data/processed/reporte_procesamiento.json
 data/processed/sku_metadata.json
 data/processed/sku_to_ean_mapping.json
+.gstack/

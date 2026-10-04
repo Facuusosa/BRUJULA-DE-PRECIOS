@@ -16,6 +16,7 @@ interface VistaInicioProps {
   favoritos: Set<string>
   onToggleFavorito: (id: string) => void
   onGuardar?: (producto: Producto) => void
+  esNuevo?: boolean
 }
 
 const MAYORISTAS = FUENTES.map(f => ({ src: f.logo, alt: f.nombre, url: f.url }))
@@ -56,6 +57,7 @@ export function VistaInicio({
   onIrACompararConSector,
   onIrAlCatalogo,
   onGuardar,
+  esNuevo,
 }: VistaInicioProps) {
   const bombas = useMemo(() => calcularBombas(), [])
   // Valor inicial SIN random (mismo orden en servidor y en cliente, evita error de
@@ -122,6 +124,22 @@ export function VistaInicio({
 
       <div className="inicio-wrap">
 
+        {/* Presentación: solo la primera vez (sin nada guardado en Mi Lista).
+           Mismo tamaño que los títulos de sección (var(--fs-section)) para que
+           compita en igualdad con "Bombas de hoy", no un cartelito chico arriba.
+           Reusa la frase de app/layout.tsx (metadata.description) — una sola
+           versión del "qué es Brújula" en toda la app, no una nueva por lugar. */}
+        {esNuevo && (
+          <div className="inicio-anim" style={{ padding: '18px 20px 22px', borderBottom: '1px solid var(--line)', marginBottom: '4px' }}>
+            <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 600, letterSpacing: '-0.3px', margin: 0, color: 'var(--ink)', lineHeight: 1.3 }}>
+              Compará precios de mayoristas y cadenas, y ahorrá en cada compra
+            </h1>
+            <p style={{ fontSize: '14px', color: 'var(--gray)', fontWeight: 400, marginTop: '10px', lineHeight: 1.5 }}>
+              Buscá un producto → comparamos precios reales → armá tu lista al mejor precio
+            </p>
+          </div>
+        )}
+
         {/* Título de sección */}
         <h2 className="inicio-anim" style={{
           fontSize: 'var(--fs-section)', fontWeight: 600, letterSpacing: '-0.3px',
@@ -129,9 +147,15 @@ export function VistaInicio({
         }}>
           {tituloSeccion}
         </h2>
+        <p className="inicio-anim" style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 400, padding: '3px 20px 0', margin: 0 }}>
+          Los productos con mayor diferencia de precio hoy
+        </p>
 
         {/* Mayoristas — LogoLoop infinito (efecto aprobado, en todas las resoluciones) */}
         <div className="inicio-anim" style={{ animationDelay: '60ms' }}>
+          <p style={{ fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase', padding: '0 20px 8px', margin: 0 }}>
+            Comparamos precios en estas fuentes
+          </p>
           <LogoLoop items={MAYORISTAS} />
         </div>
 

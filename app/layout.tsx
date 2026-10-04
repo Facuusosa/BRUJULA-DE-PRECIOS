@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
+import { SITIO_URL } from '@/lib/sitio'
 import './globals.css'
 
 const poppins = Poppins({
@@ -11,9 +12,22 @@ const poppins = Poppins({
   display: 'block',
 })
 
+const descripcion = 'Compará precios de mayoristas y cadenas, y ahorrá en cada compra'
+
+// La tarjeta con foto que arman WhatsApp/Instagram sale de opengraph-image.png (convención de Next)
 export const metadata: Metadata = {
+  metadataBase: new URL(SITIO_URL),
   title: 'Brújula de Precios',
-  description: 'Compará precios de mayoristas y cadenas, y ahorrá en cada compra',
+  description: descripcion,
+  openGraph: {
+    title: 'Brújula de Precios',
+    description: descripcion,
+    siteName: 'Brújula de Precios',
+    locale: 'es_AR',
+    type: 'website',
+    url: '/',
+  },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const viewport: Viewport = {

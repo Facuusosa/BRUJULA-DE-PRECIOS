@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { AppHeader } from '@/components/header'
 import { CategoryDrawer } from '@/components/category-drawer'
 import { DesktopSidebar } from '@/components/desktop-sidebar'
@@ -32,13 +32,23 @@ export default function BrujulaMayorista() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [subcategoriaActiva, setSubcategoriaActiva] = useState<string>('')
   const mainRef = useRef<HTMLDivElement>(null)
+  const busquedaRef = useRef('')
+  const onBusquedaChange = useCallback((texto: string) => { busquedaRef.current = texto }, [])
 
+  // También al cambiar de producto dentro del detalle (relacionados): sin esto se aterrizaba al final de la ficha nueva
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, behavior: 'instant' })
-  }, [vistaActiva])
+  }, [vistaActiva, productoSeleccionado?.id])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    // Link compartido de un producto (?q=nombre): abre el catálogo ya buscado
+    const q = params.get('q')
+    if (q) {
+      setTextoBusqueda(q)
+      setVistaActiva('catalogo')
+      return
+    }
     const vista = params.get('vista') as Vista | null
     if (vista) {
       if (vista === 'detalle') {
@@ -48,6 +58,12 @@ export default function BrujulaMayorista() {
       setVistaActiva(vista)
     }
   }, [])
+
+  // textoBusqueda solo sirve para que el catálogo arranque con ese texto (volver de un detalle o link
+  // compartido); se limpia apenas se monta para que otras entradas al catálogo arranquen sin búsqueda
+  useEffect(() => {
+    if (vistaActiva === 'catalogo' && textoBusqueda) setTextoBusqueda('')
+  }, [vistaActiva, textoBusqueda])
 
   useEffect(() => {
     const saved = localStorage.getItem('brujula_listas')
@@ -126,10 +142,15 @@ export default function BrujulaMayorista() {
     setVistaActiva(vista)
   }
 
-  const handleBack = () => setVistaActiva(vistaAnterior)
+  const handleBack = () => {
+    // El catálogo se destruye al abrir un detalle: se le devuelve la búsqueda que tenía
+    if (vistaAnterior === 'catalogo') setTextoBusqueda(busquedaRef.current)
+    setVistaActiva(vistaAnterior)
+  }
 
   const handleVerProducto = (producto: Producto, desde: Vista = vistaActiva) => {
-    setVistaAnterior(desde)
+    // Desde un relacionado (detalle → detalle) se conserva el origen; si no, Volver no hacía nada
+    if (desde !== 'detalle') setVistaAnterior(desde)
     setProductoSeleccionado(producto)
     setVistaActiva('detalle')
   }
@@ -303,6 +324,7 @@ export default function BrujulaMayorista() {
               favoritos={favoritos}
               onToggleFavorito={handleToggleFavorito}
               onGuardar={handleAgregarRapido}
+              esNuevo={listas.length === 0}
             />
           )}
 
@@ -311,6 +333,7 @@ export default function BrujulaMayorista() {
               sectorActivo={sectorActivo}
               mayoristaBuscado={mayoristaBuscado}
               textoBusquedaInicial={textoBusqueda}
+              onBusquedaChange={onBusquedaChange}
               subcategoriaActiva={subcategoriaActiva}
               onVerProducto={(producto) => handleVerProducto(producto, 'catalogo')}
               favoritos={favoritos}

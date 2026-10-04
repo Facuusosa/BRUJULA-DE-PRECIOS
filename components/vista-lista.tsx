@@ -7,6 +7,7 @@ import { ItemLista, Lista, AmbitoLista, formatearPrecio, FUENTES, fuentePorNombr
 import { FrescuraPill } from '@/components/frescura-pill'
 import { HScroll } from '@/components/h-scroll'
 import { ChipTipo } from '@/components/chip-tipo'
+import { SITIO_URL } from '@/lib/sitio'
 
 interface VistaListaProps {
   listas: Lista[]
@@ -228,6 +229,7 @@ export function VistaLista({
     }
     lineas.push(`TOTAL: ${formatearPrecio(totalMix)}`)
     if (ahorroMix > 0) lineas.push(`Ahorrás ${formatearPrecio(ahorroMix)} comprando en varios lugares`)
+    lineas.push('', SITIO_URL)
     window.open(`https://wa.me/?text=${encodeURIComponent(lineas.join('\n'))}`, '_blank')
   }
 
@@ -386,7 +388,13 @@ export function VistaLista({
             </div>
 
             {/* Ámbito de comparación: qué fuentes cuentan para "el mejor precio" */}
-            <HScroll className="lista-anim scrollbar-hide" style={{ display: 'flex', gap: '7px', padding: '14px 20px 0', overflowX: 'auto' }} arrowOffsetY={5}>
+            <div className="lista-anim" style={{
+              padding: '14px 20px 0', fontSize: '10.7px', fontWeight: 600,
+              letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase',
+            }}>
+              Comparar contra
+            </div>
+            <HScroll className="lista-anim scrollbar-hide" style={{ display: 'flex', gap: '7px', padding: '6px 20px 0', overflowX: 'auto' }} arrowOffsetY={5}>
               {AMBITOS.map(a => (
                 <button
                   key={a.valor}
@@ -570,6 +578,11 @@ export function VistaLista({
                 }}>
                   Si comprás todo en el mismo lugar
                 </div>
+                {mixDetallado.length <= 1 && items.length > 0 && (
+                  <div style={{ padding: '10px 20px 0', fontSize: '12.5px', color: 'var(--gray)', fontWeight: 300, lineHeight: 1.5 }}>
+                    Agregá productos de otros mayoristas: si conviene combinarlos, te lo mostramos acá.
+                  </div>
+                )}
                 <div style={{ padding: '6px 20px 0' }}>
                   {opciones.map((op, idx) => (
                     <div key={op.mayorista} style={{
@@ -708,7 +721,7 @@ export function VistaLista({
               {listas.length === 0 ? 'Todavía no tenés listas' : 'Esta lista está vacía'}
             </div>
             <div style={{ fontSize: '14px', color: 'var(--gray)', fontWeight: 300, marginBottom: '24px', lineHeight: 1.5 }}>
-              Agregá productos desde el catálogo con el botón +<br />y armá tu pedido al mejor precio
+              Buscá un producto y tocá "Guardar"<br />para ver acá dónde comprarlo más barato
             </div>
             <button
               onClick={onIrAComparar}
