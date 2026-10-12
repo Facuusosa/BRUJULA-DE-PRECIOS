@@ -657,7 +657,9 @@ export const esBombaFijada = (id: string): boolean => IDS_FIJADOS_BOMBAS.include
 // su fecha honesta — ver 02-scrapers.md). Sin este corte, un solo producto
 // viejo que cae en el shuffle aleatorio de Inicio contamina el título
 // completo ("Bombas actualizadas hace 8 días") aunque el resto sea de hoy.
-const BOMBA_DIAS_MAX = 3
+// 1 (hoy o ayer): con 3, el titulo de Inicio variaba entre cargas segun el sorteo
+// ("de hoy" vs "hace 3 dias") aunque casi todos los precios fueran de hoy.
+const BOMBA_DIAS_MAX = 1
 
 // Función para calcular las bombas del día (productos con mayor diferencia de precio entre mayoristas)
 export function calcularBombas(): ProductoBomba[] {
