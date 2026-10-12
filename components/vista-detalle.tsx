@@ -1,14 +1,12 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, Heart, Share2, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
-import { Producto, Precio, productos, formatearPrecio, extraerTamano, fuentePorNombre } from '@/lib/data'
-import { ShuffleValue } from '@/components/shuffle-value'
-import { FrescuraPill } from '@/components/frescura-pill'
+import { Producto, Precio, productos, formatearPrecio, fuentePorNombre, frescuraDe } from '@/lib/data'
 import { HScroll } from '@/components/h-scroll'
-import { ChipTipo } from '@/components/chip-tipo'
+import { ElegiTuPrecio } from '@/components/elegi-tu-precio'
 import { compartirProducto } from '@/lib/compartir'
 
 interface VistaDetalleProps {
@@ -29,6 +27,10 @@ interface VistaDetalleProps {
   enLista?: boolean
 }
 
+// Rediseño aprobado por Facu 12/10/2026 (maqueta "Pantalla 1", artifact 1EGubwve…):
+// el precio más barato arriba con la foto chica al costado, mayoristas y súper separados,
+// fecha del precio en todas las filas. "Elegí tu precio" (pantalla 2) reemplaza a la
+// vieja calculadora de margen.
 export function VistaDetalle({
   producto,
   onBack,
@@ -38,19 +40,12 @@ export function VistaDetalle({
   onVerProducto,
   enLista,
 }: VistaDetalleProps) {
-  const [margen, setMargen] = useState(35)
-  // Calculadora flexible (pedido Facu 06/07): base a libre elección entre TODOS
-  // los competidores (mayorista o cadena) + precio de venta tipeado exacto
-  const [fuenteSel, setFuenteSel] = useState<string | null>(null)
-  const [ventaManual, setVentaManual] = useState<number | null>(null)
   const [imgSrc, setImgSrc] = useState(producto.imageUrl || '')
   const [imgFallbackIdx, setImgFallbackIdx] = useState(0)
 
   useEffect(() => {
     setImgSrc(producto.imageUrl || '')
     setImgFallbackIdx(0)
-    setFuenteSel(null)
-    setVentaManual(null)
   }, [producto.id, producto.imageUrl])
 
   const handleImageError = () => {
@@ -63,9 +58,7 @@ export function VistaDetalle({
     }
   }
 
-  const tamano = extraerTamano(producto.nombre)
-  // Mayoristas = precio de compra; cadenas (Coto, Carrefour) = referencia góndola.
-  // filter, no find: con 2+ cadenas el find mostraba solo la primera (bug 06/07)
+  // Mayoristas = precio de compra; cadenas = lo que paga el cliente en góndola
   const preciosValidos = producto.precios
     .filter(p => p.precio > 0 && p.tipoFuente === 'mayorista')
     .sort((a, b) => a.precio - b.precio)
@@ -73,31 +66,16 @@ export function VistaDetalle({
     .filter(p => p.precio > 0 && p.tipoFuente === 'cadena')
     .sort((a, b) => a.precio - b.precio)
 
-  const mejorPrecio = preciosValidos[0]
-  const peorPrecio = preciosValidos[preciosValidos.length - 1]
-  // "MÁS BARATO" es una afirmación objetiva: tiene que ganar quien tenga el
-  // precio más bajo de TODA la ficha (mayorista o cadena) — si una cadena
-  // vende más barato que todos los mayoristas, el sello va ahí, no en el
-  // mejor mayorista (bug reportado por Facu 22/07: siempre ganaba mayorista).
-  const candidatosGlobal = [preciosValidos[0], preciosGondola[0]].filter((p): p is Precio => !!p)
-  const mejorGlobal = candidatosGlobal.length
-    ? candidatosGlobal.reduce((a, b) => (a.precio <= b.precio ? a : b))
-    : undefined
-  const esEan = /^\d{13}$/.test(producto.id)
-  // Con una sola fuente no hay con qué comparar: "MÁS BARATO" sería una afirmación vacía
+  // "Lo más barato" es una afirmación objetiva: gana el precio más bajo de TODA la
+  // ficha, sea mayorista o súper (bug 22/07: siempre ganaba el mayorista)
+  const mejorGlobal = [preciosValidos[0], preciosGondola[0]]
+    .filter((p): p is Precio => !!p)
+    .reduce<Precio | undefined>((a, b) => (!a || b.precio < a.precio ? b : a), undefined)
+  // Con una sola fuente no hay con qué comparar: "más barato" sería una afirmación vacía
   const hayComparacion = preciosValidos.length + preciosGondola.length >= 2
-
-  // Base de la calculadora: el competidor que elija el usuario (default: el
-  // mayorista más barato). ventaManual (tipeado exacto) manda sobre el slider.
-  const preciosTodos = [...preciosValidos, ...preciosGondola]
-  const precioBase = (fuenteSel ? preciosTodos.find(p => p.mayorista === fuenteSel) : undefined)
-    ?? mejorPrecio ?? preciosTodos[0]
-  const precioCompra = precioBase?.precio ?? 0
-  const precioVentaCalc = ventaManual ?? (precioCompra > 0 ? precioCompra / (1 - margen / 100) : 0)
-  const gananciaCalc = precioVentaCalc - precioCompra
-  const margenEfectivo = precioVentaCalc > 0 ? Math.round((1 - precioCompra / precioVentaCalc) * 100) : margen
-
-  const ahorroUnidad = preciosValidos.length >= 2 ? peorPrecio.precio - mejorPrecio.precio : 0
+  const ahorroVsSuper = mejorGlobal?.tipoFuente === 'mayorista' && preciosGondola[0]
+    ? preciosGondola[0].precio - mejorGlobal.precio
+    : 0
 
   // El 72% del catálogo no tiene subcategoría cargada — filtrar SOLO por
   // subcategoría dejaba a la mayoría sin relacionados. Con subcategoría y
@@ -122,25 +100,28 @@ export function VistaDetalle({
   const relacionadosPorSubcategoria = !!producto.subcategoria
     && relacionados.every(r => r.subcategoria === producto.subcategoria)
 
-  const handleGuardar = () => {
-    // Mi Lista ahora soporta 3 ámbitos (Más barato / Mayoristas / Cadenas) y
-    // recalcula el mejor precio en vivo según cuál esté activo — guardamos la
-    // fuente que el usuario esté mirando en la calculadora tal cual, sin forzar
-    // un fallback a mayorista acá.
+  const guardar = (eleccion: { mayorista: string; precioCompra: number; precioVenta: number }) => {
     if (enLista) return
-    if (!precioBase) {
+    const { mayorista, precioCompra, precioVenta } = eleccion
+    onGuardar({
+      producto,
+      mayorista,
+      precioCompra,
+      precioVenta,
+      margen: precioVenta > 0 ? Math.round((1 - precioCompra / precioVenta) * 100) : 0,
+      ganancia: precioVenta - Math.round(precioCompra),
+    })
+  }
+
+  // El botón de arriba guarda con lo más barato y el precio del súper del medio como venta
+  // sugerida (el mismo default de "Elegí tu precio"); abajo se guarda lo que el usuario eligió.
+  const guardarRapido = () => {
+    if (!mejorGlobal) {
       toast.error('Este producto no tiene precio disponible para comprar')
       return
     }
-    const venta = Math.round(precioVentaCalc)
-    onGuardar({
-      producto,
-      mayorista: precioBase.mayorista,
-      precioCompra: precioBase.precio,
-      margen: venta > 0 ? Math.round((1 - precioBase.precio / venta) * 100) : margenEfectivo,
-      precioVenta: venta,
-      ganancia: venta - Math.round(precioBase.precio),
-    })
+    const venta = preciosGondola[Math.floor(preciosGondola.length / 2)]?.precio ?? 0
+    guardar({ mayorista: mejorGlobal.mayorista, precioCompra: mejorGlobal.precio, precioVenta: Math.round(venta) })
   }
 
   const handleCompartir = () => compartirProducto(producto.nombre)
@@ -153,513 +134,255 @@ export function VistaDetalle({
         @media (prefers-reduced-motion: reduce) {
           .det-anim { transform: none; animation-duration: 150ms; }
         }
-
-        .det-wrap { max-width: 1240px; margin: 0 auto; }
-        .det-cols { display: block; }
-        .det-stage {
-          margin: 16px 20px 0;
-          background: linear-gradient(180deg, var(--plate) 0%, var(--line) 100%);
-          border-radius: 6px;
-          display: flex; align-items: center; justify-content: center;
-          padding: 36px 20px;
-          position: relative;
-        }
-        .det-stage img { height: 220px; width: auto; object-fit: contain; }
-        .det-section { padding: 26px 20px 0; }
-        .det-sh { font-size: 18px; font-weight: 600; letter-spacing: -0.2px; color: var(--ink); margin: 0; }
-        .det-calc { margin: 26px 20px 0; }
-        .det-cta-row { padding: 20px 20px 0; }
+        .det-wrap { max-width: 1120px; margin: 0 auto; }
+        .det-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 4px; }
+        .det-top button { background: none; border: none; cursor: pointer; color: var(--ink); font-family: var(--font-sans); display: flex; align-items: center; }
+        .det-cols { display: grid; gap: 22px; padding: 0 20px; }
+        .det-col { display: grid; gap: 22px; align-content: start; min-width: 0; }
+        .det-nombre { font-size: 26px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.15; margin: 0; color: var(--ink); }
+        .det-sub { font-size: 15px; color: var(--gray); margin-top: 2px; }
+        .det-hero { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; }
+        .det-foto { position: relative; background: var(--plate); border-radius: 16px; aspect-ratio: 4 / 5; display: grid; place-items: center; padding: 8px; overflow: hidden; }
+        .det-foto img { width: 100%; height: 100%; object-fit: contain; }
+        .det-top-ventas { position: absolute; top: 6px; left: 6px; background: var(--gold); color: #fff; font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; border-radius: 999px; padding: 3px 8px; }
+        .det-etq { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray); }
+        .det-precio { font-size: 36px; font-weight: 700; letter-spacing: -1px; line-height: 1.05; color: var(--ink); }
+        .det-precio small { font-size: 22px; font-weight: 600; }
+        .det-donde { display: flex; align-items: center; gap: 8px; font-size: 15px; margin-top: 4px; color: var(--ink); flex-wrap: wrap; }
+        .det-donde img { max-width: 90px; object-fit: contain; }
+        .det-vs { margin-top: 8px; font-size: 14px; background: var(--green-bg); color: var(--green); border-radius: 10px; padding: 7px 10px; font-weight: 500; }
+        .det-acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .det-btn { border-radius: 999px; padding: 13px 16px; font-family: var(--font-sans); font-weight: 500; font-size: 15px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+        .det-btn.negro { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 600; }
+        .det-btn.ok { background: var(--green); border-color: var(--green); color: #fff; cursor: default; font-weight: 600; }
+        .det-btn:focus-visible, .det-ver:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+        .det-grupo h2 { font-size: 20px; font-weight: 600; margin: 0 0 2px; color: var(--ink); letter-spacing: -0.2px; }
+        .det-grupo .ayuda { margin: 0 0 6px; font-size: 14px; color: var(--gray); }
+        .det-fila { display: grid; grid-template-columns: 76px 1fr auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+        .det-fila:last-child { border-bottom: none; }
+        .det-logo { height: 32px; width: 76px; object-fit: contain; object-position: left center; }
+        .det-fila .pr { font-size: 20px; font-weight: 600; color: var(--ink); }
+        .det-fila.mejor .pr { color: var(--green); }
+        .det-det { font-size: 14px; color: var(--gray); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 1px; }
+        .det-mejor, .det-oferta { font-size: 12px; font-weight: 600; color: var(--green); letter-spacing: 0.04em; }
+        .det-nota { font-size: 12.5px; color: var(--gray); margin-top: 2px; }
+        .det-fecha { font-size: 13px; display: inline-flex; align-items: center; gap: 5px; color: var(--gray); }
+        .det-fecha::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
+        .det-ver { border: 1.5px solid var(--ink); border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 500; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 4px; background: #fff; }
+        .det-sincuenta { font-size: 13px; color: var(--gray); text-align: right; max-width: 70px; line-height: 1.2; }
+        .det-fila.compacta { padding: 11px 0; }
+        .det-fila.compacta .der { text-align: right; display: grid; justify-items: end; gap: 2px; }
+        .det-fila.compacta .pr { font-size: 17px; font-weight: 500; }
+        .det-fila.compacta.mejor .pr { font-weight: 600; }
+        .det-legal { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--gray); }
         .det-rel { padding: 30px 0 40px; }
-        .det-rel .det-sh { padding: 0 20px; }
+        .det-rel h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: var(--ink); margin: 0; padding: 0 20px; }
         .det-rel-scroll { display: flex; gap: 12px; padding: 14px 20px 0; overflow-x: auto; scrollbar-width: none; }
         .det-rel-scroll::-webkit-scrollbar { display: none; }
-        .det-pid { padding: 14px 20px 0; }
-
-        /* Desktop: imagen GRANDE sticky izquierda; TODO lo scrolleable a la derecha.
-           OJO: ningún ancestro de .det-left con overflow hidden — mata el sticky */
         @media (min-width: 1000px) {
           .det-wrap { padding: 0 44px; }
-          .det-cols { display: grid; grid-template-columns: calc(50% - 32px) 1fr; gap: 64px; align-items: start; }
-          .det-left { position: sticky; top: 16px; }
-          .det-right { min-width: 0; }
-          .det-pid { padding: 14px 0 0; }
-          .det-stage { margin: 8px 0 0; padding: 30px 20px; background: none; border-radius: 0; }
-          .det-stage img { height: 500px; }
-          .det-stage .det-abc { top: 0; left: 0; }
-          .det-section { padding: 14px 0 0; }
-          .det-sh { font-size: 25.7px; }
-          .det-calc { margin: 30px 0 0; }
-          .det-cta-row { padding: 22px 0 0; }
-          .det-rel { padding-left: 0; padding-right: 0; }
-          .det-rel .det-sh { padding: 0; font-size: 20px; }
-          .det-rel-scroll { padding: 14px 0 0; }
+          .det-top { padding: 16px 0 8px; }
+          .det-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 56px; padding: 0; align-items: start; }
+          .det-col.der { position: sticky; top: 16px; }
+          .det-hero { grid-template-columns: 180px 1fr; gap: 24px; }
+          .det-rel h2, .det-rel-scroll { padding-left: 0; padding-right: 0; }
           .det-rel-card { width: 150px !important; }
         }
         @media (hover: hover) and (pointer: fine) {
           .det-rel-card .ph img { transition: transform 450ms var(--ease-out); }
           .det-rel-card:hover .ph img { transform: scale(1.05); }
+          .det-ver:hover { background: var(--plate); }
         }
       `}</style>
 
       <div className="det-wrap">
-
-        {/* Top bar minimal */}
-        <div className="det-anim" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 4px' }}>
-          <button
-            onClick={onBack}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              fontSize: '14px', fontWeight: 500, color: 'var(--ink)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontFamily: 'var(--font-sans)', padding: '6px 0',
-            }}
-          >
+        <div className="det-top det-anim">
+          <button onClick={onBack} style={{ gap: '6px', fontSize: '15px', fontWeight: 500, padding: '6px 0' }}>
             <ChevronLeft size={22} strokeWidth={2} />
             Volver
           </button>
-          <div style={{ display: 'flex', gap: '16px', color: 'var(--ink)' }}>
-            <button
-              onClick={onToggleFavorito}
-              aria-label="Favorito"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: esFavorito ? 'var(--gold)' : 'var(--ink)', padding: '4px' }}
-            >
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <button onClick={onToggleFavorito} aria-label="Favorito" style={{ padding: '4px', color: esFavorito ? 'var(--gold)' : 'var(--ink)' }}>
               <Heart size={22} strokeWidth={1.8} fill={esFavorito ? 'var(--gold)' : 'none'} />
             </button>
-            <button
-              onClick={handleCompartir}
-              aria-label="Compartir"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--ink)', padding: '4px' }}
-            >
+            <button onClick={handleCompartir} aria-label="Compartir" style={{ padding: '4px' }}>
               <Share2 size={22} strokeWidth={1.8} />
             </button>
           </div>
         </div>
 
         <div className="det-cols">
-          {/* ── Columna izquierda: identidad + imagen + acciones ── */}
-          <div className="det-left">
-            <div className="det-pid det-anim" style={{ animationDelay: '50ms' }}>
-              <h1 style={{ fontSize: '25.7px', fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--ink)', margin: 0, lineHeight: 1.25 }}>
-                {producto.nombre}
-              </h1>
-              <div style={{ fontSize: '19.3px', fontWeight: 300, lineHeight: 1.3, marginTop: '1px', color: 'var(--ink)' }}>
-                {producto.subcategoria}
+          <div className="det-col">
+            <div className="det-anim" style={{ animationDelay: '50ms' }}>
+              <h1 className="det-nombre">{producto.nombre}</h1>
+              {producto.subcategoria && <div className="det-sub">{producto.subcategoria}</div>}
+            </div>
+
+            <div className="det-hero det-anim" style={{ animationDelay: '100ms' }}>
+              <div className="det-foto">
+                {/* "Clase A" es jerga interna de volumen de ventas: se traduce a algo que dice algo real */}
+                {producto.abc === 'A' && <span className="det-top-ventas">TOP VENTAS</span>}
+                {imgSrc ? (
+                  <Image src={imgSrc} alt={producto.nombre} width={240} height={300} className="img-plate" unoptimized onError={handleImageError} />
+                ) : (
+                  <span style={{ color: 'var(--line)', fontSize: '40px' }}>?</span>
+                )}
               </div>
-              {tamano && (
-                <span className="tnum" style={{
-                  display: 'inline-block', marginTop: '10px',
-                  background: 'var(--pill)', color: '#ffffff',
-                  fontSize: '12px', fontWeight: 600,
-                  borderRadius: '999px', padding: '4px 12px',
-                }}>
-                  {tamano}
-                </span>
-              )}
-            </div>
-
-            <div className="det-stage det-anim" style={{ animationDelay: '110ms' }}>
-              {/* "Clase A/B/C/D" es una clasificación interna de volumen de ventas
-                  (lib/data.ts) sin significado para el usuario — solo se muestra la
-                  A, traducida a algo que dice algo real: es top de ventas */}
-              {producto.abc === 'A' && (
-                <span className="det-abc" style={{
-                  position: 'absolute', top: '12px', left: '12px',
-                  background: 'var(--gold)', color: '#ffffff',
-                  fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
-                  borderRadius: '999px', padding: '5px 11px',
-                }}>
-                  TOP VENTAS
-                </span>
-              )}
-              {imgSrc ? (
-                <Image
-                  src={imgSrc}
-                  alt={producto.nombre}
-                  width={500}
-                  height={500}
-                  className="img-plate"
-                  style={{ height: undefined, width: 'auto', objectFit: 'contain' }}
-                  unoptimized
-                  onError={handleImageError}
-                />
+              {mejorGlobal ? (
+                <div>
+                  <div className="det-etq">{hayComparacion ? 'Lo más barato' : 'Precio'}</div>
+                  <PrecioGrande valor={mejorGlobal.precio} />
+                  <div className="det-donde">
+                    <LogoFuente nombre={mejorGlobal.mayorista} alto={22} />
+                    {mejorGlobal.tipoFuente === 'mayorista' ? 'mayorista' : 'súper'}
+                  </div>
+                  <div style={{ marginTop: '4px' }}><Fecha precio={mejorGlobal} larga /></div>
+                  {!hayComparacion && <div className="det-nota">Solo lo encontramos en {mejorGlobal.mayorista}</div>}
+                  {ahorroVsSuper > 0 && <div className="det-vs tnum">{formatearPrecio(Math.round(ahorroVsSuper))} menos que en el súper</div>}
+                </div>
               ) : (
-                <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--line)', fontSize: '48px' }}>?</div>
+                <div className="det-nota">Sin precio disponible hoy.</div>
               )}
             </div>
 
-            {/* Acciones como pills grises — formato Trolley detalle */}
-            <div className="det-anim" style={{ animationDelay: '160ms', display: 'flex', justifyContent: 'center', gap: '10px', padding: '18px 0 0' }}>
-              <button
-                onClick={handleGuardar}
-                aria-label={enLista ? 'Ya en tu lista' : 'Agregar a lista'}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  background: enLista ? 'var(--green)' : 'var(--plate)', borderRadius: '999px',
-                  padding: '10px 18px', border: 'none', cursor: enLista ? 'default' : 'pointer',
-                  fontSize: '13.5px', fontWeight: 500, color: enLista ? '#ffffff' : 'var(--ink)',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                  {enLista ? <path d="M5 12l5 5L19 8" /> : <><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></>}
-                </svg>
-                {enLista ? 'En lista' : 'Guardar'}
+            <div className="det-acciones det-anim" style={{ animationDelay: '140ms' }}>
+              <button className={`det-btn ${enLista ? 'ok' : 'negro'}`} onClick={guardarRapido} aria-label={enLista ? 'Ya en tu lista' : 'Guardar en mi lista'}>
+                {enLista ? 'En tu lista' : 'Guardar'}
               </button>
-              <button
-                onClick={handleCompartir}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  background: 'var(--plate)', borderRadius: '999px',
-                  padding: '10px 18px', border: 'none', cursor: 'pointer',
-                  fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="m13 5 7 7-7 7M20 12H8a5 5 0 0 0-5 5" /></svg>
-                Compartir
-              </button>
+              <button className="det-btn" onClick={handleCompartir}>Compartir</button>
             </div>
-          </div>
 
-          {/* ── Columna derecha: dónde comprar + rango + insight + calculadora + CTA + relacionados ── */}
-          <div className="det-right">
-            <section className="det-section det-anim" style={{ animationDelay: '210ms' }}>
-              <h2 className="det-sh">Dónde comprarlo</h2>
-              {/* Única aparición de esta aclaración en toda la app (pedido Facu):
-                  acá, no repetida en cada chip Mayorista/Cadena de Catálogo/Inicio */}
-              <p style={{ fontSize: '11.5px', color: 'var(--gray)', fontWeight: 400, margin: '2px 0 0' }}>
-                Mayorista = precio de compra · Cadena = precio de góndola, para comparar
-              </p>
-
-              {/* Una sola tira: mayoristas primero (por precio), cadenas después.
-                  El chip por fila reemplaza a los sub-encabezados */}
-              {preciosValidos.map((precio, idx) => {
-                const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
-                const diffPct = !esMejor && mejorGlobal && mejorGlobal.precio > 0
-                  ? Math.round(((precio.precio - mejorGlobal.precio) / mejorGlobal.precio) * 100)
-                  : 0
-                return (
-                  <div
-                    key={precio.mayorista}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '14px',
-                      padding: '15px 0',
-                      borderBottom: idx === preciosValidos.length - 1 && preciosGondola.length === 0 ? 'none' : '1px solid var(--line)',
-                    }}
-                  >
-                    <div style={{ width: '86px', flexShrink: 0 }}>
-                      {fuentePorNombre(precio.mayorista)?.logo ? (
-                        <Image
-                          src={fuentePorNombre(precio.mayorista)!.logo}
-                          alt={precio.mayorista}
-                          width={82}
-                          height={22}
-                          style={{ maxWidth: '82px', maxHeight: '22px', objectFit: 'contain', display: 'block', width: 'auto', height: 'auto' }}
-                          unoptimized
-                        />
-                      ) : (
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
-                      )}
-                      <ChipTipo tipo="mayorista" style={{ marginTop: '5px' }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                        <div className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
-                          {formatearPrecio(precio.precio)}
+            {preciosValidos.length > 0 && (
+              <section className="det-grupo det-anim" style={{ animationDelay: '180ms' }}>
+                <h2>Dónde comprarlo</h2>
+                <p className="ayuda">Mayoristas: precio de compra</p>
+                {preciosValidos.map(precio => {
+                  const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
+                  const diff = mejorGlobal ? precio.precio - mejorGlobal.precio : 0
+                  return (
+                    <div key={precio.mayorista} className={`det-fila${esMejor ? ' mejor' : ''}`}>
+                      <LogoFuente nombre={precio.mayorista} />
+                      <div>
+                        <div className="pr tnum">{formatearPrecio(precio.precio)}</div>
+                        <div className="det-det tnum">
+                          {esMejor ? <span className="det-mejor">MÁS BARATO</span> : hayComparacion && diff > 0 ? <span>+{formatearPrecio(Math.round(diff))}</span> : null}
+                          {precio.oferta && <span className="det-oferta">OFERTA {precio.oferta}</span>}
+                          <Fecha precio={precio} />
                         </div>
-                        {precio.oferta && (
-                          <span style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
-                            OFERTA {precio.oferta}
-                          </span>
+                        {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
+                          <div className="det-nota tnum">precio de lista <s>{formatearPrecio(precio.precioRegular)}</s></div>
+                        )}
+                        {/* El portal de MaxiCarrefour suma percepciones IIBB (~3%) según el CUIT:
+                            sin este aviso el comerciante cree que nuestro precio está mal */}
+                        {precio.mayorista === 'MaxiCarrefour' && (
+                          <div className="det-nota tnum">≈ {formatearPrecio(Math.round(precio.precio * 1.03))} en tu portal con percepciones</div>
                         )}
                       </div>
-                      {/* Tachado solo si el regular es MAYOR: mismo criterio que cadenas */}
-                      {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
-                        <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
-                          precio de lista <s>{formatearPrecio(precio.precioRegular)}</s>
-                        </div>
-                      )}
-                      {!hayComparacion ? (
-<div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
-Solo lo encontramos en {precio.mayorista}
-</div>
-) : esMejor ? (
-                        <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em', marginTop: '1px' }}>
-                          MÁS BARATO
-                        </div>
-                      ) : (
-                        <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
-                          +{diffPct}% vs el mejor
-                        </div>
-                      )}
-                      {/* El portal del comerciante de Carrefour suma percepciones IIBB (~3%)
-                          segun el CUIT del cliente — mostrar el equivalente evita que el
-                          usuario crea que nuestro precio esta mal al comparar con su portal */}
-                      {precio.mayorista === 'MaxiCarrefour' && (
-                        <div className="tnum" style={{ fontSize: '11px', color: 'var(--gray)', fontWeight: 300, marginTop: '2px' }}>
-                          ≈ {formatearPrecio(precio.precio * 1.03)} en tu portal con percepciones (3%)
-                        </div>
-                      )}
-                      <div style={{ marginTop: '3px' }}>
-                        <FrescuraPill precio={precio} />
-                      </div>
+                      <BotonVer precio={precio} />
                     </div>
-                    {precio.link && (
-                      <a
-                        href={precio.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{
-                          border: '1.5px solid var(--ink)', background: '#ffffff',
-                          borderRadius: '999px', padding: '8px 16px',
-                          fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)',
-                          fontFamily: 'var(--font-sans)', textDecoration: 'none',
-                          display: 'flex', alignItems: 'center', gap: '5px',
-                        }}
-                      >
-                        Ver <ArrowUpRight size={12} strokeWidth={2.5} />
-                      </a>
-                    )}
-                  </div>
-                )
-              })}
-
-              {/* Cadenas: misma tira, misma fila — el chip CADENA (verde) las
-                  distingue. Es venta al público, nunca precio de compra */}
-              {preciosGondola.map((precio, idx) => {
-                const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
-                const diffPct = !esMejor && mejorGlobal && mejorGlobal.precio > 0
-                  ? Math.round(((precio.precio - mejorGlobal.precio) / mejorGlobal.precio) * 100)
-                  : 0
-                return (
-                <div
-                  key={precio.mayorista}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '14px',
-                    padding: '15px 0',
-                    borderBottom: idx === preciosGondola.length - 1 ? 'none' : '1px solid var(--line)',
-                  }}
-                >
-                  <div style={{ width: '86px', flexShrink: 0 }}>
-                    {fuentePorNombre(precio.mayorista)?.logo ? (
-                      <Image
-                        src={fuentePorNombre(precio.mayorista)!.logo}
-                        alt={precio.mayorista}
-                        width={82}
-                        height={22}
-                        style={{ maxWidth: '82px', maxHeight: '22px', objectFit: 'contain', display: 'block', width: 'auto', height: 'auto' }}
-                        unoptimized
-                      />
-                    ) : (
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
-                    )}
-                    <ChipTipo tipo="cadena" style={{ marginTop: '5px' }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      <span className="tnum" style={{ fontSize: '18px', fontWeight: esMejor ? 600 : 500, color: 'var(--ink)' }}>
-                        {formatearPrecio(precio.precio)}
-                      </span>
-                      {precio.oferta && (
-                        <span style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
-                          OFERTA {precio.oferta}
-                        </span>
-                      )}
-                    </div>
-                    {/* Tachado solo si el regular es MAYOR: en promos por cantidad
-                        (2do al X%) el precio unitario no cambia y tacharlo confunde */}
-                    {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
-                      <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
-                        precio de lista <s>{formatearPrecio(precio.precioRegular)}</s>
-                      </div>
-                    )}
-                    {!hayComparacion ? (
-<div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
-Solo lo encontramos en {precio.mayorista}
-</div>
-) : esMejor ? (
-                      <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.05em', marginTop: '1px' }}>
-                        MÁS BARATO
-                      </div>
-                    ) : (
-                      <div className="tnum" style={{ fontSize: '11.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '1px' }}>
-                        +{diffPct}% vs el mejor
-                      </div>
-                    )}
-                    <div style={{ marginTop: '3px' }}>
-                      <FrescuraPill precio={precio} />
-                    </div>
-                  </div>
-                  {precio.link && (
-                    <a
-                      href={precio.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      style={{
-                        border: '1.5px solid var(--ink)', background: '#ffffff',
-                        borderRadius: '999px', padding: '8px 16px',
-                        fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)',
-                        fontFamily: 'var(--font-sans)', textDecoration: 'none',
-                        display: 'flex', alignItems: 'center', gap: '5px',
-                      }}
-                    >
-                      Ver <ArrowUpRight size={12} strokeWidth={2.5} />
-                    </a>
-                  )}
-                </div>
-                )
-              })}
-
-              {/* Insight de precio auto-generado (reemplaza valoraciones vacías) */}
-              <div style={{ marginTop: '14px' }}>
-                <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--green)', fontWeight: 500 }}>
-                  {esEan ? `EAN ${producto.id}` : ''}
-                  {esEan && preciosValidos.length > 0 ? ' · ' : ''}
-                  {preciosValidos.length > 0 && `${preciosValidos.length} mayorista${preciosValidos.length !== 1 ? 's' : ''} lo ${preciosValidos.length !== 1 ? 'venden' : 'vende'}`}
-                </div>
-                {ahorroUnidad > 0 && (
-                  <p className="tnum" style={{ marginTop: '8px', fontSize: '14px', fontWeight: 300, lineHeight: 1.55, color: 'var(--ink)' }}>
-                    Comprando en {mejorPrecio.mayorista} ahorrás <b style={{ fontWeight: 600 }}>{formatearPrecio(ahorroUnidad)}</b> por
-                    unidad contra {peorPrecio.mayorista}.
-                  </p>
-                )}
-                <p style={{ marginTop: '10px', marginBottom: 0, fontSize: '11px', fontWeight: 300, lineHeight: 1.5, color: 'var(--gray)' }}>
-                  Precios finales con IVA. Pueden variar levemente según tu condición fiscal (percepciones) y sucursal.
-                </p>
-              </div>
-            </section>
-
-            {/* Calculadora de margen */}
-            {precioBase && (
-              <div className="det-calc det-anim" style={{
-                animationDelay: '260ms',
-                border: '1px solid var(--line)',
-                borderRadius: '10px',
-                padding: '20px',
-              }}>
-                <h2 style={{ fontSize: '16px', fontWeight: 600, letterSpacing: '-0.2px', color: 'var(--ink)', margin: 0 }}>
-                  Calculadora de margen
-                </h2>
-                {/* Base a libre elección: cualquier competidor, mayorista o cadena */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' }}>
-                  {preciosTodos.map(p => {
-                    const activo = p.mayorista === precioBase.mayorista
-                    return (
-                      <button
-                        key={p.mayorista}
-                        onClick={() => setFuenteSel(p.mayorista)}
-                        style={{
-                          border: activo ? '1.5px solid var(--ink)' : '1px solid var(--line)',
-                          background: activo ? 'var(--ink)' : '#ffffff',
-                          color: activo ? '#ffffff' : 'var(--ink)',
-                          borderRadius: '999px', padding: '6px 12px',
-                          fontSize: '11.5px', fontWeight: 600,
-                          fontFamily: 'var(--font-sans)', cursor: 'pointer',
-                        }}
-                      >
-                        {p.mayorista} <span className="tnum" style={{ fontWeight: 500 }}>{formatearPrecio(p.precio)}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '10px' }}>
-                  Comprando en {precioBase.mayorista} a <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{formatearPrecio(precioCompra)}</b>
-                  {precioBase.tipoFuente === 'cadena' ? ' (precio góndola)' : ''}
-                </div>
-                {/* Referencia conservadora: la cadena MÁS BARATA (preciosGondola viene ordenado) */}
-                {preciosGondola[0] && preciosGondola[0].precio > precioCompra && (
-                  <div className="tnum" style={{ fontSize: '12.8px', color: 'var(--gray)', fontWeight: 400, marginTop: '4px' }}>
-                    {preciosGondola[0].mayorista} lo vende al público a <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{formatearPrecio(preciosGondola[0].precio)}</b> —
-                    igualando la góndola tu margen es <b style={{ color: 'var(--green)', fontWeight: 600 }}>{Math.round(((preciosGondola[0].precio - precioCompra) / preciosGondola[0].precio) * 100)}%</b>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '18px' }}>
-                  <span style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--ink)' }}>Tu margen sobre la venta</span>
-                  <span className="tnum" style={{ fontSize: '18px', fontWeight: 600, color: margenEfectivo < 0 ? '#c0392b' : 'var(--gold)' }}>{margenEfectivo}%</span>
-                </div>
-                <input
-                  type="range"
-                  className="slider-brujula"
-                  min={5} max={99} value={Math.min(99, Math.max(5, margenEfectivo))}
-                  onChange={e => { setMargen(parseInt(e.target.value, 10)); setVentaManual(null) }}
-                  aria-label="Margen de ganancia"
-                  style={{ marginTop: '8px', '--slider-pct': `${((Math.min(99, Math.max(5, margenEfectivo)) - 5) / (99 - 5)) * 100}%` } as React.CSSProperties}
-                />
-                <div style={{ display: 'flex', gap: '12px', marginTop: '22px' }}>
-                  <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '8px', padding: '14px 16px' }}>
-                    <div style={{ fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase' }}>
-                      Precio venta · tocá y editá
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', marginTop: '3px' }}>
-                      <span className="tnum" style={{ fontSize: '24px', fontWeight: 600, color: 'var(--ink)' }}>$&nbsp;</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="tnum"
-                        value={Math.round(precioVentaCalc).toLocaleString('es-AR')}
-                        onChange={e => {
-                          const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
-                          setVentaManual(Number.isNaN(n) ? null : n)
-                        }}
-                        aria-label="Precio de venta exacto"
-                        style={{
-                          fontSize: '24px', fontWeight: 600, color: 'var(--ink)',
-                          background: 'transparent', border: 'none', outline: 'none',
-                          borderBottom: '1.5px dashed var(--gray)',
-                          width: '100%', minWidth: 0, padding: 0,
-                          fontFamily: 'inherit',
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div style={{ flex: 1, background: 'var(--plate)', borderRadius: '8px', padding: '14px 16px' }}>
-                    <div style={{ fontSize: '10.7px', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--gray)', textTransform: 'uppercase' }}>
-                      Ganancia
-                    </div>
-                    <ShuffleValue
-                      value={formatearPrecio(Math.round(gananciaCalc))}
-                      style={{ fontSize: '24px', fontWeight: 600, marginTop: '3px', color: gananciaCalc >= 0 ? 'var(--green)' : '#c0392b', display: 'block' }}
-                    />
-                  </div>
-                </div>
-              </div>
+                  )
+                })}
+              </section>
             )}
 
-            {/* CTA */}
-            <div className="det-cta-row det-anim" style={{ animationDelay: '300ms' }}>
-              <button
-                onClick={handleGuardar}
-                style={{
-                  width: '100%',
-                  background: enLista ? 'var(--green)' : 'var(--pill)', color: '#ffffff',
-                  border: 'none', borderRadius: '999px',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '15px', fontWeight: 500,
-                  padding: '15px 0', cursor: enLista ? 'default' : 'pointer',
-                }}
-              >
-                {enLista ? 'Ya está en tu lista' : 'Guardar en mi lista'}
-              </button>
-            </div>
-
-            {/* De la misma categoría — scrollea con la columna derecha */}
-            {relacionados.length > 0 && (
-              <div className="det-rel det-anim" style={{ animationDelay: '340ms' }}>
-                <h2 className="det-sh">{relacionadosPorSubcategoria ? `Más en ${producto.subcategoria}` : 'De la misma categoría'}</h2>
-                <HScroll className="det-rel-scroll" arrowOffsetY={7}>
-                  {relacionados.map(rel => (
-                    <RelCard key={rel.id} producto={rel} onClick={() => onVerProducto?.(rel)} />
-                  ))}
-                </HScroll>
-              </div>
+            {preciosGondola.length > 0 && (
+              <section className="det-grupo det-anim" style={{ animationDelay: '220ms' }}>
+                <h2>Precio en el súper</h2>
+                <p className="ayuda">Cadenas: lo que paga tu cliente en góndola</p>
+                {preciosGondola.map(precio => {
+                  const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
+                  return (
+                    <div key={precio.mayorista} className={`det-fila compacta${esMejor ? ' mejor' : ''}`}>
+                      <LogoFuente nombre={precio.mayorista} />
+                      <div className="der">
+                        <div className="pr tnum">{formatearPrecio(precio.precio)}</div>
+                        {esMejor && <span className="det-mejor">MÁS BARATO</span>}
+                        {precio.oferta && <span className="det-oferta">OFERTA {precio.oferta}</span>}
+                        {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
+                          <span className="det-nota tnum">de lista <s>{formatearPrecio(precio.precioRegular)}</s></span>
+                        )}
+                        <Fecha precio={precio} hace />
+                      </div>
+                      <BotonVer precio={precio} />
+                    </div>
+                  )
+                })}
+              </section>
             )}
+
+            <p className="det-legal">Precios finales con IVA. Pueden variar levemente según tu condición fiscal (percepciones) y sucursal.</p>
           </div>
+
+          {mejorGlobal && (
+            <div className="det-col der det-anim" style={{ animationDelay: '260ms' }}>
+              <ElegiTuPrecio
+                key={producto.id}
+                producto={producto}
+                mayoristas={preciosValidos}
+                cadenas={preciosGondola}
+                enLista={enLista}
+                onGuardar={guardar}
+              />
+            </div>
+          )}
         </div>
+
+        {relacionados.length > 0 && (
+          <div className="det-rel det-anim" style={{ animationDelay: '300ms' }}>
+            <h2>{relacionadosPorSubcategoria ? `Más en ${producto.subcategoria}` : 'De la misma categoría'}</h2>
+            <HScroll className="det-rel-scroll" arrowOffsetY={7}>
+              {relacionados.map(rel => (
+                <RelCard key={rel.id} producto={rel} onClick={() => onVerProducto?.(rel)} />
+              ))}
+            </HScroll>
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+// $15.943 con los centavos chicos, como en la maqueta
+function PrecioGrande({ valor }: { valor: number }) {
+  const [entero, centavos] = formatearPrecio(valor).split(',')
+  return <div className="det-precio tnum">{entero}{centavos && <small>,{centavos}</small>}</div>
+}
+
+function LogoFuente({ nombre, alto }: { nombre: string; alto?: number }) {
+  const logo = fuentePorNombre(nombre)?.logo
+  if (!logo) return <span style={{ fontSize: '13px', fontWeight: 600 }}>{nombre}</span>
+  return alto
+    ? <Image src={logo} alt={nombre} width={90} height={alto} style={{ height: alto, width: 'auto' }} unoptimized />
+    : <Image src={logo} alt={nombre} width={76} height={32} className="det-logo" unoptimized />
+}
+
+// Fecha del precio en TODAS las filas (pedido Facu 12/10): punto verde si es fresco, dorado/rojo si es viejo
+function Fecha({ precio, larga, hace }: { precio: Precio; larga?: boolean; hace?: boolean }) {
+  const f = frescuraDe(precio)
+  if (!f) return null
+  const reciente = f.label === 'Hoy' || f.label === 'Ayer'
+  const texto = larga
+    ? `Precio ${f.label === 'Hoy' ? 'de hoy' : f.label === 'Ayer' ? 'de ayer' : `de hace ${f.label}`}`
+    : hace && !reciente ? `hace ${f.label}` : f.label
+  return (
+    <span className="det-fecha" style={{ '--dot': f.color } as React.CSSProperties} title={precio.fechaScraping ? `Precio del ${precio.fechaScraping}` : undefined}>
+      {texto}
+    </span>
+  )
+}
+
+// "Ver" igual en todas las filas. Nini no tiene ficha pública (todo vive detrás del
+// login de una cuenta prestada): se dice eso en vez de un botón que no lleva a nada.
+function BotonVer({ precio }: { precio: Precio }) {
+  if (precio.link) {
+    return (
+      <a className="det-ver" href={precio.link} target="_blank" rel="noopener noreferrer">
+        Ver <ArrowUpRight size={13} strokeWidth={2.5} />
+      </a>
+    )
+  }
+  if (precio.mayorista === 'Nini') return <span className="det-sincuenta">Solo con cuenta</span>
+  return <span />
 }
 
 function RelCard({ producto, onClick }: { producto: Producto; onClick: () => void }) {

@@ -9,12 +9,14 @@
 
   /* ── Diseño v2 — paleta clara (Trolley) ── */
   --ink:       #1a1a1a;   /* texto principal */
-  --gray:      #808080;   /* texto secundario (ÚNICO gris de texto) */
+  --gray:      #6f6f6f;   /* texto secundario (ÚNICO gris de texto) — #808080 no llegaba a contraste 4.5:1 */
   --line:      #ececec;   /* hairlines, borders */
   --plate:     #f6f5f3;   /* placas de imagen de producto */
   --gold:      #c89055;   /* acento único (saturado para fondo claro) */
   --gold-deep: #b07a3f;   /* gradiente de CTA dorado */
   --green:     #15803d;   /* SOLO ahorro/éxito */
+  --green-bg:  #e9f5ee;   /* fondo de ahorro */
+  --red:       #b4432f;   /* pérdida (vendés por debajo del costo) */
   --pill:      #111111;   /* pills negras */
   --ease-out:  cubic-bezier(0.23, 1, 0.32, 1);  /* easing global (Emil) */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* drawer categorías 400ms */
@@ -31,7 +33,7 @@
   --secondary:             #f6f5f3;
   --secondary-foreground:  #1a1a1a;
   --muted:                 #f6f5f3;
-  --muted-foreground:      #808080;
+  --muted-foreground:      #6f6f6f;
   --accent:                #c89055;
   --accent-foreground:     #ffffff;
   --destructive:           #dc2626;
@@ -181,60 +183,4 @@
   .hscroll-btn:hover { background: var(--plate); }
   /* el press global button:active { scale } pisaría el translateY: se re-declara completo */
   .hscroll-btn:active { transform: translateY(-50%) scale(0.94); }
-}
-
-/* ──────────────────────────────────────────────
-   SLIDER (Calculadora de margen)
-────────────────────────────────────────────── */
-
-input[type='range'].slider-brujula {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 22px;
-  background: transparent;
-  outline: none;
-  cursor: pointer;
-}
-input[type='range'].slider-brujula::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  margin-top: -8px;
-  border-radius: 50%;
-  background: var(--gold);
-  border: 2px solid #ffffff;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(200, 144, 85, 0.4);
-}
-input[type='range'].slider-brujula::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(
-    to right,
-    var(--gold) 0%,
-    var(--gold) var(--slider-pct, 35%),
-    var(--line) var(--slider-pct, 35%),
-    var(--line) 100%
-  );
-}
-input[type='range'].slider-brujula::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--gold);
-  border: 2px solid #ffffff;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(200, 144, 85, 0.4);
-}
-input[type='range'].slider-brujula::-moz-range-track {
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(
-    to right,
-    var(--gold) 0%,
-    var(--gold) var(--slider-pct, 35%),
-    var(--line) var(--slider-pct, 35%),
-    var(--line) 100%
-  );
 }
