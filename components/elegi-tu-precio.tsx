@@ -139,6 +139,7 @@ export function ElegiTuPrecio({ producto, mayoristas, cadenas, enLista, onGuarda
         .etp-r.neg { color: var(--red); font-weight: 600; }
         .etp-ref { display: grid; gap: 2px; } .etp-ref b { font-weight: 600; font-size: 16px; } .etp-ref span { font-size: 14px; color: var(--gray); }
         .etp-esc { position: relative; height: 300px; margin: 0 -18px; background: #efece5; }
+        @media (min-width: 1000px) { .etp-esc { height: 430px; } }
         .etp-cargando { display: grid; place-items: center; font-size: 14px; color: var(--gray); }
         .etp-atajos { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 4px; scrollbar-width: none; }
         .etp-atajos::-webkit-scrollbar { display: none; }

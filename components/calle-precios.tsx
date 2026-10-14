@@ -191,8 +191,10 @@ export default function CallePrecios(props: Props) {
         const leanT = RM ? 0 : clamp(vel / (max - min) * 0.3, -0.1, 0.1); lean += (leanT - lean) * (1 - Math.exp(-dt * 10)); carro.rotation.z = -lean
         if (!RM && sprite) { const f = clamp(acc / (max - min), -6, 6) * 0.05; wobV += (f - 70 * wob - 7 * wobV) * dt; wob += wobV * dt; sprite.material.rotation = clamp(wob, -0.3, 0.3) }
         camino.scale.x = Math.max(0.001, x + W / 2 + 6); camino.position.x = -W / 2 - 6 + camino.scale.x / 2
-        camX += (x - camX) * (RM ? 1 : 1 - Math.exp(-dt * (arrastrando ? 9 : 5)))
-        const seguir = new THREE.Vector3(camX + 0.35, 6.1, 8.6), mira = new THREE.Vector3(camX, 0.55, -1.75)
+        camX += (x * 0.35 - camX) * (RM ? 1 : 1 - Math.exp(-dt * (arrastrando ? 9 : 5)))
+        // el encuadre se aleja si el recuadro es angosto, para que entren todos los carteles sin tener que mover nada
+        const fit = Math.max(1, 1.5 / cam.aspect) * 1.1
+        const mira = new THREE.Vector3(camX, 0.55, -1.75), seguir = new THREE.Vector3(camX + 0.35 * fit, 0.55 + 5.55 * fit, -1.75 + 10.35 * fit)
         if (intro < 1) {
           intro = Math.min(1, intro + dt / 2.0); const e = 1 - Math.pow(1 - intro, 3)
           cam.position.set(seguir.x * e, 12.5 + (seguir.y - 12.5) * e, 12 + (seguir.z - 12) * e); cam.lookAt(mira.x * e, 0.2 + (mira.y - 0.2) * e, -1.5 + (mira.z + 1.5) * e)
@@ -206,7 +208,7 @@ export default function CallePrecios(props: Props) {
         })
         galpones.forEach(gp => { gp.mat.map = Math.abs(gp.p - v) < cerca ? gp.t1 : gp.t0 })
         if (hud.current) { hud.current.style.left = (v - min) / (max - min) * 100 + '%'; hud.current.textContent = act >= 0 && dmin < cerca ? 'Pasando por ' + REF[act].nombre : 'Estás acá' }
-        return intro >= 1 && Math.abs(x - camX) < 0.002 && Math.abs(leanT - lean) < 0.001 && Math.abs(wob) < 0.002 && Math.abs(wobV) < 0.01 && mercados.every(m => m.pop < 0.001)
+        return intro >= 1 && Math.abs(x * 0.35 - camX) < 0.002 && Math.abs(leanT - lean) < 0.001 && Math.abs(wob) < 0.002 && Math.abs(wobV) < 0.01 && mercados.every(m => m.pop < 0.001)
       }
 
       ajustar = () => { const w = el.clientWidth, h = el.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); renderer.render(scene, cam) }

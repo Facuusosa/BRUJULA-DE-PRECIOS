@@ -134,7 +134,7 @@ export function VistaDetalle({
         @media (prefers-reduced-motion: reduce) {
           .det-anim { transform: none; animation-duration: 150ms; }
         }
-        .det-wrap { max-width: 1120px; margin: 0 auto; }
+        .det-wrap { max-width: 1320px; margin: 0 auto; }
         .det-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 4px; }
         .det-top button { background: none; border: none; cursor: pointer; color: var(--ink); font-family: var(--font-sans); display: flex; align-items: center; }
         .det-cols { display: grid; gap: 22px; padding: 0 20px; }
@@ -186,11 +186,19 @@ export function VistaDetalle({
         .det-rel-scroll { display: flex; gap: 12px; padding: 14px 20px 0; overflow-x: auto; scrollbar-width: none; }
         .det-rel-scroll::-webkit-scrollbar { display: none; }
         @media (min-width: 1000px) {
-          .det-wrap { padding: 0 44px; }
+          .det-wrap { padding: 0 56px; }
+          .det-nombre { font-size: 34px; }
+          .det-precio { font-size: 50px; }
+          .det-grupo h2 { font-size: 24px; }
+          .det-fila .pr { font-size: 22px; }
+          .det-fila .nom { font-size: 16px; }
+          .det-fila { padding-top: 15px; padding-bottom: 15px; }
+          .det-fila.mejor { padding-left: 14px; padding-right: 14px; margin: 0 -14px; }
+          .det-vs { font-size: 26px; }
           .det-top { padding: 16px 0 8px; }
-          .det-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 56px; padding: 0; align-items: start; }
+          .det-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 580px); gap: 72px; padding: 0; align-items: start; }
           .det-col.der { position: sticky; top: 16px; }
-          .det-hero { grid-template-columns: 180px 1fr; gap: 24px; }
+          .det-hero { grid-template-columns: 240px 1fr; gap: 32px; }
           .det-rel h2, .det-rel-scroll { padding-left: 0; padding-right: 0; }
           .det-rel-card { width: 150px !important; }
         }

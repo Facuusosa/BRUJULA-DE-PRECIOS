@@ -72,6 +72,7 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
     ? candidatosGlobal.reduce((a, b) => (a.precio <= b.precio ? a : b))
     : undefined
   const esEan = /^\d{13}$/.test(bomba.id)
+  const techo = Math.max(...preciosValidos.map(p => p.precio)) // misma base que la píldora de la foto: el mayorista más caro
 
   const handleGuardar = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -244,38 +245,9 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
           {preciosValidos.length > 0 && (
             <div className="deal-sec">
               <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ink)' }}>Dónde comprarlo</div>
-              <div style={{ display: 'flex', marginTop: '14px', gap: '12px' }}>
-                {preciosValidos.map((precio, idx) => (
-                  <div key={precio.mayorista} style={{ flex: 1 }}>
-                    {fuentePorNombre(precio.mayorista)?.logo ? (
-                      <Image
-                        src={fuentePorNombre(precio.mayorista)!.logo}
-                        alt={precio.mayorista}
-                        width={92}
-                        height={26}
-                        style={{ height: '26px', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }}
-                        unoptimized
-                      />
-                    ) : (
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
-                    )}
-                    <div className="tnum" style={{ fontSize: '17px', fontWeight: precio.mayorista === mejorGlobal?.mayorista ? 600 : 500, marginTop: '7px', color: 'var(--ink)' }}>
-                      {formatearPrecio(precio.precio)}
-                    </div>
-                    {precio.oferta && (
-                      <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em', marginTop: '2px' }}>
-                        OFERTA {precio.oferta}
-                      </div>
-                    )}
-                    {precio.mayorista === mejorGlobal?.mayorista && (
-                      <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
-                        MÁS BARATO
-                      </div>
-                    )}
-                    <div style={{ marginTop: '5px' }}>
-                      <FrescuraPill precio={precio} compact />
-                    </div>
-                  </div>
+              <div style={{ display: 'flex', marginTop: '14px', gap: '10px' }}>
+                {preciosValidos.map(precio => (
+                  <CeldaPrecio key={precio.mayorista} precio={precio} esMejor={precio.mayorista === mejorGlobal?.mayorista} techo={techo} />
                 ))}
               </div>
 
@@ -310,38 +282,9 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
                       style={{ marginTop: '12px' }}
                     >
                       <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink)' }}>Cadenas</div>
-                      <div style={{ display: 'flex', marginTop: '12px', gap: '12px' }}>
+                      <div style={{ display: 'flex', marginTop: '12px', gap: '10px' }}>
                         {preciosCadena.map(precio => (
-                          <div key={precio.mayorista} style={{ flex: 1 }}>
-                            {fuentePorNombre(precio.mayorista)?.logo ? (
-                              <Image
-                                src={fuentePorNombre(precio.mayorista)!.logo}
-                                alt={precio.mayorista}
-                                width={92}
-                                height={26}
-                                style={{ height: '26px', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }}
-                                unoptimized
-                              />
-                            ) : (
-                              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)' }}>{precio.mayorista}</span>
-                            )}
-                            <div className="tnum" style={{ fontSize: '17px', fontWeight: precio.mayorista === mejorGlobal?.mayorista ? 600 : 500, marginTop: '7px', color: 'var(--ink)' }}>
-                              {formatearPrecio(precio.precio)}
-                            </div>
-                            {precio.oferta && (
-                              <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em', marginTop: '2px' }}>
-                                OFERTA {precio.oferta}
-                              </div>
-                            )}
-                            {precio.mayorista === mejorGlobal?.mayorista && (
-                              <div style={{ fontSize: '10.7px', fontWeight: 600, color: 'var(--green)', letterSpacing: '0.04em' }}>
-                                MÁS BARATO
-                              </div>
-                            )}
-                            <div style={{ marginTop: '5px' }}>
-                              <FrescuraPill precio={precio} compact />
-                            </div>
-                          </div>
+                          <CeldaPrecio key={precio.mayorista} precio={precio} esMejor={precio.mayorista === mejorGlobal?.mayorista} techo={techo} />
                         ))}
                       </div>
                     </motion.div>
@@ -394,6 +337,38 @@ export function BombaDeal({ bomba, rank, onVerProducto, onGuardar }: BombaDealPr
             </motion.button>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+
+// Una fuente (mayorista o cadena). La más barata se destaca con fondo verde y sello sólido;
+// "Ahorrás" compara contra el precio más alto de los que se muestran, así el usuario ve la plata.
+function CeldaPrecio({ precio, esMejor, techo }: { precio: ProductoBomba['precios'][number]; esMejor: boolean; techo: number }) {
+  const logo = fuentePorNombre(precio.mayorista)?.logo
+  const ahorro = Math.round(techo - precio.precio)
+  return (
+    <div style={{ flex: 1, minWidth: 0, padding: '12px 12px 10px', borderRadius: '14px', background: esMejor ? 'var(--green-bg)' : 'transparent' }}>
+      {logo ? (
+        <Image src={logo} alt={precio.mayorista} width={92} height={26} style={{ height: '26px', maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }} unoptimized />
+      ) : (
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>{precio.mayorista}</span>
+      )}
+      <div className="tnum" style={{ fontSize: '20px', fontWeight: esMejor ? 700 : 500, marginTop: '8px', color: esMejor ? 'var(--green)' : 'var(--ink)' }}>
+        {formatearPrecio(precio.precio)}
+      </div>
+      {esMejor && (
+        <span style={{ display: 'inline-block', marginTop: '6px', background: 'var(--green)', color: '#fff', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', borderRadius: '999px', padding: '3px 9px' }}>MÁS BARATO</span>
+      )}
+      {ahorro > 0 && (
+        <div className="tnum" style={{ marginTop: '6px', fontSize: esMejor ? '15px' : '13px', fontWeight: esMejor ? 700 : 500, color: 'var(--green)' }}>Ahorrás {formatearPrecio(ahorro)}</div>
+      )}
+      {precio.oferta && (
+        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b45309', letterSpacing: '0.04em', marginTop: '4px' }}>OFERTA {precio.oferta}</div>
+      )}
+      <div style={{ marginTop: '5px' }}>
+        <FrescuraPill precio={precio} compact />
       </div>
     </div>
   )
