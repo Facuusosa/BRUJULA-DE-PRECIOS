@@ -274,11 +274,6 @@ export function VistaDetalle({
                         {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
                           <span className="det-nota tnum">de lista <s>{formatearPrecio(precio.precioRegular)}</s></span>
                         )}
-                        {/* El portal de MaxiCarrefour suma percepciones IIBB (~3%) según el CUIT:
-                            sin este aviso el comerciante cree que nuestro precio está mal */}
-                        {precio.mayorista === 'MaxiCarrefour' && (
-                          <span className="det-nota tnum">≈ {formatearPrecio(Math.round(precio.precio * 1.03))} en tu portal con percepciones</span>
-                        )}
                         <Fecha precio={precio} hace />
                       </div>
                       <BotonVer precio={precio} />
