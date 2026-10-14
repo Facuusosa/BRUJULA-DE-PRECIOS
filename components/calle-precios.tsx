@@ -105,6 +105,14 @@ export default function CallePrecios(props: Props) {
       const cam = new THREE.PerspectiveCamera(32, 1, 0.5, 120)
       const { sol, plano } = K.barrio(scene, W / 2 + 6, { left: -9, right: 9, top: 7, bottom: -7 }, [13, 30])
       const xDe = (p: number) => (p - min) / (max - min) * W - W / 2
+      // precios casi iguales caen en el mismo punto y los carteles se tapan: se separan a una distancia
+      // mínima solo en pantalla (el precio real de cada uno no cambia, tocar/imán siguen usándolo)
+      const separar = (ps: number[], d: number) => {
+        const o = ps.map((_, i) => i).sort((a, b) => ps[a] - ps[b]), x = o.map(i => xDe(ps[i]))
+        for (let k = 0; k < 60; k++) for (let j = 1; j < x.length; j++) { const f = d - (x[j] - x[j - 1]); if (f > 0.001) { x[j - 1] -= f / 2; x[j] += f / 2 } }
+        const r: number[] = []; o.forEach((i, j) => { r[i] = x[j] }); return r
+      }
+      const xMerc = separar(REF.map(r => r.precio), 1.3), xGalp = separar(mayoristas.map(m => m.precio), 1.9)
 
       // zona de pérdida (rojo) antes del costo, raya y cartelito "te costó" en la vereda
       const xc = xDe(costo)
@@ -131,18 +139,18 @@ export default function CallePrecios(props: Props) {
         const t0 = K.tex(K.cartelCanvas(logos[nombre], fmt(p), null)), t1 = K.tex(K.cartelCanvas(logos[nombre], fmt(p), '#1a1a1a'))
         const { cart, mat } = K.cartelColgado(s.g, alto, 0.62, 0.3, 1.05, 0.74); mat.map = t0
         s.cuerpo.userData.p = cart.userData.p = p; tocables.push(s.cuerpo, cart)
-        s.g.position.set(xDe(p), 0, i % 2 ? -2.75 : -1.6); scene.add(s.g)
+        s.g.position.set(xMerc[i], 0, i % 2 ? -2.75 : -1.6); scene.add(s.g)
         const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.52), new THREE.MeshBasicMaterial({ map: flechaT, transparent: true, opacity: 0.9, depthWrite: false }))
-        fl.rotation.x = -Math.PI / 2; fl.position.set(xDe(p), 0.013, -0.02); scene.add(fl)
+        fl.rotation.x = -Math.PI / 2; fl.position.set(xMerc[i], 0.013, -0.02); scene.add(fl)
         return { cart, mat, t0, t1, p, pop: 0 }
       })
       // los mayoristas: galpones atrás, en su precio de compra
-      const galpones: Local[] = mayoristas.map(({ nombre, precio: p }) => {
+      const galpones: Local[] = mayoristas.map(({ nombre, precio: p }, i) => {
         const gp = K.galpon(logos[nombre])
         const t0 = K.tex(K.cartelCanvas(logos[nombre], fmt(p), null, 'mayorista')), t1 = K.tex(K.cartelCanvas(logos[nombre], fmt(p), '#1a1a1a', 'mayorista'))
         const { cart, mat } = K.cartelColgado(gp.g, gp.alto, 0.88, 0.45, 1.0, 0.78); mat.map = t0
         gp.cuerpo.userData.p = cart.userData.p = p; tocables.push(gp.cuerpo, cart)
-        gp.g.position.set(xDe(p), 0, -4.1); scene.add(gp.g)
+        gp.g.position.set(xGalp[i], 0, -4.1); scene.add(gp.g)
         return { cart, mat, t0, t1, p, pop: 0 }
       })
       { // al final de la calle: el arco de "o más"

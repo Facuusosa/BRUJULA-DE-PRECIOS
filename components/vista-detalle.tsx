@@ -150,7 +150,8 @@ export function VistaDetalle({
         .det-precio small { font-size: 22px; font-weight: 600; }
         .det-donde { display: flex; align-items: center; gap: 8px; font-size: 15px; margin-top: 4px; color: var(--ink); flex-wrap: wrap; }
         .det-donde img { max-width: 90px; object-fit: contain; }
-        .det-vs { margin-top: 8px; font-size: 14px; background: var(--green-bg); color: var(--green); border-radius: 10px; padding: 7px 10px; font-weight: 500; }
+        .det-vs { margin-top: 10px; font-size: 22px; line-height: 1.15; background: var(--green-bg); color: var(--green); border-radius: 12px; padding: 10px 12px; font-weight: 800; letter-spacing: -.01em; }
+        .det-vs span { display: block; font-size: 13px; font-weight: 500; margin-top: 2px; }
         .det-acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .det-btn { border-radius: 999px; padding: 13px 16px; font-family: var(--font-sans); font-weight: 500; font-size: 15px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
         .det-btn.negro { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 600; }
@@ -158,22 +159,27 @@ export function VistaDetalle({
         .det-btn:focus-visible, .det-ver:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
         .det-grupo h2 { font-size: 20px; font-weight: 600; margin: 0 0 2px; color: var(--ink); letter-spacing: -0.2px; }
         .det-grupo .ayuda { margin: 0 0 6px; font-size: 14px; color: var(--gray); }
-        .det-fila { display: grid; grid-template-columns: 76px 1fr auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+        .det-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto 96px; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
         .det-fila:last-child { border-bottom: none; }
         .det-logo { height: 32px; width: 76px; object-fit: contain; object-position: left center; }
-        .det-fila .pr { font-size: 20px; font-weight: 600; color: var(--ink); }
+        .det-fila .pr { font-weight: 600; color: var(--ink); }
         .det-fila.mejor .pr { color: var(--green); }
         .det-det { font-size: 14px; color: var(--gray); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 1px; }
-        .det-mejor, .det-oferta { font-size: 12px; font-weight: 600; color: var(--green); letter-spacing: 0.04em; }
+        .det-mejor, .det-oferta { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+        .det-mejor { background: var(--green); color: #fff; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+        .det-oferta { color: #b45309; }
+        .det-fila.mejor { background: var(--green-bg); border-radius: 14px; padding-left: 12px; padding-right: 12px; margin: 0 -12px; border-bottom-color: transparent; }
         .det-nota { font-size: 12.5px; color: var(--gray); margin-top: 2px; }
         .det-fecha { font-size: 13px; display: inline-flex; align-items: center; gap: 5px; color: var(--gray); }
         .det-fecha::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
         .det-ver { border: 1.5px solid var(--ink); border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 500; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 4px; background: #fff; }
         .det-sincuenta { font-size: 13px; color: var(--gray); text-align: right; max-width: 70px; line-height: 1.2; }
-        .det-fila.compacta { padding: 11px 0; }
-        .det-fila.compacta .der { text-align: right; display: grid; justify-items: end; gap: 2px; }
-        .det-fila.compacta .pr { font-size: 17px; font-weight: 500; }
-        .det-fila.compacta.mejor .pr { font-weight: 600; }
+        .det-fila .quien { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .det-fila .det-logo { width: 62px; flex: none; }
+        .det-fila .nom { font-size: 14.5px; font-weight: 500; color: var(--ink); line-height: 1.2; overflow-wrap: anywhere; }
+        .det-fila .der { max-width: 150px; text-align: right; display: grid; justify-items: end; gap: 2px; }
+        .det-fila .pr { font-size: 19px; }
+        .det-fila .det-ver, .det-fila .det-sincuenta { justify-self: end; }
         .det-legal { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--gray); }
         .det-rel { padding: 30px 0 40px; }
         .det-rel h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: var(--ink); margin: 0; padding: 0 20px; }
@@ -238,7 +244,7 @@ export function VistaDetalle({
                   </div>
                   <div style={{ marginTop: '4px' }}><Fecha precio={mejorGlobal} larga /></div>
                   {!hayComparacion && <div className="det-nota">Solo lo encontramos en {mejorGlobal.mayorista}</div>}
-                  {ahorroVsSuper > 0 && <div className="det-vs tnum">{formatearPrecio(Math.round(ahorroVsSuper))} menos que en el súper</div>}
+                  {ahorroVsSuper > 0 && <div className="det-vs tnum">Ahorrás {formatearPrecio(Math.round(ahorroVsSuper))} <span>vs. comprar en el súper</span></div>}
                 </div>
               ) : (
                 <div className="det-nota">Sin precio disponible hoy.</div>
@@ -258,25 +264,22 @@ export function VistaDetalle({
                 <p className="ayuda">Mayoristas: precio de compra</p>
                 {preciosValidos.map(precio => {
                   const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
-                  const diff = mejorGlobal ? precio.precio - mejorGlobal.precio : 0
                   return (
                     <div key={precio.mayorista} className={`det-fila${esMejor ? ' mejor' : ''}`}>
-                      <LogoFuente nombre={precio.mayorista} />
-                      <div>
+                      <div className="quien"><LogoFuente nombre={precio.mayorista} /><span className="nom">{precio.mayorista}</span></div>
+                      <div className="der">
                         <div className="pr tnum">{formatearPrecio(precio.precio)}</div>
-                        <div className="det-det tnum">
-                          {esMejor ? <span className="det-mejor">MÁS BARATO</span> : hayComparacion && diff > 0 ? <span>+{formatearPrecio(Math.round(diff))}</span> : null}
-                          {precio.oferta && <span className="det-oferta">OFERTA {precio.oferta}</span>}
-                          <Fecha precio={precio} />
-                        </div>
+                        {esMejor && <span className="det-mejor">MÁS BARATO</span>}
+                        {precio.oferta && <span className="det-oferta">OFERTA {precio.oferta}</span>}
                         {precio.oferta && precio.precioRegular && precio.precioRegular > precio.precio && (
-                          <div className="det-nota tnum">precio de lista <s>{formatearPrecio(precio.precioRegular)}</s></div>
+                          <span className="det-nota tnum">de lista <s>{formatearPrecio(precio.precioRegular)}</s></span>
                         )}
                         {/* El portal de MaxiCarrefour suma percepciones IIBB (~3%) según el CUIT:
                             sin este aviso el comerciante cree que nuestro precio está mal */}
                         {precio.mayorista === 'MaxiCarrefour' && (
-                          <div className="det-nota tnum">≈ {formatearPrecio(Math.round(precio.precio * 1.03))} en tu portal con percepciones</div>
+                          <span className="det-nota tnum">≈ {formatearPrecio(Math.round(precio.precio * 1.03))} en tu portal con percepciones</span>
                         )}
+                        <Fecha precio={precio} hace />
                       </div>
                       <BotonVer precio={precio} />
                     </div>
@@ -292,8 +295,8 @@ export function VistaDetalle({
                 {preciosGondola.map(precio => {
                   const esMejor = hayComparacion && mejorGlobal?.mayorista === precio.mayorista
                   return (
-                    <div key={precio.mayorista} className={`det-fila compacta${esMejor ? ' mejor' : ''}`}>
-                      <LogoFuente nombre={precio.mayorista} />
+                    <div key={precio.mayorista} className={`det-fila${esMejor ? ' mejor' : ''}`}>
+                      <div className="quien"><LogoFuente nombre={precio.mayorista} /><span className="nom">{precio.mayorista}</span></div>
                       <div className="der">
                         <div className="pr tnum">{formatearPrecio(precio.precio)}</div>
                         {esMejor && <span className="det-mejor">MÁS BARATO</span>}
