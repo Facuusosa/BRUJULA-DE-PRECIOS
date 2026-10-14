@@ -148,7 +148,7 @@ export default function CallePrecios(props: Props) {
       const galpones: Local[] = mayoristas.map(({ nombre, precio: p }, i) => {
         const gp = K.galpon(logos[nombre])
         const t0 = K.tex(K.cartelCanvas(logos[nombre], fmt(p), null, 'mayorista')), t1 = K.tex(K.cartelCanvas(logos[nombre], fmt(p), '#1a1a1a', 'mayorista'))
-        const { cart, mat } = K.cartelColgado(gp.g, gp.alto, 0.88, 0.45, 1.0, 0.78); mat.map = t0
+        const { cart, mat } = K.cartelColgado(gp.g, gp.alto, 1.05, 0.62, 1.15, 0.9); mat.map = t0
         gp.cuerpo.userData.p = cart.userData.p = p; tocables.push(gp.cuerpo, cart)
         gp.g.position.set(xGalp[i], 0, -4.1); scene.add(gp.g)
         return { cart, mat, t0, t1, p, pop: 0 }
@@ -325,7 +325,7 @@ export default function CallePrecios(props: Props) {
         .calle:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
         .calle canvas { display: block; width: 100%; height: 100%; }
         .calle .ts { position: absolute; left: 0; right: 0; height: 32%; pointer-events: none; -webkit-backdrop-filter: blur(2.6px); backdrop-filter: blur(2.6px); }
-        .calle .ts.arr { top: 0; -webkit-mask-image: linear-gradient(#000 20%, transparent); mask-image: linear-gradient(#000 20%, transparent); }
+        .calle .ts.arr { top: 0; height: 9%; -webkit-mask-image: linear-gradient(#000 20%, transparent); mask-image: linear-gradient(#000 20%, transparent); }
         .calle .ts.aba { bottom: 0; -webkit-mask-image: linear-gradient(transparent, #000 80%); mask-image: linear-gradient(transparent, #000 80%); }
         .calle .hud { position: absolute; left: 16px; right: 16px; top: 12px; height: 34px; pointer-events: none; z-index: 2; }
         .calle .hud .l { position: absolute; left: 0; right: 0; top: 24px; height: 2px; background: var(--ink); opacity: .45; }
