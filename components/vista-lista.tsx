@@ -268,7 +268,7 @@ export function VistaLista({
         .ml-lrow small.falta { color: var(--red); }
         .ml-lrow .pr { text-align: right; font-weight: 700; font-size: 15px; }
         .ml-lrow .pr small { font-weight: 400; }
-        .ml-lrow .best { font-size: 10.5px; font-weight: 600; color: var(--green); letter-spacing: .05em; text-transform: uppercase; display: block; }
+        .ml-lrow .best { font-size: 10.5px; background: var(--green); color: #fff; padding: 2px 8px; border-radius: 999px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; display: inline-block; margin-bottom: 2px; }
         .ml-chk { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; color: var(--ink); }
         .ml-chk input { width: 18px; height: 18px; accent-color: var(--green); }
         .ml-aviso { border: 1.5px solid #ecc9c1; background: #fbf1ee; border-radius: 12px; padding: 10px 12px; font-size: 14px; display: grid; gap: 8px; color: var(--ink); }
@@ -289,8 +289,8 @@ export function VistaLista({
         .ml-picker { display: grid; gap: 5px; padding: 2px 0 10px; }
         .ml-opc { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1.5px solid var(--line); border-radius: 10px; padding: 7px 10px; background: #fff; cursor: pointer; text-align: left; font-size: 14px; }
         .ml-opc[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) inset; }
-        .ml-opc .tag { font-size: 12px; font-weight: 600; color: var(--green); }
-        .ml-opc .tag.gris { color: var(--gray); font-weight: 400; }
+        .ml-opc .tag { font-size: 11px; background: var(--green); color: #fff; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+        .ml-opc .tag.gris { background: none; color: var(--gray); font-weight: 400; padding: 0; font-size: 12px; }
         .ml-totfin { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px dashed var(--line); padding-top: 12px; color: var(--ink); }
         .ml-totfin span { font-size: 13px; font-weight: 600; letter-spacing: .12em; }
         .ml-totfin .g { font-size: 30px; font-weight: 700; letter-spacing: -.8px; }
@@ -511,7 +511,7 @@ export function VistaLista({
                                     <button key={f} className="ml-opc" aria-pressed={f === a.fuente} onClick={() => comprarEn(a.item.id, f)}>
                                       <Logo fuente={f} />
                                       <span className="tnum">{fmt(v)} c/u · {fmt(v * a.item.q)}</span>
-                                      <span className={`tag${k ? ' gris' : ''}`}>{k ? '+' + fmt((v - ops[0][1]) * a.item.q) : 'más barato'}</span>
+                                      <span className={`tag${k ? ' gris' : ''}`}>{k ? fmt((v - ops[0][1]) * a.item.q) + ' más' : 'más barato'}</span>
                                     </button>
                                   ))}
                                 </div>

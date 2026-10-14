@@ -114,10 +114,11 @@ export function ElegiTuPrecio({ producto, mayoristas, cadenas, enLista, onGuarda
         .etp-fuentes .g { font-size: 13px; font-weight: 600; color: var(--gray); padding: 10px 12px 4px; border-top: 1px solid var(--line); }
         .etp-fu { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 8px; width: 100%; font: inherit; background: none; border: none; border-top: 1px solid var(--line); padding: 11px 12px; cursor: pointer; text-align: left; color: var(--ink); }
         .etp-fu img { height: 22px; width: auto; max-width: 80px; object-fit: contain; background: #fff; }
-        .etp-fu .tag { font-size: 12px; font-weight: 600; color: var(--green); }
+        .etp-fu .tag { font-size: 11px; background: var(--green); color: #fff; padding: 2px 8px; border-radius: 999px; font-weight: 700; justify-self: start; }
+        .etp-fu .tag:empty { display: none; }
         .etp-fu .p { font-size: 16px; font-weight: 600; }
         .etp-fu[aria-checked="true"] { background: var(--ink); color: #fff; }
-        .etp-fu[aria-checked="true"] .tag { color: #e6c79a; }
+        
         .etp-fu[aria-checked="true"] img { padding: 2px 4px; }
         .etp-cuenta .f { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 12px; padding: 5px 0; }
         .etp-cuenta .et { font-size: 15px; color: var(--gray); }
